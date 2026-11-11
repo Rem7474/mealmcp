@@ -194,6 +194,17 @@ function SettingsCard() {
         <input type="checkbox" className="size-4 accent-(--accent)" checked={!!current.nutrition?.enabled} onChange={(e) => change({ ...current, nutrition: { enabled: e.target.checked } })} />
         {t('settings.nutritionOn')}
       </label>
+      {draft && (
+        <div role="status" className="sticky bottom-20 z-10 mt-4 flex flex-wrap items-center justify-between gap-2 rounded-xl border border-accent bg-surface p-3 text-sm shadow-lg sm:bottom-4">
+          <span className="font-medium">{t('settings.unsaved')}</span>
+          <span className="flex gap-2">
+            <Button onClick={() => setDraft(null)}>{t('settings.discard')}</Button>
+            <Button variant="primary" disabled={pending} onClick={save}>
+              {t('settings.save')}
+            </Button>
+          </span>
+        </div>
+      )}
     </Card>
   );
 }

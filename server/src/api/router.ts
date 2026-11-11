@@ -178,6 +178,7 @@ export function createApiRouter({ db, config, accounts, oauth, hub }: Deps) {
   r.get('/nutrition/search', async (req, res) => void res.json(await kitchen(req).nutrition.search(s.nutritionSearch.parse(req.query))));
   r.get('/nutrition/plan', (req, res) => void res.json(kitchen(req).nutrition.plan(s.nutritionPlan.parse(req.query))));
   r.get('/recipes/:id/nutrition', (req, res) => void res.json(kitchen(req).nutrition.recipe(id(req.params))));
+  r.post('/recipes/:id/nutrition/autofill', async (req, res) => void res.json({ filled: await kitchen(req).nutrition.autofillRecipe(id(req.params)) }));
   r.put('/products/:id/nutrition', async (req, res) => void res.json(await kitchen(req).nutrition.setProduct(s.productNutritionSet.parse({ ...req.body, id: id(req.params) }))));
   r.get('/seasons', (req, res) => void res.json(kitchen(req).seasons.list(s.seasonList.parse(req.query))));
   r.get('/plan/history', (req, res) => void res.json(kitchen(req).planner.history(s.mealHistory.parse(req.query))));

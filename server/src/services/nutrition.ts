@@ -34,6 +34,29 @@ export interface NutritionHit {
   per100: NutrientValues;
 }
 
+const plain = (text: string) =>
+  text
+    .normalize('NFD')
+    .replace(/[̀-ͯ]/g, '')
+    .toLowerCase()
+    .split(/[^a-z0-9]+/)
+    .filter((w) => w.length > 1);
+
+/** The hit closest to a product name: all its words present, then the shortest (most generic) name. */
+export function closestHit(name: string, hits: NutritionHit[]): NutritionHit | null {
+  const want = plain(name);
+  if (want.length === 0) return null;
+  let best: { hit: NutritionHit; score: number } | null = null;
+  for (const hit of hits) {
+    const words = new Set(plain(hit.name));
+    const found = want.filter((w) => [...words].some((x) => x === w || x.startsWith(w) || w.startsWith(x))).length;
+    if (found < Math.ceil(want.length / 2)) continue;
+    const score = (found / want.length) * 100 - hit.name.length * 0.2 - (hit.brands ? 5 : 0);
+    if (!best || score > best.score) best = { hit, score };
+  }
+  return best?.hit ?? null;
+}
+
 async function getJson(fetchImpl: Fetch, url: string): Promise<unknown> {
   let res: Response;
   try {
@@ -116,6 +139,35 @@ export function createNutritionService(
       }
       db.update(products).set({ nutrition: value ? JSON.stringify(value) : null }).where(and(mine, eq(products.id, id))).run();
       return productService.get(id);
+    },
+
+    /**
+     * Fills in the ingredients of a recipe that have no values yet, taking the closest Open Food Facts match by
+     * name. Values typed by hand are never replaced. Returns how many products were filled.
+     */
+    async autofillRecipe(recipeId: number): Promise<number> {
+      requireOn();
+      const recipe = recipeService.get(recipeId);
+      let filled = 0;
+      const seen = new Set<number>();
+      for (const ing of recipe.ingredients) {
+        if (ing.toTaste || seen.has(ing.productId)) continue;
+        seen.add(ing.productId);
+        const product = productService.get(ing.productId);
+        if (product.nutrition) continue;
+        let hits: NutritionHit[];
+        try {
+          hits = await svc.search({ query: product.name });
+        } catch {
+          break; // Open Food Facts is unreachable: stop, nothing is lost.
+        }
+        const hit = closestHit(product.name, hits);
+        if (!hit) continue;
+        const value: ProductNutrition = { per100: hit.per100, source: 'openfoodfacts', code: hit.code, label: [hit.name, hit.brands].filter(Boolean).join(' · '), auto: true };
+        db.update(products).set({ nutrition: JSON.stringify(value) }).where(and(mine, eq(products.id, product.id))).run();
+        filled += 1;
+      }
+      return filled;
     },
 
     /**

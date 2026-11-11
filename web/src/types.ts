@@ -56,7 +56,7 @@ export interface Product {
   openedShelfLifeDays: number | null;
   aliases: string[];
   /** Calories and macros per 100 g, when the nutrition module has them. */
-  nutrition: { per100: NutrientValues; source: 'openfoodfacts' | 'manual'; code?: string; label?: string } | null;
+  nutrition: { per100: NutrientValues; source: 'openfoodfacts' | 'manual'; code?: string; label?: string; auto?: boolean } | null;
 }
 
 export type NutrientValues = Partial<Record<'kcal' | 'protein' | 'carbs' | 'sugars' | 'fat' | 'saturatedFat' | 'fiber' | 'salt', number>>;

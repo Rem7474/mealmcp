@@ -16,6 +16,8 @@ export interface ProductNutrition {
   code?: string;
   /** Name of that product, so the household can tell what was picked. */
   label?: string;
+  /** Picked automatically as the closest match to the product name (not chosen by the household). */
+  auto?: boolean;
 }
 
 /** Open Food Facts field names for each nutrient (all expressed per 100 g, kcal and grams). */

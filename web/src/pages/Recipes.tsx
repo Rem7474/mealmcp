@@ -383,18 +383,18 @@ function RecipeForm({ recipe, onDone }: { recipe?: Recipe; onDone: (id?: number)
       <form onSubmit={submit} className="space-y-3">
         <Input required placeholder={t('recipes.form.name')} aria-label={t('recipes.form.nameAria')} value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} className="w-full" />
         <Input placeholder={t('recipes.form.description')} aria-label={t('recipes.form.descriptionAria')} value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} className="w-full" />
-        <div className="flex flex-wrap gap-3 text-sm">
-          <label className="flex items-center gap-2">
+        <div className="grid grid-cols-3 gap-2 text-xs text-muted sm:flex sm:flex-wrap sm:gap-3 sm:text-sm sm:text-ink">
+          <label className="flex flex-col gap-1 sm:flex-row sm:items-center sm:gap-2">
             {t('recipes.form.servings')}
-            <Input type="number" min={1} required value={form.servings} onChange={(e) => setForm({ ...form, servings: e.target.value })} className="w-20" />
+            <Input type="number" min={1} required value={form.servings} onChange={(e) => setForm({ ...form, servings: e.target.value })} className="w-full sm:w-20" />
           </label>
-          <label className="flex items-center gap-2">
+          <label className="flex flex-col gap-1 sm:flex-row sm:items-center sm:gap-2">
             {t('recipes.form.time')}
-            <Input type="number" min={0} value={form.prepMinutes} onChange={(e) => setForm({ ...form, prepMinutes: e.target.value })} className="w-20" />
+            <Input type="number" min={0} value={form.prepMinutes} onChange={(e) => setForm({ ...form, prepMinutes: e.target.value })} className="w-full sm:w-20" />
           </label>
-          <label className="flex items-center gap-2">
+          <label className="flex flex-col gap-1 sm:flex-row sm:items-center sm:gap-2">
             {t('recipes.form.cookTime')}
-            <Input type="number" min={0} value={form.cookMinutes} onChange={(e) => setForm({ ...form, cookMinutes: e.target.value })} className="w-20" />
+            <Input type="number" min={0} value={form.cookMinutes} onChange={(e) => setForm({ ...form, cookMinutes: e.target.value })} className="w-full sm:w-20" />
           </label>
         </div>
         <Input placeholder={t('recipes.form.equipment')} aria-label={t('recipes.form.equipment')} value={form.equipment} onChange={(e) => setForm({ ...form, equipment: e.target.value })} className="w-full" />
@@ -403,16 +403,16 @@ function RecipeForm({ recipe, onDone }: { recipe?: Recipe; onDone: (id?: number)
         <fieldset className="space-y-2">
           <legend className="mb-1 font-semibold">{t('recipes.ingredients')}</legend>
           {rows.map((row, i) => (
-            <div key={i} className="flex flex-wrap items-center gap-2">
-              <Input disabled={row.toTaste} inputMode="decimal" placeholder={t('common.qty')} aria-label={t('common.quantity')} value={row.quantity} onChange={(e) => setRow(i, { quantity: e.target.value })} className="w-20" />
-              <Input disabled={row.toTaste} list="unit-names" placeholder={t('common.unit')} aria-label={t('common.unit')} value={row.unit} onChange={(e) => setRow(i, { unit: e.target.value })} className="w-24" />
-              <Input list="product-names" placeholder={t('recipes.form.ingredient')} aria-label={t('recipes.form.ingredient')} value={row.name} onChange={(e) => setRow(i, { name: e.target.value })} className="flex-1 basis-32" />
-              <Input placeholder={t('recipes.form.note')} aria-label={t('recipes.form.note')} value={row.note} onChange={(e) => setRow(i, { note: e.target.value })} className="flex-1 basis-24" />
-              <label className="flex items-center gap-1 text-sm">
+            <div key={i} className="grid grid-cols-[5rem_minmax(0,1fr)_auto] gap-2 rounded-lg border border-line p-2 sm:flex sm:flex-wrap sm:items-center sm:border-0 sm:p-0">
+              <Input disabled={row.toTaste} inputMode="decimal" placeholder={t('common.qty')} aria-label={t('common.quantity')} value={row.quantity} onChange={(e) => setRow(i, { quantity: e.target.value })} className="w-full sm:w-20" />
+              <Input disabled={row.toTaste} list="unit-names" placeholder={t('common.unit')} aria-label={t('common.unit')} value={row.unit} onChange={(e) => setRow(i, { unit: e.target.value })} className="w-full sm:w-24" />
+              <Input list="product-names" placeholder={t('recipes.form.ingredient')} aria-label={t('recipes.form.ingredient')} value={row.name} onChange={(e) => setRow(i, { name: e.target.value })} className="col-span-2 row-start-1 flex-1 basis-32" />
+              <Input placeholder={t('recipes.form.note')} aria-label={t('recipes.form.note')} value={row.note} onChange={(e) => setRow(i, { note: e.target.value })} className="col-span-3 flex-1 basis-24" />
+              <label className="col-start-3 row-start-2 flex items-center gap-1 text-sm">
                 <input type="checkbox" className="size-4 accent-(--accent)" checked={row.toTaste} onChange={(e) => setRow(i, { toTaste: e.target.checked })} />
                 {t('recipes.form.toTaste')}
               </label>
-              <Button variant="ghost" className="px-2" aria-label={t('recipes.form.removeIngredient')} onClick={() => setRows(rows.filter((_, j) => j !== i))}>
+              <Button variant="ghost" className="col-start-3 row-start-1 px-2" aria-label={t('recipes.form.removeIngredient')} onClick={() => setRows(rows.filter((_, j) => j !== i))}>
                 ✕
               </Button>
             </div>
@@ -423,12 +423,12 @@ function RecipeForm({ recipe, onDone }: { recipe?: Recipe; onDone: (id?: number)
         <fieldset className="space-y-2">
           <legend className="mb-1 font-semibold">{t('recipes.form.steps')}</legend>
           {steps.map((step, i) => (
-            <div key={i} className="flex flex-wrap items-center gap-2">
+            <div key={i} className="grid grid-cols-[1.5rem_repeat(3,minmax(0,1fr))_auto] gap-2 rounded-lg border border-line p-2 sm:flex sm:flex-wrap sm:items-center sm:border-0 sm:p-0">
               <span className="w-5 text-right text-sm text-muted">{i + 1}.</span>
-              <Input placeholder={t('recipes.form.step')} aria-label={t('recipes.form.step')} value={step.text} onChange={(e) => setStep(i, { text: e.target.value })} className="flex-1 basis-56" />
-              <Input inputMode="numeric" placeholder={t('recipes.form.stepMinutes')} aria-label={t('recipes.form.stepMinutes')} value={step.minutes} onChange={(e) => setStep(i, { minutes: e.target.value })} className="w-16" />
-              <Input inputMode="numeric" placeholder={t('recipes.form.stepTemperature')} aria-label={t('recipes.form.stepTemperature')} value={step.temperature} onChange={(e) => setStep(i, { temperature: e.target.value })} className="w-16" />
-              <Input placeholder={t('recipes.form.stepAppliance')} aria-label={t('recipes.form.stepAppliance')} value={step.appliance} onChange={(e) => setStep(i, { appliance: e.target.value })} className="w-32" />
+              <Input placeholder={t('recipes.form.step')} aria-label={t('recipes.form.step')} value={step.text} onChange={(e) => setStep(i, { text: e.target.value })} className="col-span-3 flex-1 basis-56" />
+              <Input inputMode="numeric" placeholder={t('recipes.form.stepMinutes')} aria-label={t('recipes.form.stepMinutes')} value={step.minutes} onChange={(e) => setStep(i, { minutes: e.target.value })} className="col-start-2 w-full sm:w-16" />
+              <Input inputMode="numeric" placeholder={t('recipes.form.stepTemperature')} aria-label={t('recipes.form.stepTemperature')} value={step.temperature} onChange={(e) => setStep(i, { temperature: e.target.value })} className="w-full sm:w-16" />
+              <Input placeholder={t('recipes.form.stepAppliance')} aria-label={t('recipes.form.stepAppliance')} value={step.appliance} onChange={(e) => setStep(i, { appliance: e.target.value })} className="w-full sm:w-32" />
               <Button variant="ghost" className="px-2" aria-label={t('recipes.form.removeStep')} onClick={() => setSteps(steps.filter((_, j) => j !== i))}>
                 ✕
               </Button>

@@ -3,7 +3,7 @@ import { createDb, type Db } from '../db/index.js';
 import { households } from '../db/schema.js';
 import { addDays, today } from '../domain/dates.js';
 import { createServices, type Services } from './index.js';
-import { createNutritionService } from './nutrition.js';
+import { closestHit, createNutritionService } from './nutrition.js';
 
 let db: Db;
 let svc: Services;
@@ -536,5 +536,24 @@ describe('nutrition module', () => {
 
     await n.setProduct({ id: oats.id });
     expect(svc.products.get(oats.id).nutrition).toBeNull();
+  });
+
+  it('fills missing values with the closest match and never overwrites values typed by hand', async () => {
+    svc.settings.set({ nutrition: { enabled: true } });
+    const n = make();
+    const recipe = svc.recipes.create({ name: 'Porridge', servings: 2, ingredients: [{ name: 'Oat flakes', quantity: 100, unit: 'g' }, { name: 'Milk', quantity: 200, unit: 'ml' }] });
+    const milk = svc.products.list().find((p) => p.name === 'Milk')!;
+    await n.setProduct({ id: milk.id, per100: { kcal: 46 } });
+    expect(await n.autofillRecipe(recipe.id)).toBe(1);
+    const oats = svc.products.list().find((p) => p.name === 'Oat flakes')!;
+    expect(svc.products.get(oats.id).nutrition).toMatchObject({ source: 'openfoodfacts', auto: true, code: '123456789012' });
+    expect(svc.products.get(milk.id).nutrition).toMatchObject({ source: 'manual' });
+    expect(await n.autofillRecipe(recipe.id)).toBe(0);
+  });
+
+  it('picks the most generic hit that contains the words of the name', () => {
+    const hit = (name: string, brands: string | null = null) => ({ code: name, name, brands, per100: { kcal: 1 } });
+    expect(closestHit('Tomate', [hit('Pizza tomate mozzarella'), hit('Tomates', null), hit('Sauce tomate bio', 'X')])?.name).toBe('Tomates');
+    expect(closestHit('Riz basmati', [hit('Chocolat noir')])).toBeNull();
   });
 });

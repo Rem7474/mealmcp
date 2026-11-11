@@ -173,21 +173,21 @@ function StockRow({ item }: { item: StockItem }) {
         </>
       )}
       {item.opened && (item.packSize === null || item.quantity >= item.packSize - 1e-9) && (
-        <Button variant="ghost" className="h-8 px-2 text-xs" aria-label={t('stock.unopenAria', { name: item.name })} onClick={() => run(() => api.post('/stock/' + item.id + '/unopen', {}))}>
+        <Button variant="secondary" className="h-9 px-3 text-sm sm:h-8 sm:px-2 sm:text-xs" aria-label={t('stock.unopenAria', { name: item.name })} onClick={() => run(() => api.post('/stock/' + item.id + '/unopen', {}))}>
           {t('stock.unopen')}
         </Button>
       )}
       {/* On phones the secondary actions sit on their own line, right-aligned under the quantity. */}
       <div className="flex w-full items-center justify-end gap-1 sm:ml-auto sm:w-auto">
         {!item.approximate && !item.opened && (
-          <Button variant="ghost" className="h-8 px-2 text-xs" aria-label={t('stock.openAria', { name: item.name })} onClick={() => run(() => api.post(`/stock/${item.id}/open`, {}))}>
+          <Button variant="secondary" className="h-9 px-3 text-sm sm:h-8 sm:px-2 sm:text-xs" aria-label={t('stock.openAria', { name: item.name })} onClick={() => run(() => api.post(`/stock/${item.id}/open`, {}))}>
             {t('stock.open')}
           </Button>
         )}
-        <Button variant="ghost" className="h-8 px-2 text-xs" aria-label={t('stock.discardAria', { name: item.name })} onClick={() => run(() => api.post(`/stock/${item.id}/discard`, { reason: days !== null && days < 0 ? 'expired' : 'spoiled' }))}>
+        <Button variant="secondary" className="h-9 px-3 text-sm sm:h-8 sm:px-2 sm:text-xs" aria-label={t('stock.discardAria', { name: item.name })} onClick={() => run(() => api.post(`/stock/${item.id}/discard`, { reason: days !== null && days < 0 ? 'expired' : 'spoiled' }))}>
           {t('stock.discard')}
         </Button>
-        <Button variant="ghost" className="h-8 px-2" aria-label={t('stock.remove', { name: item.name })} onClick={() => run(() => api.del(`/stock/${item.id}`))}>
+        <Button variant="ghost" className="size-9 px-0 sm:size-8" aria-label={t('stock.remove', { name: item.name })} onClick={() => run(() => api.del(`/stock/${item.id}`))}>
           ✕
         </Button>
       </div>

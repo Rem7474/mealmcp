@@ -1,5 +1,5 @@
-import { useQuery } from '@tanstack/react-query';
-import { type FormEvent, useState } from 'react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { type FormEvent, useEffect, useState } from 'react';
 import { api, useAction } from '../api';
 import { type MessageKey, useT } from '../i18n';
 import type { HouseholdSettings, NutritionHit, NutrientValues, Product, RecipeNutritionInfo } from '../types';
@@ -15,17 +15,33 @@ export function useNutritionEnabled(): boolean {
 const summary = (v: NutrientValues) =>
   [`${Math.round(v.kcal ?? 0)} kcal`, v.protein !== undefined ? `P ${v.protein}` : null, v.carbs !== undefined ? `G ${v.carbs}` : null, v.fat !== undefined ? `L ${v.fat}` : null].filter(Boolean).join(' · ');
 
-/** Calories and macros of a recipe, per serving, with how many ingredients had values. */
+// Recipes already tried this session, so a product Open Food Facts does not know is not searched again on every visit.
+const autofilled = new Set<number>();
+
+/** Calories and macros of a recipe, per serving, with how many ingredients had values. Missing values are looked up by themselves. */
 export function RecipeNutrition({ id }: { id: number }) {
   const t = useT();
   const on = useNutritionEnabled();
+  const queryClient = useQueryClient();
   const { data } = useQuery({ queryKey: ['recipe', id, 'nutrition'], enabled: on, queryFn: () => api.get<RecipeNutritionInfo>(`/recipes/${id}/nutrition`) });
+  const [looking, setLooking] = useState(false);
+  const incomplete = !!data && data.coverage.missing.length > 0;
+  useEffect(() => {
+    if (!on || !incomplete || autofilled.has(id)) return;
+    autofilled.add(id);
+    setLooking(true);
+    api
+      .post<{ filled: number }>(`/recipes/${id}/nutrition/autofill`, {})
+      .then((r) => (r.filled > 0 ? queryClient.invalidateQueries({ queryKey: ['recipe', id, 'nutrition'] }).then(() => queryClient.invalidateQueries({ queryKey: ['products'] })) : undefined))
+      .catch(() => undefined)
+      .finally(() => setLooking(false));
+  }, [on, incomplete, id, queryClient]);
   if (!on || !data) return null;
   const { perServing: p, coverage } = data;
   return (
     <div className="mt-2 text-sm">
       {coverage.covered === 0 ? (
-        <p className="text-muted">{t('nutrition.none')}</p>
+        <p className="text-muted">{looking ? t('nutrition.looking') : t('nutrition.none')}</p>
       ) : (
         <>
           <div className="flex flex-wrap items-center gap-1.5">
@@ -36,7 +52,7 @@ export function RecipeNutrition({ id }: { id: number }) {
             <Badge>{t('nutrition.fat')} {p.fat} g</Badge>
             <Badge>{t('nutrition.fiber')} {p.fiber} g</Badge>
           </div>
-          {!coverage.complete && <p className="mt-1 text-muted">{t('nutrition.incomplete', { names: coverage.missing.join(', ') })}</p>}
+          {!coverage.complete && <p className="mt-1 text-muted">{looking ? t('nutrition.looking') : t('nutrition.incomplete', { names: coverage.missing.join(', ') })}</p>}
         </>
       )}
     </div>
