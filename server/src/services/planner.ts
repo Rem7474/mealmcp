@@ -107,7 +107,7 @@ export function createPlannerService(db: Db, hid: number, recipeService: RecipeS
         const scale = entry.servings / recipe.servings;
         return recipe.ingredients
           .filter((ing) => !ing.toTaste)
-          .map((ing) => stock.consume({ name: ing.name, quantity: round(ing.quantity * scale), unit: ing.unit }));
+          .map((ing) => stock.consume({ name: ing.name, quantity: round(ing.quantity * scale), unit: ing.unit }, { recipeFrame: true }));
       });
       return { meal: svc.get(id), usage };
     },

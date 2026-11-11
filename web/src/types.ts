@@ -50,6 +50,10 @@ export interface Product {
   gramsPerMl: number | null;
   /** Best guess at the aisle from the name, when none is set. */
   suggestedCategory: string | null;
+  /** Drained weight / net weight (beans, tuna: recipes count drained grams), when known. */
+  drainedRatio: number | null;
+  /** Days an opened pack keeps. */
+  openedShelfLifeDays: number | null;
   aliases: string[];
 }
 
@@ -65,11 +69,18 @@ export interface StockItem {
   addedOn: string;
   /** "Plenty of it, amount unknown". */
   approximate: boolean;
+  /** Size of one pack, when the line is kept in packs. */
+  packSize: number | null;
+  /** Sealed packs in the line (null when not kept in packs or already opened). */
+  packCount: number | null;
+  opened: boolean;
+  openedOn: string | null;
 }
 
 export interface StockAlerts {
   lowStock: { productId: number; name: string; unit: string; current: number; minStock: number }[];
   expiring: StockItem[];
+  opened: StockItem[];
 }
 
 export interface RecipeSummary {

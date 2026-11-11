@@ -36,3 +36,16 @@ export function convertQuantity(quantity: number, from: string, to: string, c: C
   const grams = toGrams(quantity, a, c);
   return grams === null ? null : fromGrams(grams, b, c);
 }
+
+/** A product that is bought by net weight but cooked by drained weight (beans, tuna, sweetcorn). */
+export interface Drainable {
+  drainedRatio: number | null;
+}
+
+const hasRatio = (p: Drainable, unit: string) => unit === 'g' && !!p.drainedRatio && p.drainedRatio > 0;
+
+/** Recipe frame -> stock frame: grams of drained food need more grams on the label (125 g drained = 200 g net). */
+export const toNetFrame = (p: Drainable, quantity: number, unit: string) => (hasRatio(p, unit) ? quantity / (p.drainedRatio as number) : quantity);
+
+/** Stock frame -> recipe frame: 200 g net of beans are 125 g drained. */
+export const toDrainedFrame = (p: Drainable, quantity: number, unit: string) => (hasRatio(p, unit) ? quantity * (p.drainedRatio as number) : quantity);

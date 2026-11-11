@@ -11,6 +11,7 @@ Products can carry conversions (update_product: gramsPerPiece, gramsPerMl) so gr
 Equipment: list_equipment shows the appliances and utensils the household owns; recipes can require some (create_recipe equipment, step appliance) and check_recipe_availability reports missingEquipment. Check it before suggesting a recipe.
 Recipes carry a rating (1-5 stars) and a favorite flag set by the household (update_recipe); suggest_recipes ranks loved recipes higher, so respect them when proposing a menu.
 Products can be filed under a store aisle (update_product category: produce, dairy, meat_fish, bakery, pantry, frozen, drinks, household, other); the shopping list can be shown by aisle or by meal, and generated lines say which planned meals they are for.
+Packs and jars: record "2 x 500 g" as packCount/packSize, open a pack with open_stock_item (opened packs are used first and expire on their own clock), and read get_stock_alerts for what is opened. Products bought by net weight but cooked by drained weight (beans, tuna) carry a drained ratio (update_product drained): stock stays in label grams and recipe grams are read as drained.
 Several items at once? Use the *_bulk tools instead of many single calls.
 Money: amounts you send are decimal numbers in the household currency (2.49); amounts you receive are integers in cents (249). Record purchases with record_expense so prices feed the cost estimates.
 Typical flow: plan meals (plan_meal) -> generate_shopping_list for the planned period -> check items while shopping -> complete_shopping moves them into stock -> cook_planned_meal takes ingredients out of stock.`;
@@ -55,8 +56,9 @@ export function createMcpServer({ settings, equipment, products, stock, recipes,
 
   // --- Stock ---------------------------------------------------------------
   tool('list_stock', 'List what is currently in stock, soonest expiry first. Optionally filter by location or by upcoming expiry.', s.stockList.shape, ro, (a) => stock.list(a));
-  tool('add_stock', 'Add a quantity of a product to the stock (after shopping, or to record what is at home). Use approximate=true (no quantity) for "plenty of it".', s.stockAdd.shape, rw, (a) => stock.add(a));
-  tool('update_stock_item', 'Correct a stock line: quantity, location or expiry date. Use the id from list_stock.', s.stockUpdate.shape, rw, (a) => stock.update(a) ?? { removed: true });
+  tool('add_stock', 'Add a quantity of a product to the stock (after shopping, or to record what is at home). Bought in packs ("2 x 500 g", "3 cartons of 200 ml")? Send packCount + packSize + unit instead of a total so both are kept. An already opened jar: opened=true with the quantity left. Use approximate=true (no quantity) for "plenty of it".', s.stockAdd.shape, rw, (a) => stock.add(a));
+  tool('update_stock_item', 'Correct a stock line: quantity (or packCount for sealed packs), location or expiry date. Use the id from list_stock. A quantity of 0 deletes the line: the answer says { removed: true }.', s.stockUpdate.shape, rw, (a) => stock.update(a) ?? { removed: true, id: a.id });
+  tool('open_stock_item', 'Open one pack of a stock line (a jar, a carton, a can). It becomes its own line with an opening date, what is left, and an expiry from the product opened shelf life (set it with update_product openedShelfLifeDays or the shelfLifeDays argument). Opened packs are used first and listed in get_stock_alerts.', s.stockOpen.shape, rw, (a) => stock.open(a));
   tool('consume_stock', 'Take a quantity of a product out of stock (used or thrown away), soonest-expiring first. Reports what could not be covered.', s.stockConsume.shape, rw, (a) => stock.consume(a));
   tool('remove_stock_item', 'Delete a stock line entirely. Use the id from list_stock.', s.idParam.shape, del, (a) => stock.remove(a.id));
   tool(
@@ -69,7 +71,7 @@ export function createMcpServer({ settings, equipment, products, stock, recipes,
 
   // --- Products ------------------------------------------------------------
   tool('list_products', 'List all known products with their category, default unit and minimum stock threshold.', {}, ro, () => products.list());
-  tool('update_product', 'Rename a product, set its category (aisle: produce, dairy, meat_fish, bakery, pantry, frozen, drinks, household, other), low-stock threshold, staple flag, or conversions (gramsPerPiece, gramsPerMl).', s.productUpdate.shape, rw, (a) => products.update(a));
+  tool('update_product', 'Rename a product, set its category (aisle: produce, dairy, meat_fish, bakery, pantry, frozen, drinks, household, other), low-stock threshold, staple flag, conversions (gramsPerPiece, gramsPerMl), drained weight (beans: net 200 g, drained 125 g) or the days it keeps once opened (openedShelfLifeDays).', s.productUpdate.shape, rw, (a) => products.update(a));
 
   // --- Recipes -------------------------------------------------------------
   tool('list_recipes', 'List recipes (summary). Optionally search by recipe or ingredient name.', s.recipeList.shape, ro, (a) => recipes.list(a));

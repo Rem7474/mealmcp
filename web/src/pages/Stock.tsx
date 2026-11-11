@@ -33,6 +33,23 @@ export function Stock() {
           </ul>
         </Card>
       )}
+      {alerts.data && alerts.data.opened.length > 0 && (
+        <Card title={t('stock.opened.title')}>
+          <ul className="flex flex-wrap gap-2 text-sm">
+            {alerts.data.opened.map((i) => {
+              const days = i.expiresOn ? daysUntil(i.expiresOn) : null;
+              return (
+                <li key={i.id}>
+                  <Badge tone={days !== null && days <= 1 ? 'warn' : 'accent'}>
+                    {i.name}: {formatQty(i.quantity, i.unit)} {t('stock.opened.left')}
+                    {i.expiresOn ? ` · ${formatDate(i.expiresOn)}` : ''}
+                  </Badge>
+                </li>
+              );
+            })}
+          </ul>
+        </Card>
+      )}
       <AddForm />
       <div className="grid gap-4 md:grid-cols-3">
         {LOCATIONS.map((location) => {
@@ -60,22 +77,27 @@ export function Stock() {
 function AddForm() {
   const t = useT();
   const { run, pending } = useAction();
-  const [form, setForm] = useState({ name: '', quantity: '1', unit: '', location: 'fridge', expiresOn: '', approximate: false });
+  const [form, setForm] = useState({ name: '', quantity: '1', unit: '', location: 'fridge', expiresOn: '', approximate: false, packSize: '', opened: false });
   const set = (patch: Partial<typeof form>) => setForm((f) => ({ ...f, ...patch }));
 
   const submit = async (e: FormEvent) => {
     e.preventDefault();
+    const size = parseQty(form.packSize);
+    const inPacks = !form.approximate && size !== undefined && !Number.isNaN(size);
     await run(() =>
       api.post('/stock', {
         name: form.name,
-        quantity: form.approximate ? undefined : parseQty(form.quantity),
+        // With a pack size, the quantity field is the number of packs: "3 x 200 ml".
+        quantity: form.approximate || inPacks ? undefined : parseQty(form.quantity),
+        ...(inPacks ? { packSize: size, packCount: form.opened ? 1 : parseQty(form.quantity) } : {}),
+        opened: form.opened || undefined,
         approximate: form.approximate,
         unit: form.unit || undefined,
         location: form.location,
         expiresOn: form.expiresOn || null,
       }),
     );
-    set({ name: '', quantity: '1', expiresOn: '' });
+    set({ name: '', quantity: '1', expiresOn: '', packSize: '', opened: false });
   };
 
   return (
@@ -83,12 +105,17 @@ function AddForm() {
       <form onSubmit={submit} className="flex flex-wrap gap-2">
         <Input required list="product-names" placeholder={t('common.product')} aria-label={t('common.product')} value={form.name} onChange={(e) => set({ name: e.target.value })} className="flex-1 basis-40" />
         <Input required={!form.approximate} disabled={form.approximate} inputMode="decimal" placeholder={t('common.qty')} aria-label={t('common.quantity')} value={form.approximate ? '' : form.quantity} onChange={(e) => set({ quantity: e.target.value })} className="w-20" />
+        <Input inputMode="decimal" placeholder={t('stock.packSize')} aria-label={t('stock.packSize')} value={form.packSize} onChange={(e) => set({ packSize: e.target.value })} className="w-28" />
         <Input list="unit-names" placeholder={t('common.unit')} aria-label={t('common.unit')} value={form.unit} onChange={(e) => set({ unit: e.target.value })} className="w-24" />
         <LocationSelect value={form.location} onChange={(e) => set({ location: e.target.value })} />
         <Input type="date" aria-label={t('stock.expiry')} value={form.expiresOn} onChange={(e) => set({ expiresOn: e.target.value })} />
         <label className="flex h-10 items-center gap-2 text-sm">
           <input type="checkbox" className="size-4 accent-(--accent)" checked={form.approximate} onChange={(e) => set({ approximate: e.target.checked })} />
           {t('stock.approximate')}
+        </label>
+        <label className="flex h-10 items-center gap-2 text-sm">
+          <input type="checkbox" className="size-4 accent-(--accent)" checked={form.opened} onChange={(e) => set({ opened: e.target.checked })} />
+          {t('stock.alreadyOpened')}
         </label>
         <Button type="submit" variant="primary" disabled={pending}>
           {t('common.add')}
@@ -113,6 +140,12 @@ function StockRow({ item }: { item: StockItem }) {
     <li className="flex items-center gap-2 py-2 text-sm">
       <div className="min-w-0 flex-1">
         <div className="truncate font-medium">{item.name}</div>
+        {item.opened && item.openedOn && <div className="text-xs text-accent">{t('stock.openedBadge', { date: formatDate(item.openedOn) })}</div>}
+        {item.packCount !== null && item.packSize !== null && (
+          <div className="text-xs text-muted">
+            {item.packCount} × {formatQty(item.packSize, item.unit)}
+          </div>
+        )}
         {item.expiresOn && days !== null && (
           <div className={days < 0 ? 'text-danger' : days <= 3 ? 'text-warn' : 'text-muted'}>
             {t(days < 0 ? 'stock.expired' : 'stock.useBy', { date: formatDate(item.expiresOn) })}
@@ -135,10 +168,37 @@ function StockRow({ item }: { item: StockItem }) {
           <span className="w-10 text-muted">{item.unit === 'piece' ? '' : item.unit}</span>
         </>
       )}
+      {!item.approximate && !item.opened && (
+        <Button variant="ghost" className="h-8 px-2 text-xs" aria-label={t('stock.openAria', { name: item.name })} onClick={() => run(() => api.post(`/stock/${item.id}/open`, {}))}>
+          {t('stock.open')}
+        </Button>
+      )}
       <Button variant="ghost" className="h-8 px-2" aria-label={t('stock.remove', { name: item.name })} onClick={() => run(() => api.del(`/stock/${item.id}`))}>
         ✕
       </Button>
     </li>
+  );
+}
+
+/** Net (label) and drained weight of a canned product: recipes count drained grams, the label says net. */
+function DrainedField({ product: p, patch }: { product: Product; patch: (p: Product, change: Record<string, unknown>) => void }) {
+  const t = useT();
+  const [net, setNet] = useState(p.drainedRatio ? '100' : '');
+  const [drained, setDrained] = useState(p.drainedRatio ? String(Math.round(p.drainedRatio * 1000) / 10) : '');
+  const save = () => {
+    const n = parseQty(net);
+    const d = parseQty(drained);
+    if (n === undefined && d === undefined) {
+      if (p.drainedRatio !== null) patch(p, { drained: null });
+    } else if (n && d && !Number.isNaN(n) && !Number.isNaN(d) && d <= n && Math.abs(d / n - (p.drainedRatio ?? -1)) > 1e-6) {
+      patch(p, { drained: { netGrams: n, drainedGrams: d } });
+    }
+  };
+  return (
+    <span className="flex items-center gap-1" role="group" aria-label={t('stock.drainedAria', { name: p.name })}>
+      <Input value={net} onChange={(e) => setNet(e.target.value)} onBlur={save} placeholder={t('stock.drainedNet')} inputMode="decimal" className="h-8 w-20 px-2 text-right" />
+      <Input value={drained} onChange={(e) => setDrained(e.target.value)} onBlur={save} placeholder={t('stock.drainedDrained')} inputMode="decimal" className="h-8 w-24 px-2 text-right" />
+    </span>
   );
 }
 
@@ -194,6 +254,20 @@ function Thresholds({ products }: { products: Product[] }) {
               onKeyDown={(e) => e.key === 'Enter' && e.currentTarget.blur()}
               className="h-8 w-24 px-2 text-right"
             />
+            <Input
+              key={`life-${p.openedShelfLifeDays}`}
+              defaultValue={p.openedShelfLifeDays ?? ''}
+              placeholder={t('stock.shelfLife')}
+              inputMode="numeric"
+              aria-label={t('stock.shelfLifeAria', { name: p.name })}
+              onBlur={(e) => {
+                const days = parseQty(e.target.value) ?? null;
+                if (days === null ? p.openedShelfLifeDays !== null : !Number.isNaN(days) && days !== p.openedShelfLifeDays) patch(p, { openedShelfLifeDays: days });
+              }}
+              onKeyDown={(e) => e.key === 'Enter' && e.currentTarget.blur()}
+              className="h-8 w-36 px-2 text-right"
+            />
+            <DrainedField product={p} patch={patch} />
           </li>
         ))}
       </ul>

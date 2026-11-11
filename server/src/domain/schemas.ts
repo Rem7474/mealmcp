@@ -37,6 +37,19 @@ export const productUpdate = z.object({
     .describe('Always at home (oil, salt, pepper, thyme): stays in recipes but is never bought, counted as missing, or used up'),
   gramsPerPiece: z.number().positive().nullable().optional().describe('Weight of one piece in grams (e.g. 300 for a sweet potato), so pieces and grams can be compared'),
   gramsPerMl: z.number().positive().nullable().optional().describe('Density in grams per ml (e.g. 0.92 for oil), so ml and grams can be compared'),
+  drained: z
+    .object({ netGrams: z.number().positive(), drainedGrams: z.number().positive() })
+    .nullable()
+    .optional()
+    .describe('Beans, tuna, sweetcorn: the label says netGrams (200) but recipes use drainedGrams (125). Stock is kept in net grams and recipe grams are read as drained. null clears it.'),
+  openedShelfLifeDays: z
+    .number()
+    .int()
+    .positive()
+    .max(365)
+    .nullable()
+    .optional()
+    .describe('Days a pack keeps once opened (tomato sauce 3, coconut milk 4). Used to set the expiry when a pack is opened.'),
 });
 
 export const stockList = z.object({
@@ -59,11 +72,30 @@ export const stockAdd = z.object({
   unit,
   location: location.default('pantry'),
   expiresOn: isoDate.nullable().optional().describe('Expiry date YYYY-MM-DD'),
+  packCount: z
+    .number()
+    .int()
+    .positive()
+    .optional()
+    .describe('Bought in packs: "2 x 500 g" is packCount 2 + packSize 500 + unit g; "3 cartons of 200 ml" is packCount 3, packSize 200, unit ml. Keeps both the count and the size (do not send quantity).'),
+  packSize: z.number().positive().optional().describe('Size of one pack, in `unit`. With packCount, the quantity is their product.'),
+  opened: z
+    .boolean()
+    .optional()
+    .describe('This pack/jar is already opened; `quantity` is what is left of it. It then expires after the product opened shelf life.'),
+  openedOn: isoDate.optional().describe('When it was opened (defaults to today)'),
+});
+
+export const stockOpen = z.object({
+  id,
+  remaining: z.number().positive().optional().describe('What is left of the opened pack, in the item unit. Defaults to the whole pack.'),
+  shelfLifeDays: z.number().int().positive().max(365).optional().describe('Days it keeps once opened; remembered for the product when it has none yet'),
 });
 
 export const stockUpdate = z.object({
   id,
   quantity: z.number().nonnegative().optional().describe('New quantity in the item unit; 0 removes the item'),
+  packCount: z.number().int().positive().optional().describe('For a line kept in packs: how many unopened packs there are now'),
   location: location.optional(),
   expiresOn: isoDate.nullable().optional(),
 });

@@ -4,6 +4,7 @@ import type { Db } from '../db/index.js';
 import { expenseItems, expenses, households, products } from '../db/schema.js';
 import { today } from '../domain/dates.js';
 import { NotFoundError, ValidationError } from '../domain/errors.js';
+import { toNetFrame } from '../domain/convert.js';
 import { costCents, toCents } from '../domain/pricing.js';
 import type { budgetSet, expenseList, expenseRecord, productPrice, recipeAvailability, spendingSummary } from '../domain/schemas.js';
 import { toBase } from '../domain/units.js';
@@ -199,7 +200,9 @@ export function createBudgetService(db: Db, hid: number, productService: Product
       const unpriced: string[] = [];
       for (const ing of recipe.ingredients) {
         if (ing.toTaste || byId.get(ing.productId)!.isStaple) continue; // not counted, not bought
-        const cost = costCents(byId.get(ing.productId)!, ing.quantity * scale, ing.unit);
+        const product = byId.get(ing.productId)!;
+        // Priced per label weight: drained grams in the recipe cost more net grams.
+        const cost = costCents(product, toNetFrame(product, ing.quantity * scale, ing.unit), ing.unit);
         if (cost === null) unpriced.push(ing.name);
         else total += cost;
       }

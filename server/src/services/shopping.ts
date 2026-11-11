@@ -3,6 +3,7 @@ import type { z } from 'zod';
 import type { Db } from '../db/index.js';
 import { type Location, mealPlan, products, recipes, shoppingItemMeals, shoppingItems } from '../db/schema.js';
 import { guessCategory } from '../domain/categories.js';
+import { toDrainedFrame, toNetFrame } from '../domain/convert.js';
 import { NotFoundError } from '../domain/errors.js';
 import { costCents, toCents } from '../domain/pricing.js';
 import type { shoppingAdd, shoppingComplete, shoppingGenerate } from '../domain/schemas.js';
@@ -177,7 +178,7 @@ export function createShoppingService(
         for (const ing of recipe.ingredients) if (!ing.toTaste) need(ing.productId, ing.unit, (ing.quantity * meal.servings) / recipe.servings, meal.id);
       }
       if (includeLowStock) {
-        for (const p of productService.list()) if (p.minStock != null) need(p.id, p.defaultUnit, p.minStock);
+        for (const p of productService.list()) if (p.minStock != null) need(p.id, p.defaultUnit, toDrainedFrame(p, p.minStock, p.defaultUnit));
       }
 
       const snap = stock.snapshot();
@@ -201,7 +202,8 @@ export function createShoppingService(
           if (missing > 0) {
             const line = db
               .insert(shoppingItems)
-              .values({ householdId: hid, productId: n.productId, quantity: missing, unit: n.unit, source: 'plan', priceCents: prices.get(k) ?? null })
+              // Bought by the label: 125 g of drained beans are 200 g net.
+              .values({ householdId: hid, productId: n.productId, quantity: round(toNetFrame(product, missing, n.unit)), unit: n.unit, source: 'plan', priceCents: prices.get(k) ?? null })
               .returning()
               .get();
             // What stock does not cover is shared between the meals in proportion to what each needs.

@@ -147,6 +147,7 @@ export function createApiRouter({ db, config, accounts, oauth, hub }: Deps) {
   r.get('/stock/alerts', (req, res) => void res.json(kitchen(req).stock.alerts()));
   r.post('/stock', (req, res) => void res.status(201).json(kitchen(req).stock.add(s.stockAdd.parse(req.body))));
   r.post('/stock/bulk', (req, res) => void res.status(201).json(kitchen(req).stock.addMany(s.stockAddMany.parse(req.body).items)));
+  r.post('/stock/:id/open', (req, res) => void res.json(kitchen(req).stock.open(s.stockOpen.parse({ ...req.body, id: id(req.params) }))));
   r.post('/stock/consume', (req, res) => void res.json(kitchen(req).stock.consume(s.stockConsume.parse(req.body))));
   r.patch('/stock/:id', (req, res) =>
     void res.json(kitchen(req).stock.update(s.stockUpdate.parse({ ...req.body, id: id(req.params) }))),

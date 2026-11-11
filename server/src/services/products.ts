@@ -52,7 +52,8 @@ export function createProductService(db: Db, hid: number) {
         .get();
     },
 
-    update({ id, name, staple, ...rest }: z.infer<typeof productUpdate>) {
+    update({ id, name, staple, drained, ...rest }: z.infer<typeof productUpdate>) {
+      if (drained && drained.drainedGrams > drained.netGrams) throw new ValidationError('Drained weight cannot exceed the net weight');
       svc.get(id);
       if (name !== undefined) {
         const clash = svc.findByName(name);
@@ -62,6 +63,7 @@ export function createProductService(db: Db, hid: number) {
         .set({
           ...rest,
           ...(staple !== undefined ? { isStaple: staple } : {}),
+          ...(drained !== undefined ? { drainedRatio: drained ? drained.drainedGrams / drained.netGrams : null } : {}),
           ...(name !== undefined ? { name: name.trim(), nameKey: key(name) } : {}),
         })
         .where(and(mine, eq(products.id, id)))

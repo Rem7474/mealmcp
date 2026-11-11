@@ -323,3 +323,66 @@ describe('shopping list organisation', () => {
     expect(svc.shopping.add({ name: 'Bread', quantity: 1 }).meals).toEqual([]);
   });
 });
+
+describe('packs, opened jars and drained weight', () => {
+  it('keeps the pack count and size, and opens a pack when part of it is used', () => {
+    const line = svc.stock.add({ name: 'Coconut milk', packCount: 3, packSize: 200, unit: 'ml' });
+    expect(line).toMatchObject({ quantity: 600, packSize: 200, packCount: 3, opened: false });
+    // Another delivery with the same pack size and no date merges into the same line.
+    expect(svc.stock.add({ name: 'Coconut milk', packCount: 1, packSize: 200, unit: 'ml' }).packCount).toBe(4);
+    expect(() => svc.stock.add({ name: 'X', packCount: 2, unit: 'g' })).toThrow(/packSize/);
+
+    svc.products.update({ id: line.productId, openedShelfLifeDays: 4 });
+    // 250 ml: one whole pack goes, a second one is opened with 150 ml left.
+    expect(svc.stock.consume({ name: 'Coconut milk', quantity: 250, unit: 'ml' })).toMatchObject({ consumed: 250, missing: 0 });
+    const lines = svc.stock.list();
+    expect(lines.filter((l) => !l.opened).map((l) => [l.quantity, l.packCount])).toEqual([[400, 2]]);
+    const opened = lines.find((l) => l.opened)!;
+    expect(opened).toMatchObject({ quantity: 150, packSize: 200, openedOn: today(), expiresOn: addDays(today(), 4) });
+    // Opened packs are used before sealed ones, and show up in the alerts.
+    expect(svc.stock.alerts().opened.map((l) => l.id)).toEqual([opened.id]);
+    svc.stock.consume({ name: 'Coconut milk', quantity: 100, unit: 'ml' });
+    expect(svc.stock.get(opened.id).quantity).toBe(50);
+
+    // Opening by hand splits one pack off the sealed line and learns the shelf life.
+    const jar = svc.stock.add({ name: 'Tomato sauce', packCount: 2, packSize: 400, unit: 'g' });
+    const open = svc.stock.open({ id: jar.id, remaining: 300, shelfLifeDays: 3 });
+    expect(open).toMatchObject({ quantity: 300, opened: true, expiresOn: addDays(today(), 3) });
+    expect(svc.stock.get(jar.id)).toMatchObject({ quantity: 400, packCount: 1 });
+    expect(svc.products.get(jar.productId).openedShelfLifeDays).toBe(3);
+    // The printed date wins when it is sooner.
+    const soon = svc.stock.add({ name: 'Cream', quantity: 200, unit: 'ml', expiresOn: addDays(today(), 1) });
+    svc.products.update({ id: soon.productId, openedShelfLifeDays: 5 });
+    expect(svc.stock.open({ id: soon.id }).expiresOn).toBe(addDays(today(), 1));
+    // An already opened jar can be recorded directly.
+    expect(svc.stock.add({ name: 'Jam', quantity: 150, unit: 'g', packSize: 370, opened: true })).toMatchObject({ opened: true, quantity: 150 });
+  });
+
+  it('compares drained grams in recipes with net grams on the label', () => {
+    const beans = svc.stock.add({ name: 'Beans', packCount: 2, packSize: 200, unit: 'g' });
+    svc.products.update({ id: beans.productId, drained: { netGrams: 200, drainedGrams: 125 } });
+    const recipe = svc.recipes.create({ name: 'Chili', ingredients: [{ name: 'Beans', quantity: 250, unit: 'g' }] });
+    // 400 g net = 250 g drained: just enough.
+    expect(svc.recipes.availability({ id: recipe.id }).ingredients[0]).toMatchObject({ inStock: 250, missing: 0 });
+    expect(svc.recipes.availability({ id: recipe.id, servings: 8 }).ingredients[0]!.missing).toBe(250);
+
+    const meal = svc.planner.add({ date: '2030-01-01', mealType: 'dinner', recipeId: recipe.id, servings: 8 });
+    // Needs 500 g drained (800 g net); 400 g net are in stock: the list asks for the 400 g net missing.
+    const list = svc.shopping.generateFromPlan({ from: '2030-01-01', to: '2030-01-01', includeLowStock: false });
+    expect(list.find((i) => i.name === 'Beans')!.quantity).toBe(400);
+    svc.planner.remove(meal.id);
+
+    svc.planner.add({ date: '2030-01-02', mealType: 'dinner', recipeId: recipe.id });
+    const cooked = svc.planner.list({ from: '2030-01-02', to: '2030-01-02' })[0]!;
+    svc.planner.cook(cooked.id);
+    // 250 g drained used = 400 g net: the stock is empty and no empty line is left behind.
+    expect(svc.stock.list()).toEqual([]);
+    expect(() => svc.products.update({ id: beans.productId, drained: { netGrams: 100, drainedGrams: 150 } })).toThrow(/Drained/);
+  });
+
+  it('removes a line set to 0 and reports it', () => {
+    const rice = svc.stock.add({ name: 'Rice', quantity: 500, unit: 'g' });
+    expect(svc.stock.update({ id: rice.id, quantity: 0 })).toBeNull();
+    expect(svc.stock.list()).toEqual([]);
+  });
+});

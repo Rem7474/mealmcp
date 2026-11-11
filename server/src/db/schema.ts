@@ -162,6 +162,10 @@ export const products = sqliteTable(
     gramsPerPiece: real('grams_per_piece'),
     /** ...and 1 ml weighs this many grams (density). */
     gramsPerMl: real('grams_per_ml'),
+    /** Drained weight / net (label) weight, e.g. 125/200 for beans: recipes talk drained grams, stock holds net grams. */
+    drainedRatio: real('drained_ratio'),
+    /** Days an opened pack keeps (sauce 3, coconut milk 4): sets the expiry when a pack is opened. */
+    openedShelfLifeDays: integer('opened_shelf_life_days'),
   },
   (t) => [uniqueIndex('products_household_name_idx').on(t.householdId, t.nameKey)],
 );
@@ -197,6 +201,10 @@ export const stockItems = sqliteTable(
     addedOn: text('added_on').notNull(),
     /** "There is some, amount unknown" (plenty of pasta): counts as available, never used up by cooking. */
     approximate: integer('approximate', { mode: 'boolean' }).notNull().default(false),
+    /** Size of one pack, in `unit` (3 cartons of 200 ml: quantity 600, packSize 200). Null when not bought in packs. */
+    packSize: real('pack_size'),
+    /** Set once a pack is opened (then `quantity` is what is left of that single pack). ISO date. */
+    openedOn: text('opened_on'),
   },
   (t) => [index('stock_household_idx').on(t.householdId)],
 );
