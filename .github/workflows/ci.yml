@@ -1,0 +1,63 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    name: Build & test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - name: Build (typecheck web + server)
+        run: npm run build
+      - name: Tests
+        run: npm test
+
+  docker:
+    name: Docker image builds
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/setup-buildx-action@v3
+      - uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: false
+          load: true
+          tags: mealmcp:ci
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+      - name: Smoke test the container
+        run: |
+          docker run -d --name mealmcp -p 3000:3000 mealmcp:ci
+          for i in $(seq 1 20); do
+            curl -fs http://localhost:3000/health && break
+            sleep 1
+          done
+          # Nothing is reachable without an account.
+          test "$(curl -s -o /dev/null -w '%{http_code}' http://localhost:3000/api/stock)" = 401
+          test "$(curl -s -o /dev/null -w '%{http_code}' -X POST http://localhost:3000/mcp -H 'Content-Type: application/json' -d '{}')" = 401
+          curl -s -D - -o /dev/null -X POST http://localhost:3000/mcp | grep -i 'www-authenticate: .*resource_metadata'
+          # OAuth discovery for MCP clients.
+          curl -fs http://localhost:3000/.well-known/oauth-authorization-server | grep -q '"registration_endpoint"'
+          # First account, then an authenticated call.
+          test "$(curl -s -c jar -o /dev/null -w '%{http_code}' -X POST http://localhost:3000/api/auth/register -H 'Content-Type: application/json' -d '{"email":"ci@example.test","name":"CI","password":"ci-password-long-enough"}')" = 201
+          test "$(curl -s -b jar -o /dev/null -w '%{http_code}' http://localhost:3000/api/stock)" = 200
+      - name: Container logs
+        if: failure()
+        run: docker logs mealmcp

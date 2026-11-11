@@ -1,0 +1,17 @@
+services:
+  mealmcp:
+    build: .
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    environment:
+      # Valeurs lues dans un fichier .env à côté de ce fichier (voir .env.example).
+      PUBLIC_URL: ${PUBLIC_URL:-http://localhost:3000}
+      ALLOW_REGISTRATION: ${ALLOW_REGISTRATION:-false}
+      TRUST_PROXY: ${TRUST_PROXY:-0}
+      TZ: Europe/Paris
+    volumes:
+      - mealmcp-data:/data
+
+volumes:
+  mealmcp-data:
