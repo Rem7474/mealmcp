@@ -43,7 +43,7 @@
     <a class="btn" href="https://github.com/Rem7474/mealmcp">Voir sur GitHub</a>
   </div>
   <div class="badges"><span class="badge">Auto-hébergé</span><span class="badge">MCP + OAuth 2.1</span><span class="badge">Installable (PWA)</span><span class="badge">FR / EN</span><span class="badge">Licence MIT</span></div>
-  <div class="shot"><img src="../screens/planning-fr.jpg" alt="Planning : seuls les repas que vous planifiez sont affichés, avec ce qui manque pour chacun." width="800" height="500"></div>
+  <div class="shot"><a class="zoom" href="../screens/planning-fr.jpg" aria-label="Agrandir la capture"><img src="../screens/planning-fr.jpg" alt="Planning : seuls les repas que vous planifiez sont affichés, avec ce qui manque pour chacun." width="1280" height="800"></a></div>
 </div>
 
 <section id="features"><div class="wrap">
@@ -92,12 +92,13 @@
 
 <section id="tour"><div class="wrap">
   <h2>Petit tour du propriétaire</h2>
-  <p class="lead">Captures de l’application web.</p>
+  <p class="lead">Captures de l’application web. Cliquez pour agrandir.</p>
   <div class="gallery">
-      <figure><div class="shot"><img src="../screens/planning-fr.jpg" alt="Planning : seuls les repas que vous planifiez sont affichés, avec ce qui manque pour chacun." loading="lazy" width="800" height="500"></div><figcaption>Planning : seuls les repas que vous planifiez sont affichés, avec ce qui manque pour chacun.</figcaption></figure>
-      <figure><div class="shot"><img src="../screens/shopping-fr.jpg" alt="Courses : par repas, par rayon ou en liste simple, avec une estimation du coût." loading="lazy" width="800" height="500"></div><figcaption>Courses : par repas, par rayon ou en liste simple, avec une estimation du coût.</figcaption></figure>
-      <figure><div class="shot"><img src="../screens/stock-fr.jpg" alt="Stock : conditionnements, produits entamés à finir vite et « ouvrir une unité » en un clic." loading="lazy" width="800" height="500"></div><figcaption>Stock : conditionnements, produits entamés à finir vite et « ouvrir une unité » en un clic.</figcaption></figure>
-      <figure><div class="shot"><img src="../screens/budget-fr.jpg" alt="Budget : enveloppe mensuelle, projection et répartition des dépenses." loading="lazy" width="800" height="500"></div><figcaption>Budget : enveloppe mensuelle, projection et répartition des dépenses.</figcaption></figure>
+      <figure><div class="shot"><a class="zoom" href="../screens/planning-fr.jpg" aria-label="Agrandir la capture"><img src="../screens/planning-fr.jpg" alt="Planning : seuls les repas que vous planifiez sont affichés, avec ce qui manque pour chacun." loading="lazy" width="1280" height="800"></a></div><figcaption>Planning : seuls les repas que vous planifiez sont affichés, avec ce qui manque pour chacun.</figcaption></figure>
+      <figure><div class="shot"><a class="zoom" href="../screens/recipes-fr.jpg" aria-label="Agrandir la capture"><img src="../screens/recipes-fr.jpg" alt="Recettes : notes, favorites, date de la dernière fois, et ce qui est de saison ce mois-ci." loading="lazy" width="1280" height="800"></a></div><figcaption>Recettes : notes, favorites, date de la dernière fois, et ce qui est de saison ce mois-ci.</figcaption></figure>
+      <figure><div class="shot"><a class="zoom" href="../screens/shopping-fr.jpg" aria-label="Agrandir la capture"><img src="../screens/shopping-fr.jpg" alt="Courses : par repas, par rayon ou en liste simple, avec une estimation du coût." loading="lazy" width="1280" height="800"></a></div><figcaption>Courses : par repas, par rayon ou en liste simple, avec une estimation du coût.</figcaption></figure>
+      <figure><div class="shot"><a class="zoom" href="../screens/stock-fr.jpg" aria-label="Agrandir la capture"><img src="../screens/stock-fr.jpg" alt="Stock : conditionnements, produits entamés à finir vite et « ouvrir une unité » en un clic." loading="lazy" width="1280" height="800"></a></div><figcaption>Stock : conditionnements, produits entamés à finir vite et « ouvrir une unité » en un clic.</figcaption></figure>
+      <figure><div class="shot"><a class="zoom" href="../screens/budget-fr.jpg" aria-label="Agrandir la capture"><img src="../screens/budget-fr.jpg" alt="Budget : enveloppe mensuelle, projection et répartition des dépenses." loading="lazy" width="1280" height="800"></a></div><figcaption>Budget : enveloppe mensuelle, projection et répartition des dépenses.</figcaption></figure>
   </div>
 </div></section>
 
@@ -132,5 +133,22 @@ web/src      React + Vite + Tailwind UI (EN / FR)</code></pre>
   <span>MealMCP · Publié sous licence MIT.</span>
   <span><a href="https://github.com/Rem7474/mealmcp">Dépôt</a> · <a href="https://github.com/Rem7474/mealmcp/blob/main/README.fr.md">Documentation complète</a> · <a href="https://github.com/Rem7474/mealmcp/releases">Versions</a></span>
 </div></footer>
+<dialog id="lightbox" aria-label="Agrandir la capture"><img alt=""></dialog>
+<script>
+(function () {
+  var box = document.getElementById('lightbox');
+  if (!box || !box.showModal) return;
+  var img = box.querySelector('img');
+  document.querySelectorAll('a.zoom').forEach(function (a) {
+    a.addEventListener('click', function (e) {
+      e.preventDefault();
+      img.src = a.href;
+      img.alt = a.querySelector('img').alt;
+      box.showModal();
+    });
+  });
+  box.addEventListener('click', function () { box.close(); });
+})();
+</script>
 </body>
 </html>

@@ -137,3 +137,9 @@ footer .wrap { display: flex; flex-wrap: wrap; gap: 12px 24px; justify-content: 
 
 .step > div { min-width: 0; }
 .step p { overflow-wrap: anywhere; }
+
+/* screenshot zoom */
+a.zoom { display: block; cursor: zoom-in; }
+#lightbox { border: 0; padding: 0; background: transparent; max-width: 96vw; max-height: 96vh; }
+#lightbox::backdrop { background: rgb(5 5 12 / 0.88); }
+#lightbox img { display: block; max-width: 96vw; max-height: 94vh; width: auto; height: auto; margin: auto; border-radius: 10px; cursor: zoom-out; }

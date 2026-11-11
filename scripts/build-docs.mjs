@@ -58,10 +58,12 @@ const t = {
     ],
     toolsHead: 'Some of the tools your AI gets',
     toolGroups: [['Stock', 'stock'], ['Recipes', 'recipes'], ['Meal plan', 'plan'], ['Shopping', 'shop'], ['Budget', 'budget'], ['And more', 'more']],
+    zoom: 'Enlarge the screenshot',
     tourHead: 'A quick tour',
-    tourLead: 'Screens from the web app.',
+    tourLead: 'Screens from the web app. Click one to enlarge it.',
     tour: [
       ['planning', 'Planning: only the meals you actually plan are shown, with what is missing for each.'],
+      ['recipes', 'Recipes: ratings, favorites, when each was last made, and what is in season this month.'],
       ['shopping', 'Shopping: grouped by meal, aisle or a flat list, with a running cost estimate.'],
       ['stock', 'Stock: packs, opened items to finish soon, and one-click “open a pack”.'],
       ['budget', 'Budget: monthly envelope, projection and a breakdown of where the money goes.'],
@@ -125,10 +127,12 @@ const t = {
     ],
     toolsHead: 'Quelques outils offerts à votre IA',
     toolGroups: [['Stock', 'stock'], ['Recettes', 'recipes'], ['Planning', 'plan'], ['Courses', 'shop'], ['Budget', 'budget'], ['Et plus', 'more']],
+    zoom: 'Agrandir la capture',
     tourHead: 'Petit tour du propriétaire',
-    tourLead: 'Captures de l’application web.',
+    tourLead: 'Captures de l’application web. Cliquez pour agrandir.',
     tour: [
       ['planning', 'Planning : seuls les repas que vous planifiez sont affichés, avec ce qui manque pour chacun.'],
+      ['recipes', 'Recettes : notes, favorites, date de la dernière fois, et ce qui est de saison ce mois-ci.'],
       ['shopping', 'Courses : par repas, par rayon ou en liste simple, avec une estimation du coût.'],
       ['stock', 'Stock : conditionnements, produits entamés à finir vite et « ouvrir une unité » en un clic.'],
       ['budget', 'Budget : enveloppe mensuelle, projection et répartition des dépenses.'],
@@ -164,7 +168,7 @@ function page(c) {
     .join('\n        ');
   const feats = c.features.map(([i, h, p]) => `<div class="card"><div class="ico" aria-hidden="true">${i}</div><h3>${h}</h3><p>${p}</p></div>`).join('\n      ');
   const tour = c.tour
-    .map(([k, cap]) => `<figure><div class="shot"><img src="${a}screens/${k}-${c.lang}.jpg" alt="${esc(cap)}" loading="lazy" width="800" height="500"></div><figcaption>${cap}</figcaption></figure>`)
+    .map(([k, cap]) => `<figure><div class="shot"><a class="zoom" href="${a}screens/${k}-${c.lang}.jpg" aria-label="${esc(c.zoom)}"><img src="${a}screens/${k}-${c.lang}.jpg" alt="${esc(cap)}" loading="lazy" width="1280" height="800"></a></div><figcaption>${cap}</figcaption></figure>`)
     .join('\n      ');
   const run = `cp .env.example .env   # ${c.lang === 'fr' ? 'puis éditez PUBLIC_URL' : 'then edit PUBLIC_URL'}\ndocker compose up -d`;
   const steps = c.steps
@@ -218,7 +222,7 @@ function page(c) {
     <a class="btn" href="${REPO}">${c.cta2}</a>
   </div>
   <div class="badges">${c.badges.map((b) => `<span class="badge">${b}</span>`).join('')}</div>
-  <div class="shot"><img src="${a}screens/planning-${c.lang}.jpg" alt="${esc(c.tour[0][1])}" width="800" height="500"></div>
+  <div class="shot"><a class="zoom" href="${a}screens/planning-${c.lang}.jpg" aria-label="${esc(c.zoom)}"><img src="${a}screens/planning-${c.lang}.jpg" alt="${esc(c.tour[0][1])}" width="1280" height="800"></a></div>
 </div>
 
 <section id="features"><div class="wrap">
@@ -282,6 +286,23 @@ web/src      React + Vite + Tailwind UI (EN / FR)</code></pre>
   <span>MealMCP · ${c.foot}</span>
   <span><a href="${REPO}">${c.links.repo}</a> · <a href="${readme}">${c.links.docs}</a> · <a href="${REPO}/releases">${c.links.rel}</a></span>
 </div></footer>
+<dialog id="lightbox" aria-label="${c.zoom}"><img alt=""></dialog>
+<script>
+(function () {
+  var box = document.getElementById('lightbox');
+  if (!box || !box.showModal) return;
+  var img = box.querySelector('img');
+  document.querySelectorAll('a.zoom').forEach(function (a) {
+    a.addEventListener('click', function (e) {
+      e.preventDefault();
+      img.src = a.href;
+      img.alt = a.querySelector('img').alt;
+      box.showModal();
+    });
+  });
+  box.addEventListener('click', function () { box.close(); });
+})();
+</script>
 </body>
 </html>
 `;

@@ -43,7 +43,7 @@
     <a class="btn" href="https://github.com/Rem7474/mealmcp">View on GitHub</a>
   </div>
   <div class="badges"><span class="badge">Self-hosted</span><span class="badge">MCP + OAuth 2.1</span><span class="badge">Installable (PWA)</span><span class="badge">EN / FR</span><span class="badge">MIT licence</span></div>
-  <div class="shot"><img src="screens/planning-en.jpg" alt="Planning: only the meals you actually plan are shown, with what is missing for each." width="800" height="500"></div>
+  <div class="shot"><a class="zoom" href="screens/planning-en.jpg" aria-label="Enlarge the screenshot"><img src="screens/planning-en.jpg" alt="Planning: only the meals you actually plan are shown, with what is missing for each." width="1280" height="800"></a></div>
 </div>
 
 <section id="features"><div class="wrap">
@@ -92,12 +92,13 @@
 
 <section id="tour"><div class="wrap">
   <h2>A quick tour</h2>
-  <p class="lead">Screens from the web app.</p>
+  <p class="lead">Screens from the web app. Click one to enlarge it.</p>
   <div class="gallery">
-      <figure><div class="shot"><img src="screens/planning-en.jpg" alt="Planning: only the meals you actually plan are shown, with what is missing for each." loading="lazy" width="800" height="500"></div><figcaption>Planning: only the meals you actually plan are shown, with what is missing for each.</figcaption></figure>
-      <figure><div class="shot"><img src="screens/shopping-en.jpg" alt="Shopping: grouped by meal, aisle or a flat list, with a running cost estimate." loading="lazy" width="800" height="500"></div><figcaption>Shopping: grouped by meal, aisle or a flat list, with a running cost estimate.</figcaption></figure>
-      <figure><div class="shot"><img src="screens/stock-en.jpg" alt="Stock: packs, opened items to finish soon, and one-click “open a pack”." loading="lazy" width="800" height="500"></div><figcaption>Stock: packs, opened items to finish soon, and one-click “open a pack”.</figcaption></figure>
-      <figure><div class="shot"><img src="screens/budget-en.jpg" alt="Budget: monthly envelope, projection and a breakdown of where the money goes." loading="lazy" width="800" height="500"></div><figcaption>Budget: monthly envelope, projection and a breakdown of where the money goes.</figcaption></figure>
+      <figure><div class="shot"><a class="zoom" href="screens/planning-en.jpg" aria-label="Enlarge the screenshot"><img src="screens/planning-en.jpg" alt="Planning: only the meals you actually plan are shown, with what is missing for each." loading="lazy" width="1280" height="800"></a></div><figcaption>Planning: only the meals you actually plan are shown, with what is missing for each.</figcaption></figure>
+      <figure><div class="shot"><a class="zoom" href="screens/recipes-en.jpg" aria-label="Enlarge the screenshot"><img src="screens/recipes-en.jpg" alt="Recipes: ratings, favorites, when each was last made, and what is in season this month." loading="lazy" width="1280" height="800"></a></div><figcaption>Recipes: ratings, favorites, when each was last made, and what is in season this month.</figcaption></figure>
+      <figure><div class="shot"><a class="zoom" href="screens/shopping-en.jpg" aria-label="Enlarge the screenshot"><img src="screens/shopping-en.jpg" alt="Shopping: grouped by meal, aisle or a flat list, with a running cost estimate." loading="lazy" width="1280" height="800"></a></div><figcaption>Shopping: grouped by meal, aisle or a flat list, with a running cost estimate.</figcaption></figure>
+      <figure><div class="shot"><a class="zoom" href="screens/stock-en.jpg" aria-label="Enlarge the screenshot"><img src="screens/stock-en.jpg" alt="Stock: packs, opened items to finish soon, and one-click “open a pack”." loading="lazy" width="1280" height="800"></a></div><figcaption>Stock: packs, opened items to finish soon, and one-click “open a pack”.</figcaption></figure>
+      <figure><div class="shot"><a class="zoom" href="screens/budget-en.jpg" aria-label="Enlarge the screenshot"><img src="screens/budget-en.jpg" alt="Budget: monthly envelope, projection and a breakdown of where the money goes." loading="lazy" width="1280" height="800"></a></div><figcaption>Budget: monthly envelope, projection and a breakdown of where the money goes.</figcaption></figure>
   </div>
 </div></section>
 
@@ -132,5 +133,22 @@ web/src      React + Vite + Tailwind UI (EN / FR)</code></pre>
   <span>MealMCP · Released under the MIT licence.</span>
   <span><a href="https://github.com/Rem7474/mealmcp">Repository</a> · <a href="https://github.com/Rem7474/mealmcp/blob/main/README.md">Full documentation</a> · <a href="https://github.com/Rem7474/mealmcp/releases">Releases</a></span>
 </div></footer>
+<dialog id="lightbox" aria-label="Enlarge the screenshot"><img alt=""></dialog>
+<script>
+(function () {
+  var box = document.getElementById('lightbox');
+  if (!box || !box.showModal) return;
+  var img = box.querySelector('img');
+  document.querySelectorAll('a.zoom').forEach(function (a) {
+    a.addEventListener('click', function (e) {
+      e.preventDefault();
+      img.src = a.href;
+      img.alt = a.querySelector('img').alt;
+      box.showModal();
+    });
+  });
+  box.addEventListener('click', function () { box.close(); });
+})();
+</script>
 </body>
 </html>
