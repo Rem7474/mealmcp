@@ -101,7 +101,7 @@ export function createAccountService(db: Db, config: Config) {
         } else {
           householdId = db
             .insert(households)
-            .values({ name: input.householdName ?? `Foyer de ${input.name}`, createdAt: now })
+            .values({ name: input.householdName ?? `${input.name}'s household`, createdAt: now })
             .returning()
             .get().id;
           role = 'owner';

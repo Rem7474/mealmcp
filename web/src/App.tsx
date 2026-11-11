@@ -1,6 +1,7 @@
 import { useQuery } from '@tanstack/react-query';
 import { useCallback, useState } from 'react';
 import { ErrorContext } from './api';
+import { LanguageSwitch, localizeError, useT } from './i18n';
 import { Account } from './pages/Account';
 import { AuthPage, fetchMe, meKey } from './pages/AuthPage';
 import { Consent } from './pages/Consent';
@@ -10,16 +11,10 @@ import { Shopping } from './pages/Shopping';
 import { Stock } from './pages/Stock';
 import type { User } from './types';
 
-const TABS = [
-  { id: 'planning', label: 'Planning' },
-  { id: 'recipes', label: 'Recettes' },
-  { id: 'shopping', label: 'Courses' },
-  { id: 'stock', label: 'Stock' },
-  { id: 'account', label: 'Compte' },
-] as const;
-type TabId = (typeof TABS)[number]['id'];
+const TABS = ['planning', 'recipes', 'shopping', 'stock', 'account'] as const;
+type TabId = (typeof TABS)[number];
 
-const initialTab = (): TabId => TABS.find((t) => t.id === location.hash.slice(1))?.id ?? 'planning';
+const initialTab = (): TabId => TABS.find((id) => id === location.hash.slice(1)) ?? 'planning';
 
 function Page({ tab, user }: { tab: TabId; user: User }) {
   switch (tab) {
@@ -37,10 +32,16 @@ function Page({ tab, user }: { tab: TabId; user: User }) {
 }
 
 export function App() {
+  const t = useT();
   const me = useQuery({ queryKey: meKey, queryFn: fetchMe });
 
   if (me.isLoading) return null;
-  if (me.error || !me.data) return <p role="alert" className="p-8 text-center text-danger">Impossible de joindre le serveur.</p>;
+  if (me.error || !me.data)
+    return (
+      <p role="alert" className="p-8 text-center text-danger">
+        {t('app.unreachable')}
+      </p>
+    );
   if (!me.data.user) return <AuthPage registrationOpen={me.data.registrationOpen} />;
 
   const { user } = me.data;
@@ -50,6 +51,7 @@ export function App() {
 }
 
 function Shell({ user }: { user: User }) {
+  const t = useT();
   const [tab, setTab] = useState<TabId>(initialTab);
   const [error, setError] = useState<string | null>(null);
   const report = useCallback((e: unknown) => setError(e instanceof Error ? e.message : String(e)), []);
@@ -64,28 +66,29 @@ function Shell({ user }: { user: User }) {
       <header className="sticky top-0 z-10 border-b border-line bg-surface">
         <div className="mx-auto flex max-w-6xl flex-wrap items-center gap-x-6 px-4">
           <h1 className="py-3 text-lg font-bold text-accent">MealMCP</h1>
-          <nav className="flex gap-1 overflow-x-auto">
-            {TABS.map((t) => (
+          <nav className="flex flex-1 gap-1 overflow-x-auto">
+            {TABS.map((id) => (
               <button
-                key={t.id}
-                onClick={() => select(t.id)}
-                aria-current={tab === t.id ? 'page' : undefined}
+                key={id}
+                onClick={() => select(id)}
+                aria-current={tab === id ? 'page' : undefined}
                 className={`cursor-pointer border-b-2 px-3 py-3 text-sm font-medium ${
-                  tab === t.id ? 'border-accent text-ink' : 'border-transparent text-muted hover:text-ink'
+                  tab === id ? 'border-accent text-ink' : 'border-transparent text-muted hover:text-ink'
                 }`}
               >
-                {t.label}
+                {t(`tab.${id}`)}
               </button>
             ))}
           </nav>
+          <LanguageSwitch />
         </div>
       </header>
       <main className="mx-auto max-w-6xl space-y-4 px-4 py-4">
         {error && (
           <div role="alert" className="flex items-center justify-between gap-3 rounded-lg border border-danger px-3 py-2 text-sm text-danger">
-            <span>{error}</span>
+            <span>{localizeError(t, error)}</span>
             <button className="cursor-pointer text-muted hover:text-ink" onClick={() => setError(null)}>
-              Fermer
+              {t('app.close')}
             </button>
           </div>
         )}

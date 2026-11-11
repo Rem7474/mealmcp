@@ -1,7 +1,8 @@
 import { useQuery } from '@tanstack/react-query';
 import type { SelectHTMLAttributes } from 'react';
 import { api } from '../api';
-import { LOCATION_LABELS } from '../format';
+import { LOCATIONS } from '../format';
+import { useT } from '../i18n';
 import type { Product } from '../types';
 import { Select } from '../ui';
 
@@ -9,6 +10,7 @@ export const useProducts = () => useQuery({ queryKey: ['products'], queryFn: () 
 
 /** Autocomplete source for product-name inputs: use with `list="product-names"`. */
 export function ProductDatalist() {
+  const t = useT();
   const { data = [] } = useProducts();
   return (
     <>
@@ -18,20 +20,23 @@ export function ProductDatalist() {
         ))}
       </datalist>
       <datalist id="unit-names">
-        {['g', 'kg', 'ml', 'cl', 'l', 'pièce', 'boîte', 'sachet', 'bouteille'].map((u) => (
-          <option key={u} value={u} />
-        ))}
+        {t('units.suggestions')
+          .split(',')
+          .map((u) => (
+            <option key={u} value={u} />
+          ))}
       </datalist>
     </>
   );
 }
 
 export function LocationSelect(props: SelectHTMLAttributes<HTMLSelectElement>) {
+  const t = useT();
   return (
-    <Select aria-label="Emplacement" {...props}>
-      {Object.entries(LOCATION_LABELS).map(([value, label]) => (
+    <Select aria-label={t('location.label')} {...props}>
+      {LOCATIONS.map((value) => (
         <option key={value} value={value}>
-          {label}
+          {t(`location.${value}`)}
         </option>
       ))}
     </Select>

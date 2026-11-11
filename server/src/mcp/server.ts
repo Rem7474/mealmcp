@@ -6,7 +6,7 @@ import type { Services } from '../services/index.js';
 
 const INSTRUCTIONS = `MealMCP manages one household's kitchen: stock (what is at home), recipes, a meal plan and a shopping list.
 Products are identified by name and created automatically the first time a name is used; reuse existing names (see list_stock / get_recipe) rather than inventing variants.
-Quantities are stored in base units: g for mass, ml for volume, "pièce" for countable items. kg, l, cl are converted automatically.
+Quantities are stored in base units: g for mass, ml for volume, "piece" for countable items. kg, l, cl are converted automatically.
 Typical flow: plan meals (plan_meal) -> generate_shopping_list for the planned period -> check items while shopping -> complete_shopping moves them into stock -> cook_planned_meal takes ingredients out of stock.`;
 
 /** MCP adapter: exposes the same services as the REST API, as tools for AI clients. */

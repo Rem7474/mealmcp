@@ -1,92 +1,97 @@
 # MealMCP
 
+**English** · [Français](README.fr.md)
+
 [![CI](https://github.com/Rem7474/mealmcp/actions/workflows/ci.yml/badge.svg)](https://github.com/Rem7474/mealmcp/actions/workflows/ci.yml)
 
-Gestion des repas, des courses et du stock d'un foyer, avec un serveur MCP intégré pour le piloter depuis une IA.
+Meal planning, shopping and pantry stock for a household, with a built-in MCP server so an AI assistant can drive it.
 
-- **Planning** : repas par jour, à partir d'une recette ou en texte libre.
-- **Recettes** : ingrédients, portions, préparation, disponibilité par rapport au stock.
-- **Courses** : liste générée depuis le planning (besoins − stock + produits sous leur seuil), ajouts manuels, rangement des achats dans le stock.
-- **Stock** : par emplacement (frigo, congélateur, placard), dates de péremption, seuils d'alerte.
+- **Planning**: meals per day, from a recipe or free text.
+- **Recipes**: ingredients, servings, instructions, and availability against your stock.
+- **Shopping**: a list generated from the meal plan (needs − stock + products below their threshold), manual additions, and putting purchases away into stock.
+- **Stock**: by location (fridge, freezer, pantry), expiry dates, low-stock alerts.
+- **Bilingual**: English and French UI (language switcher at the top right, browser language by default). MCP tool descriptions are in English.
 
 ## Architecture
 
 ```
 server/src
-  db/         schéma Drizzle + SQLite, migrations appliquées au démarrage
-  domain/     schémas Zod (entrées), unités, dates, erreurs
-  auth/       comptes, sessions, foyers, serveur OAuth pour le MCP
-  services/   toute la logique métier (liée à un foyer)
-  api/        adaptateur REST (utilisé par l'interface web)
-  mcp/        adaptateur MCP (utilisé par les IA)
-web/src       interface React + Vite + Tailwind
+  db/         Drizzle schema + SQLite, migrations applied at startup
+  domain/     Zod input schemas, units, dates, errors
+  auth/       accounts, sessions, households, OAuth server for MCP
+  services/   all the business logic (bound to one household)
+  api/        REST adapter (used by the web UI)
+  mcp/        MCP adapter (used by AI clients)
+web/src       React + Vite + Tailwind UI (messages in web/src/i18n)
 ```
 
-L'API REST et le serveur MCP sont deux adaptateurs fins au-dessus des mêmes services : une règle métier s'écrit une fois, dans `services/`.
+The REST API and the MCP server are two thin adapters over the same services: a business rule is written once, in `services/`.
 
-Les quantités sont stockées en unité de base (g, ml, « pièce ») ; kg, l, cl sont convertis à l'entrée.
+Quantities are stored in a base unit (g, ml, "piece"); kg, l and cl are converted on input.
 
-## Développement
+## Development
 
 ```bash
 npm install
 npm run dev
 ```
 
-Interface sur http://localhost:5173, backend sur http://localhost:3000.
+UI on http://localhost:5173, backend on http://localhost:3000.
 
-| Commande | Effet |
+| Command | Effect |
 | --- | --- |
-| `npm test` | tests des services |
-| `npm run build` | build web + serveur |
-| `npm start` | sert l'app construite sur le port 3000 |
-| `npm run db:generate` | génère une migration après modification de `server/src/db/schema.ts` |
+| `npm test` | service and auth/OAuth tests |
+| `npm run build` | build web + server |
+| `npm start` | serve the built app on port 3000 |
+| `npm run db:generate` | generate a migration after changing `server/src/db/schema.ts` |
+
+To add a UI language, add a file next to `web/src/i18n/fr.ts` (it must define every key of `en.ts`) and register it in `web/src/i18n/index.tsx`.
 
 ## CI/CD
 
-- `ci.yml` : à chaque push et pull request, build (typage web + serveur), tests, puis construction de l'image Docker et test de fumée du conteneur (accès refusé sans compte, découverte OAuth, création de compte).
-- `release.yml` : après les tests, publie l'image sur GitHub Container Registry. Pour une version : `git tag v0.1.0 && git push --tags`.
-- Dependabot met à jour les dépendances npm, les actions GitHub et l'image de base.
+- `ci.yml`: on every push and pull request, build (type-checks web + server), tests, then builds the Docker image and smoke-tests the container (access refused without an account, OAuth discovery, account creation).
+- `release.yml`: after the tests, publishes the image to GitHub Container Registry; for a `vX.Y.Z` tag it also creates a GitHub Release. To release: `git tag -a v0.2.0 -m v0.2.0 && git push origin v0.2.0`.
+- Dependabot updates npm dependencies, GitHub Actions and the base image.
 
-## Déploiement Docker
+## Docker deployment
 
-Copiez `.env.example` en `.env` et renseignez au moins `PUBLIC_URL` (l'adresse réelle de l'app, en HTTPS si des clients MCP distants doivent s'y connecter), puis :
+Copy `.env.example` to `.env` and set at least `PUBLIC_URL` (the real address of the app, over HTTPS if remote MCP clients must reach it), then:
 
 ```bash
 docker compose up -d
 ```
 
-Cela télécharge l'image publiée (`ghcr.io/rem7474/mealmcp:latest`). Pour figer une version, ajoutez `MEALMCP_VERSION=0.1.0` dans `.env` ; pour construire depuis les sources, utilisez `docker compose up -d --build`.
+This pulls the published image (`ghcr.io/rem7474/mealmcp:latest`). To pin a version, add `MEALMCP_VERSION=0.1.0` to `.env`; to build from source, use `docker compose up -d --build`.
 
-Ouvrez ensuite l'adresse de l'app : **le premier compte créé devient propriétaire du foyer**.
+Then open the app: **the first account created becomes the household owner**.
 
-L'image (amd64 et arm64) est publiée à chaque push sur `main` (tag `main`) et à chaque tag `vX.Y.Z` (tags `X.Y.Z`, `X.Y` et `latest`).
+The image (amd64 and arm64) is published on every push to `main` (tag `main`) and every `vX.Y.Z` tag (tags `X.Y.Z`, `X.Y` and `latest`).
 
-La base SQLite est dans le volume `mealmcp-data`. Si l'app est exposée hors du réseau local, placez-la derrière un reverse proxy HTTPS et réglez `PUBLIC_URL` et `TRUST_PROXY` (voir `.env.example`).
+The SQLite database lives in the `mealmcp-data` volume. If the app is exposed beyond your local network, put it behind an HTTPS reverse proxy and set `PUBLIC_URL` and `TRUST_PROXY` (see `.env.example`).
 
-## Comptes et foyers
+## Accounts and households
 
-- Un **foyer** regroupe recettes, planning, courses et stock ; chaque donnée appartient à un foyer et les services filtrent systématiquement dessus (deux foyers ne voient jamais les données l'un de l'autre).
-- Le premier compte crée un foyer et en est propriétaire. Il invite ensuite d'autres personnes (onglet **Compte**) avec un code à usage unique valable 7 jours. `ALLOW_REGISTRATION=true` ouvre aussi la création de nouveaux foyers.
-- Mots de passe hachés avec scrypt, sessions par cookie `HttpOnly`/`SameSite=Lax`, jetons et codes stockés hachés, limitation des tentatives de connexion.
-- **Pas de réinitialisation de mot de passe par email** : l'app n'envoie pas de mail. En cas d'oubli, supprimez la ligne de l'utilisateur dans la base ou recréez le compte.
+- A **household** groups recipes, meal plan, shopping list and stock. Every row belongs to a household and the services always filter on it, so two households never see each other's data.
+- The first account creates a household and owns it. The owner then invites others (**Account** tab) with a single-use code valid for 7 days. `ALLOW_REGISTRATION=true` also lets strangers create their own households.
+- Passwords are hashed with scrypt, sessions use `HttpOnly`/`SameSite=Lax` cookies, tokens and codes are stored hashed, and login attempts are rate-limited.
+- **No password reset by email**: the app does not send mail. If someone forgets their password, delete their user row from the database and have them sign up again.
 
-## Connexion d'une IA (MCP)
+## Connecting an AI (MCP)
 
-Point d'accès : `POST /mcp` (transport Streamable HTTP, sans session), qui agit toujours sur le foyer de la personne connectée.
+Endpoint: `POST /mcp` (Streamable HTTP transport, stateless). It always acts on the signed-in person's household.
 
-**OAuth 2.1 (recommandé)** : le serveur est son propre serveur d'autorisation (métadonnées de découverte, enregistrement dynamique de clients, PKCE S256, jetons d'accès d'une heure et jetons de rafraîchissement renouvelés à chaque usage). Un client compatible, comme Claude, n'a besoin que de l'adresse `PUBLIC_URL/mcp` : il ouvre la page de connexion, vous autorisez l'accès, c'est tout. Les accès accordés se retirent depuis l'onglet **Compte**. Remarque : la découverte OAuth exige que `PUBLIC_URL` soit en HTTPS (ou `localhost`).
+**OAuth 2.1 (recommended)**: the server is its own authorization server (discovery metadata, dynamic client registration, PKCE S256, one-hour access tokens and refresh tokens rotated on every use). A compatible client such as Claude only needs the address `PUBLIC_URL/mcp`: it opens the sign-in page, you allow access, done. Granted access can be revoked from the **Account** tab. Note that OAuth discovery requires `PUBLIC_URL` to be HTTPS (or `localhost`).
 
-**Jeton personnel** : pour les scripts ou les clients sans OAuth, créez un jeton dans l'onglet **Compte**, puis par exemple avec Claude Code :
+**Personal token**: for scripts or clients without OAuth, create a token in the **Account** tab, then for example with Claude Code:
 
 ```bash
-claude mcp add --transport http mealmcp http://localhost:3000/mcp --header "Authorization: Bearer mmcp_VOTRE_JETON"
+claude mcp add --transport http mealmcp http://localhost:3000/mcp --header "Authorization: Bearer mmcp_YOUR_TOKEN"
 ```
 
-Le même jeton fonctionne sur l'API REST (`/api`). Pour tester le flux OAuth en local, utilisez l'app construite (`npm run build && npm start`) plutôt que `npm run dev`.
+The same token works on the REST API (`/api`). To try the OAuth flow locally, use the built app (`npm run build && npm start`) rather than `npm run dev`.
 
-Outils exposés (24) : stock (`list_stock`, `add_stock`, `update_stock_item`, `consume_stock`, `remove_stock_item`, `get_stock_alerts`), produits (`list_products`, `update_product`), recettes (`list_recipes`, `get_recipe`, `create_recipe`, `update_recipe`, `delete_recipe`, `check_recipe_availability`), planning (`list_meal_plan`, `plan_meal`, `remove_planned_meal`, `cook_planned_meal`), courses (`list_shopping_list`, `add_shopping_item`, `check_shopping_item`, `remove_shopping_item`, `generate_shopping_list`, `complete_shopping`).
+Tools (24): stock (`list_stock`, `add_stock`, `update_stock_item`, `consume_stock`, `remove_stock_item`, `get_stock_alerts`), products (`list_products`, `update_product`), recipes (`list_recipes`, `get_recipe`, `create_recipe`, `update_recipe`, `delete_recipe`, `check_recipe_availability`), meal plan (`list_meal_plan`, `plan_meal`, `remove_planned_meal`, `cook_planned_meal`), shopping (`list_shopping_list`, `add_shopping_item`, `check_shopping_item`, `remove_shopping_item`, `generate_shopping_list`, `complete_shopping`).
 
-## Licence
+## License
 
 [MIT](LICENSE)

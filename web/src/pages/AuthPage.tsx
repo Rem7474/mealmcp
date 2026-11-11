@@ -1,11 +1,13 @@
 import { type QueryClient, useQueryClient } from '@tanstack/react-query';
 import { type FormEvent, useState } from 'react';
 import { api } from '../api';
+import { LanguageSwitch, localizeError, useT } from '../i18n';
 import type { Me } from '../types';
 import { Button, Card, Input } from '../ui';
 
 /** Login and sign-up. Sign-up needs an invite code unless the server allows open registration. */
 export function AuthPage({ registrationOpen }: { registrationOpen: boolean }) {
+  const t = useT();
   const queryClient = useQueryClient();
   const [mode, setMode] = useState<'login' | 'register'>('login');
   const [form, setForm] = useState({ email: '', name: '', password: '', inviteCode: '', householdName: '' });
@@ -26,11 +28,12 @@ export function AuthPage({ registrationOpen }: { registrationOpen: boolean }) {
           name: form.name,
           password: form.password,
           inviteCode: form.inviteCode.trim() || undefined,
-          householdName: !joining && form.householdName.trim() ? form.householdName.trim() : undefined,
+          // The default household name is generated here so it is in the user's language.
+          householdName: joining ? undefined : form.householdName.trim() || t('auth.defaultHousehold', { name: form.name.trim() }),
         });
       await resetSession(queryClient);
     } catch (err) {
-      setError(err instanceof Error ? err.message : String(err));
+      setError(localizeError(t, err instanceof Error ? err.message : String(err)));
     } finally {
       setBusy(false);
     }
@@ -38,20 +41,23 @@ export function AuthPage({ registrationOpen }: { registrationOpen: boolean }) {
 
   return (
     <main className="mx-auto max-w-sm px-4 py-12">
-      <h1 className="mb-6 text-center text-2xl font-bold text-accent">MealMCP</h1>
-      <Card title={mode === 'login' ? 'Connexion' : 'Créer un compte'}>
+      <div className="mb-6 flex items-center justify-between">
+        <h1 className="text-2xl font-bold text-accent">MealMCP</h1>
+        <LanguageSwitch />
+      </div>
+      <Card title={t(`auth.title.${mode}`)}>
         <form onSubmit={submit} className="space-y-3">
           {mode === 'register' && (
-            <Input required autoComplete="name" placeholder="Votre prénom" aria-label="Nom" value={form.name} onChange={(e) => set({ name: e.target.value })} className="w-full" />
+            <Input required autoComplete="name" placeholder={t('auth.name')} aria-label={t('auth.name')} value={form.name} onChange={(e) => set({ name: e.target.value })} className="w-full" />
           )}
-          <Input required type="email" autoComplete="email" placeholder="Email" aria-label="Email" value={form.email} onChange={(e) => set({ email: e.target.value })} className="w-full" />
+          <Input required type="email" autoComplete="email" placeholder={t('auth.email')} aria-label={t('auth.email')} value={form.email} onChange={(e) => set({ email: e.target.value })} className="w-full" />
           <Input
             required
             type="password"
             minLength={mode === 'register' ? 10 : undefined}
             autoComplete={mode === 'login' ? 'current-password' : 'new-password'}
-            placeholder={mode === 'register' ? 'Mot de passe (10 caractères minimum)' : 'Mot de passe'}
-            aria-label="Mot de passe"
+            placeholder={mode === 'register' ? t('auth.passwordNew') : t('auth.password')}
+            aria-label={t('auth.password')}
             value={form.password}
             onChange={(e) => set({ password: e.target.value })}
             className="w-full"
@@ -60,22 +66,16 @@ export function AuthPage({ registrationOpen }: { registrationOpen: boolean }) {
             <>
               <Input
                 required={!registrationOpen}
-                placeholder={registrationOpen ? 'Code d’invitation (facultatif)' : 'Code d’invitation'}
-                aria-label="Code d’invitation"
+                placeholder={registrationOpen ? t('auth.inviteOptional') : t('auth.invite')}
+                aria-label={t('auth.invite')}
                 value={form.inviteCode}
                 onChange={(e) => set({ inviteCode: e.target.value })}
                 className="w-full"
               />
               {registrationOpen && !joining && (
-                <Input placeholder="Nom du foyer (facultatif)" aria-label="Nom du foyer" value={form.householdName} onChange={(e) => set({ householdName: e.target.value })} className="w-full" />
+                <Input placeholder={t('auth.householdName')} aria-label={t('auth.householdName')} value={form.householdName} onChange={(e) => set({ householdName: e.target.value })} className="w-full" />
               )}
-              <p className="text-sm text-muted">
-                {joining
-                  ? 'Vous rejoindrez le foyer de la personne qui vous a invité.'
-                  : registrationOpen
-                    ? 'Sans code, un nouveau foyer est créé et vous en êtes le propriétaire.'
-                    : 'Les inscriptions sont fermées : demandez un code d’invitation à un membre du foyer.'}
-              </p>
+              <p className="text-sm text-muted">{joining ? t('auth.hint.join') : registrationOpen ? t('auth.hint.open') : t('auth.hint.closed')}</p>
             </>
           )}
           {error && (
@@ -84,12 +84,12 @@ export function AuthPage({ registrationOpen }: { registrationOpen: boolean }) {
             </p>
           )}
           <Button type="submit" variant="primary" disabled={busy} className="w-full">
-            {mode === 'login' ? 'Se connecter' : 'Créer le compte'}
+            {t(`auth.submit.${mode}`)}
           </Button>
         </form>
       </Card>
       <p className="mt-4 text-center text-sm text-muted">
-        {mode === 'login' ? 'Pas encore de compte ?' : 'Déjà un compte ?'}{' '}
+        {mode === 'login' ? t('auth.noAccount') : t('auth.haveAccount')}{' '}
         <button
           className="cursor-pointer text-accent underline"
           onClick={() => {
@@ -97,7 +97,7 @@ export function AuthPage({ registrationOpen }: { registrationOpen: boolean }) {
             setError(null);
           }}
         >
-          {mode === 'login' ? 'Créer un compte' : 'Se connecter'}
+          {mode === 'login' ? t('auth.toRegister') : t('auth.toLogin')}
         </button>
       </p>
     </main>
@@ -111,4 +111,5 @@ export async function resetSession(queryClient: QueryClient) {
   queryClient.removeQueries({ predicate: (q) => q.queryKey[0] !== meKey[0] });
   await queryClient.invalidateQueries({ queryKey: meKey });
 }
+
 export const fetchMe = () => api.get<Me>('/auth/me');

@@ -141,6 +141,9 @@ export const products = sqliteTable(
     /** Lower-cased name used for case-insensitive lookups. */
     nameKey: text('name_key').notNull(),
     category: text('category'),
+    // The DDL default is legacy and never used (the app always sets the unit, see DEFAULT_UNIT).
+    // It is left as is: changing a SQLite default makes drizzle recreate the table, which would
+    // cascade-delete every row that references it while foreign keys are on.
     defaultUnit: text('default_unit').notNull().default('pièce'),
     /** Alert threshold, expressed in defaultUnit. */
     minStock: real('min_stock'),

@@ -2,6 +2,7 @@ import { useQuery } from '@tanstack/react-query';
 import { type FormEvent, useState } from 'react';
 import { api, useAction } from '../api';
 import { formatQty } from '../format';
+import { useT } from '../i18n';
 import type { Availability, Recipe, RecipeSummary } from '../types';
 import { Badge, Button, Card, Empty, Input } from '../ui';
 import { parseQty, ProductDatalist } from './shared';
@@ -9,6 +10,7 @@ import { parseQty, ProductDatalist } from './shared';
 type View = { mode: 'list' } | { mode: 'detail'; id: number } | { mode: 'edit'; recipe?: Recipe };
 
 export function Recipes() {
+  const t = useT();
   const [view, setView] = useState<View>({ mode: 'list' });
   const [search, setSearch] = useState('');
   const { data: recipes = [] } = useQuery({
@@ -24,13 +26,13 @@ export function Recipes() {
   return (
     <>
       <div className="flex gap-2">
-        <Input type="search" placeholder="Rechercher une recette ou un ingrédient" aria-label="Rechercher" value={search} onChange={(e) => setSearch(e.target.value)} className="flex-1" />
+        <Input type="search" placeholder={t('recipes.search')} aria-label={t('recipes.searchAria')} value={search} onChange={(e) => setSearch(e.target.value)} className="flex-1" />
         <Button variant="primary" onClick={() => setView({ mode: 'edit' })}>
-          Nouvelle recette
+          {t('recipes.new')}
         </Button>
       </div>
       {recipes.length === 0 ? (
-        <Empty>{search ? 'Aucune recette ne correspond.' : 'Aucune recette pour l’instant.'}</Empty>
+        <Empty>{search ? t('recipes.noMatch') : t('recipes.none')}</Empty>
       ) : (
         <ul className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
           {recipes.map((r) => (
@@ -41,8 +43,8 @@ export function Recipes() {
               >
                 <div className="font-semibold">{r.name}</div>
                 <div className="mt-1 text-sm text-muted">
-                  {r.servings} pers. · {r.ingredientCount} ingrédient{r.ingredientCount > 1 ? 's' : ''}
-                  {r.prepMinutes ? ` · ${r.prepMinutes} min` : ''}
+                  {t('common.servings', { n: r.servings })} · {t('recipes.ingredientCount', { n: r.ingredientCount })}
+                  {r.prepMinutes ? ` · ${t('common.minutes', { n: r.prepMinutes })}` : ''}
                 </div>
                 {r.description && <p className="mt-2 line-clamp-2 text-sm">{r.description}</p>}
               </button>
@@ -55,6 +57,7 @@ export function Recipes() {
 }
 
 function RecipeDetail({ id, onBack, onEdit }: { id: number; onBack: () => void; onEdit: (recipe: Recipe) => void }) {
+  const t = useT();
   const { data: recipe } = useQuery({ queryKey: ['recipe', id], queryFn: () => api.get<Recipe>(`/recipes/${id}`) });
   const { data: availability } = useQuery({
     queryKey: ['recipe', id, 'availability'],
@@ -64,7 +67,7 @@ function RecipeDetail({ id, onBack, onEdit }: { id: number; onBack: () => void; 
   if (!recipe) return null;
 
   const remove = async () => {
-    if (!confirm(`Supprimer « ${recipe.name} » ? Les repas planifiés avec cette recette seront aussi retirés.`)) return;
+    if (!confirm(t('recipes.confirmDelete', { name: recipe.name }))) return;
     await run(() => api.del(`/recipes/${id}`));
     onBack();
   };
@@ -72,27 +75,28 @@ function RecipeDetail({ id, onBack, onEdit }: { id: number; onBack: () => void; 
   return (
     <>
       <Button variant="ghost" className="px-0" onClick={onBack}>
-        ← Recettes
+        {t('recipes.back')}
       </Button>
       <Card
         title={<span className="text-xl">{recipe.name}</span>}
         actions={
           <div className="flex gap-2">
-            <Button onClick={() => onEdit(recipe)}>Modifier</Button>
+            <Button onClick={() => onEdit(recipe)}>{t('recipes.edit')}</Button>
             <Button variant="danger" disabled={pending} onClick={remove}>
-              Supprimer
+              {t('recipes.delete')}
             </Button>
           </div>
         }
       >
         <p className="text-sm text-muted">
-          {recipe.servings} personnes{recipe.prepMinutes ? ` · ${recipe.prepMinutes} min` : ''}
+          {t('common.servings', { n: recipe.servings })}
+          {recipe.prepMinutes ? ` · ${t('common.minutes', { n: recipe.prepMinutes })}` : ''}
         </p>
         {recipe.description && <p className="mt-2">{recipe.description}</p>}
 
         <h3 className="mt-4 mb-2 flex items-center gap-2 font-semibold">
-          Ingrédients
-          {availability && (availability.canCook ? <Badge tone="accent">tout est en stock</Badge> : <Badge tone="warn">il manque des ingrédients</Badge>)}
+          {t('recipes.ingredients')}
+          {availability && (availability.canCook ? <Badge tone="accent">{t('recipes.allInStock')}</Badge> : <Badge tone="warn">{t('recipes.someMissing')}</Badge>)}
         </h3>
         <ul className="divide-y divide-line text-sm">
           {recipe.ingredients.map((ing, i) => {
@@ -102,7 +106,7 @@ function RecipeDetail({ id, onBack, onEdit }: { id: number; onBack: () => void; 
                 <span className="w-20 text-right text-muted">{formatQty(ing.quantity, ing.unit)}</span>
                 <span className="font-medium">{ing.name}</span>
                 {ing.note && <span className="text-muted">({ing.note})</span>}
-                {missing > 0 && <span className="text-warn">manque {formatQty(missing, ing.unit)}</span>}
+                {missing > 0 && <span className="text-warn">{t('recipes.missing', { qty: formatQty(missing, ing.unit) })}</span>}
               </li>
             );
           })}
@@ -110,7 +114,7 @@ function RecipeDetail({ id, onBack, onEdit }: { id: number; onBack: () => void; 
 
         {recipe.instructions && (
           <>
-            <h3 className="mt-4 mb-2 font-semibold">Préparation</h3>
+            <h3 className="mt-4 mb-2 font-semibold">{t('recipes.instructions')}</h3>
             <p className="whitespace-pre-wrap text-sm leading-relaxed">{recipe.instructions}</p>
           </>
         )}
@@ -128,6 +132,7 @@ interface Row {
 const emptyRow = (): Row => ({ name: '', quantity: '', unit: '', note: '' });
 
 function RecipeForm({ recipe, onDone }: { recipe?: Recipe; onDone: (id?: number) => void }) {
+  const t = useT();
   const { run, pending } = useAction();
   const [form, setForm] = useState({
     name: recipe?.name ?? '',
@@ -137,7 +142,7 @@ function RecipeForm({ recipe, onDone }: { recipe?: Recipe; onDone: (id?: number)
     instructions: recipe?.instructions ?? '',
   });
   const [rows, setRows] = useState<Row[]>(
-    recipe?.ingredients.map((i) => ({ name: i.name, quantity: String(i.quantity), unit: i.unit === 'pièce' ? '' : i.unit, note: i.note ?? '' })) ?? [
+    recipe?.ingredients.map((i) => ({ name: i.name, quantity: String(i.quantity), unit: i.unit === 'piece' ? '' : i.unit, note: i.note ?? '' })) ?? [
       emptyRow(),
     ],
   );
@@ -160,41 +165,41 @@ function RecipeForm({ recipe, onDone }: { recipe?: Recipe; onDone: (id?: number)
   };
 
   return (
-    <Card title={recipe ? 'Modifier la recette' : 'Nouvelle recette'}>
+    <Card title={recipe ? t('recipes.form.editTitle') : t('recipes.form.newTitle')}>
       <ProductDatalist />
       <form onSubmit={submit} className="space-y-3">
-        <Input required placeholder="Nom de la recette" aria-label="Nom" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} className="w-full" />
-        <Input placeholder="Description courte (facultatif)" aria-label="Description" value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} className="w-full" />
+        <Input required placeholder={t('recipes.form.name')} aria-label={t('recipes.form.nameAria')} value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} className="w-full" />
+        <Input placeholder={t('recipes.form.description')} aria-label={t('recipes.form.descriptionAria')} value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} className="w-full" />
         <div className="flex flex-wrap gap-3 text-sm">
           <label className="flex items-center gap-2">
-            Personnes
+            {t('recipes.form.servings')}
             <Input type="number" min={1} required value={form.servings} onChange={(e) => setForm({ ...form, servings: e.target.value })} className="w-20" />
           </label>
           <label className="flex items-center gap-2">
-            Temps (min)
+            {t('recipes.form.time')}
             <Input type="number" min={0} value={form.prepMinutes} onChange={(e) => setForm({ ...form, prepMinutes: e.target.value })} className="w-20" />
           </label>
         </div>
 
         <fieldset className="space-y-2">
-          <legend className="mb-1 font-semibold">Ingrédients</legend>
+          <legend className="mb-1 font-semibold">{t('recipes.ingredients')}</legend>
           {rows.map((row, i) => (
             <div key={i} className="flex flex-wrap gap-2">
-              <Input inputMode="decimal" placeholder="Qté" aria-label="Quantité" value={row.quantity} onChange={(e) => setRow(i, { quantity: e.target.value })} className="w-20" />
-              <Input list="unit-names" placeholder="Unité" aria-label="Unité" value={row.unit} onChange={(e) => setRow(i, { unit: e.target.value })} className="w-24" />
-              <Input list="product-names" placeholder="Ingrédient" aria-label="Ingrédient" value={row.name} onChange={(e) => setRow(i, { name: e.target.value })} className="flex-1 basis-32" />
-              <Input placeholder="Note" aria-label="Note" value={row.note} onChange={(e) => setRow(i, { note: e.target.value })} className="flex-1 basis-24" />
-              <Button variant="ghost" className="px-2" aria-label="Retirer l’ingrédient" onClick={() => setRows(rows.filter((_, j) => j !== i))}>
+              <Input inputMode="decimal" placeholder={t('common.qty')} aria-label={t('common.quantity')} value={row.quantity} onChange={(e) => setRow(i, { quantity: e.target.value })} className="w-20" />
+              <Input list="unit-names" placeholder={t('common.unit')} aria-label={t('common.unit')} value={row.unit} onChange={(e) => setRow(i, { unit: e.target.value })} className="w-24" />
+              <Input list="product-names" placeholder={t('recipes.form.ingredient')} aria-label={t('recipes.form.ingredient')} value={row.name} onChange={(e) => setRow(i, { name: e.target.value })} className="flex-1 basis-32" />
+              <Input placeholder={t('recipes.form.note')} aria-label={t('recipes.form.note')} value={row.note} onChange={(e) => setRow(i, { note: e.target.value })} className="flex-1 basis-24" />
+              <Button variant="ghost" className="px-2" aria-label={t('recipes.form.removeIngredient')} onClick={() => setRows(rows.filter((_, j) => j !== i))}>
                 ✕
               </Button>
             </div>
           ))}
-          <Button onClick={() => setRows([...rows, emptyRow()])}>+ Ingrédient</Button>
+          <Button onClick={() => setRows([...rows, emptyRow()])}>{t('recipes.form.addIngredient')}</Button>
         </fieldset>
 
         <textarea
-          placeholder="Préparation"
-          aria-label="Préparation"
+          placeholder={t('recipes.instructions')}
+          aria-label={t('recipes.instructions')}
           rows={8}
           value={form.instructions}
           onChange={(e) => setForm({ ...form, instructions: e.target.value })}
@@ -203,9 +208,9 @@ function RecipeForm({ recipe, onDone }: { recipe?: Recipe; onDone: (id?: number)
 
         <div className="flex gap-2">
           <Button type="submit" variant="primary" disabled={pending}>
-            Enregistrer
+            {t('recipes.form.save')}
           </Button>
-          <Button onClick={() => onDone(recipe?.id)}>Annuler</Button>
+          <Button onClick={() => onDone(recipe?.id)}>{t('recipes.form.cancel')}</Button>
         </div>
       </form>
     </Card>

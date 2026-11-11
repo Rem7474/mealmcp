@@ -13,7 +13,7 @@ const unit = z
   .string()
   .max(30)
   .optional()
-  .describe('Unit such as g, kg, ml, l, or a free label (boîte, sachet). Omit for countable pieces.');
+  .describe('Unit such as g, kg, ml, l, or a free label (can, pack). Omit for countable pieces.');
 const location = z.enum(LOCATIONS).describe('Where it is stored: fridge, freezer or pantry');
 const productName = z.string().trim().min(1).max(120);
 
@@ -22,7 +22,7 @@ export const idParam = z.object({ id });
 export const productUpdate = z.object({
   id,
   name: productName.optional(),
-  category: z.string().max(60).nullable().optional().describe('Free category, e.g. "Produits laitiers"'),
+  category: z.string().max(60).nullable().optional().describe('Free category, e.g. "Dairy"'),
   minStock: z
     .number()
     .nonnegative()
@@ -66,7 +66,7 @@ const ingredient = z.object({
   name: productName,
   quantity: z.number().positive(),
   unit,
-  note: z.string().max(200).nullable().optional().describe('e.g. "émincé", "facultatif"'),
+  note: z.string().max(200).nullable().optional().describe('e.g. "sliced", "optional"'),
 });
 
 export const recipeCreate = z.object({

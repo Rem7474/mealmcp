@@ -1,12 +1,14 @@
 import { useQuery } from '@tanstack/react-query';
 import { type FormEvent, useState } from 'react';
 import { api, useAction } from '../api';
-import { daysUntil, formatDate, formatQty, LOCATION_LABELS } from '../format';
-import type { Location, Product, StockAlerts, StockItem } from '../types';
+import { daysUntil, formatDate, formatQty, LOCATIONS } from '../format';
+import { useT } from '../i18n';
+import type { Product, StockAlerts, StockItem } from '../types';
 import { Badge, Button, Card, Empty, Input } from '../ui';
 import { LocationSelect, parseQty, ProductDatalist, useProducts } from './shared';
 
 export function Stock() {
+  const t = useT();
   const stock = useQuery({ queryKey: ['stock'], queryFn: () => api.get<StockItem[]>('/stock') });
   const alerts = useQuery({ queryKey: ['alerts'], queryFn: () => api.get<StockAlerts>('/stock/alerts') });
   const products = useProducts();
@@ -17,12 +19,12 @@ export function Stock() {
       <ProductDatalist />
       <AddForm />
       {alerts.data && alerts.data.lowStock.length > 0 && (
-        <Card title="Stock bas">
+        <Card title={t('stock.lowStock')}>
           <ul className="flex flex-wrap gap-2 text-sm">
             {alerts.data.lowStock.map((p) => (
               <li key={p.productId}>
                 <Badge tone="warn">
-                  {p.name} : {formatQty(p.current, p.unit) || '0'} / {formatQty(p.minStock, p.unit)}
+                  {p.name}: {formatQty(p.current, p.unit) || '0'} / {formatQty(p.minStock, p.unit)}
                 </Badge>
               </li>
             ))}
@@ -30,12 +32,12 @@ export function Stock() {
         </Card>
       )}
       <div className="grid gap-4 md:grid-cols-3">
-        {(Object.keys(LOCATION_LABELS) as Location[]).map((location) => {
+        {LOCATIONS.map((location) => {
           const here = items.filter((i) => i.location === location);
           return (
-            <Card key={location} title={LOCATION_LABELS[location]} actions={<span className="text-sm text-muted">{here.length}</span>}>
+            <Card key={location} title={t(`location.${location}`)} actions={<span className="text-sm text-muted">{here.length}</span>}>
               {here.length === 0 ? (
-                <Empty>Rien ici.</Empty>
+                <Empty>{t('stock.nothingHere')}</Empty>
               ) : (
                 <ul className="divide-y divide-line">
                   {here.map((item) => (
@@ -53,6 +55,7 @@ export function Stock() {
 }
 
 function AddForm() {
+  const t = useT();
   const { run, pending } = useAction();
   const [form, setForm] = useState({ name: '', quantity: '1', unit: '', location: 'fridge', expiresOn: '' });
   const set = (patch: Partial<typeof form>) => setForm((f) => ({ ...f, ...patch }));
@@ -72,15 +75,15 @@ function AddForm() {
   };
 
   return (
-    <Card title="Ajouter au stock">
+    <Card title={t('stock.add.title')}>
       <form onSubmit={submit} className="flex flex-wrap gap-2">
-        <Input required list="product-names" placeholder="Produit" aria-label="Produit" value={form.name} onChange={(e) => set({ name: e.target.value })} className="flex-1 basis-40" />
-        <Input required inputMode="decimal" placeholder="Qté" aria-label="Quantité" value={form.quantity} onChange={(e) => set({ quantity: e.target.value })} className="w-20" />
-        <Input list="unit-names" placeholder="Unité" aria-label="Unité" value={form.unit} onChange={(e) => set({ unit: e.target.value })} className="w-24" />
+        <Input required list="product-names" placeholder={t('common.product')} aria-label={t('common.product')} value={form.name} onChange={(e) => set({ name: e.target.value })} className="flex-1 basis-40" />
+        <Input required inputMode="decimal" placeholder={t('common.qty')} aria-label={t('common.quantity')} value={form.quantity} onChange={(e) => set({ quantity: e.target.value })} className="w-20" />
+        <Input list="unit-names" placeholder={t('common.unit')} aria-label={t('common.unit')} value={form.unit} onChange={(e) => set({ unit: e.target.value })} className="w-24" />
         <LocationSelect value={form.location} onChange={(e) => set({ location: e.target.value })} />
-        <Input type="date" aria-label="Date de péremption" value={form.expiresOn} onChange={(e) => set({ expiresOn: e.target.value })} />
+        <Input type="date" aria-label={t('stock.expiry')} value={form.expiresOn} onChange={(e) => set({ expiresOn: e.target.value })} />
         <Button type="submit" variant="primary" disabled={pending}>
-          Ajouter
+          {t('common.add')}
         </Button>
       </form>
     </Card>
@@ -88,6 +91,7 @@ function AddForm() {
 }
 
 function StockRow({ item }: { item: StockItem }) {
+  const t = useT();
   const { run } = useAction();
   const days = item.expiresOn ? daysUntil(item.expiresOn) : null;
 
@@ -103,8 +107,7 @@ function StockRow({ item }: { item: StockItem }) {
         <div className="truncate font-medium">{item.name}</div>
         {item.expiresOn && days !== null && (
           <div className={days < 0 ? 'text-danger' : days <= 3 ? 'text-warn' : 'text-muted'}>
-            {days < 0 ? 'Périmé le ' : 'Jusqu’au '}
-            {formatDate(item.expiresOn)}
+            {t(days < 0 ? 'stock.expired' : 'stock.useBy', { date: formatDate(item.expiresOn) })}
           </div>
         )}
       </div>
@@ -112,21 +115,22 @@ function StockRow({ item }: { item: StockItem }) {
         key={item.quantity}
         defaultValue={item.quantity}
         inputMode="decimal"
-        aria-label={`Quantité de ${item.name}`}
+        aria-label={t('stock.quantityOf', { name: item.name })}
         onBlur={(e) => saveQuantity(e.target.value)}
         onKeyDown={(e) => e.key === 'Enter' && e.currentTarget.blur()}
         className="h-8 w-16 px-2 text-right"
       />
-      <span className="w-10 text-muted">{item.unit === 'pièce' ? '' : item.unit}</span>
-      <Button variant="ghost" className="h-8 px-2" aria-label={`Retirer ${item.name}`} onClick={() => run(() => api.del(`/stock/${item.id}`))}>
+      <span className="w-10 text-muted">{item.unit === 'piece' ? '' : item.unit}</span>
+      <Button variant="ghost" className="h-8 px-2" aria-label={t('stock.remove', { name: item.name })} onClick={() => run(() => api.del(`/stock/${item.id}`))}>
         ✕
       </Button>
     </li>
   );
 }
 
-/** Minimum quantity per product; below it, the product shows up in "Stock bas" and in generated shopping lists. */
+/** Minimum quantity per product; below it, the product shows up in "Low stock" and in generated shopping lists. */
 function Thresholds({ products }: { products: Product[] }) {
+  const t = useT();
   const { run } = useAction();
   if (products.length === 0) return null;
 
@@ -138,7 +142,7 @@ function Thresholds({ products }: { products: Product[] }) {
 
   return (
     <details className="rounded-xl border border-line bg-surface p-4">
-      <summary className="cursor-pointer font-semibold">Seuils d’alerte par produit</summary>
+      <summary className="cursor-pointer font-semibold">{t('stock.thresholds')}</summary>
       <ul className="mt-3 grid gap-x-6 gap-y-2 text-sm sm:grid-cols-2 lg:grid-cols-3">
         {products.map((p) => (
           <li key={p.id} className="flex items-center gap-2">
@@ -148,12 +152,12 @@ function Thresholds({ products }: { products: Product[] }) {
               defaultValue={p.minStock ?? ''}
               placeholder="—"
               inputMode="decimal"
-              aria-label={`Seuil minimum pour ${p.name}`}
+              aria-label={t('stock.minFor', { name: p.name })}
               onBlur={(e) => save(p, e.target.value)}
               onKeyDown={(e) => e.key === 'Enter' && e.currentTarget.blur()}
               className="h-8 w-16 px-2 text-right"
             />
-            <span className="w-10 text-muted">{p.defaultUnit === 'pièce' ? '' : p.defaultUnit}</span>
+            <span className="w-10 text-muted">{p.defaultUnit === 'piece' ? '' : p.defaultUnit}</span>
           </li>
         ))}
       </ul>

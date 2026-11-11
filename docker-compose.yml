@@ -1,19 +1,20 @@
 services:
   mealmcp:
-    # Image publiée par le CI. Pour figer une version : MEALMCP_VERSION=0.1.0 dans .env.
+    # Image published by the CI. To pin a version: MEALMCP_VERSION=0.1.0 in .env.
     image: ghcr.io/rem7474/mealmcp:${MEALMCP_VERSION:-latest}
-    # Pour construire localement plutôt que télécharger : docker compose up -d --build
+    # To build locally instead of pulling: docker compose up -d --build
     build: .
     restart: unless-stopped
     ports:
-      # PORT (fichier .env) = port exposé sur la machine ; dans le conteneur l'app reste sur 3000.
+      # PORT (from .env) is the port published on the host; inside the container the app stays on 3000.
       - "${PORT:-3000}:3000"
     environment:
-      # Valeurs lues dans un fichier .env à côté de ce fichier (voir .env.example).
+      # Values come from a .env file next to this one (see .env.example).
       PUBLIC_URL: ${PUBLIC_URL:-http://localhost:${PORT:-3000}}
       ALLOW_REGISTRATION: ${ALLOW_REGISTRATION:-false}
       TRUST_PROXY: ${TRUST_PROXY:-0}
-      TZ: Europe/Paris
+      # Time zone used for "today" in the meal plan and expiry dates (e.g. TZ=Europe/Paris in .env).
+      TZ: ${TZ:-UTC}
     volumes:
       - mealmcp-data:/data
 

@@ -14,9 +14,9 @@ const FACTORS: Record<string, { unit: string; factor: number }> = {
   l: { unit: 'ml', factor: 1000 },
 };
 
-const PIECE_ALIASES = new Set(['', 'pièce', 'pièces', 'piece', 'pieces', 'pc', 'pcs', 'unité', 'unités', 'x', 'u']);
+const PIECE_ALIASES = new Set(['', 'piece', 'pieces', 'pc', 'pcs', 'unit', 'units', 'x', 'u', 'pièce', 'pièces', 'unité', 'unités']);
 
-export const DEFAULT_UNIT = 'pièce';
+export const DEFAULT_UNIT = 'piece';
 
 export function normalizeUnit(unit?: string | null): string {
   const u = (unit ?? '').trim().toLowerCase().replace(/\.$/, '');

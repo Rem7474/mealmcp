@@ -87,9 +87,9 @@ jobs:
           docker pull ${IMAGE,,}:${VERSION}
           \`\`\`
 
-          Images amd64 et arm64. Voir le README pour la configuration (\`PUBLIC_URL\`, comptes, connexion MCP).
+          Multi-arch image (amd64, arm64). See the README for configuration (\`PUBLIC_URL\`, accounts, MCP connection).
 
-          ## Changements
+          ## Changes
           EOF
           # Pre-release for 0.x or tags with a suffix such as v1.0.0-rc.1.
           FLAGS=""

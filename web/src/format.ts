@@ -1,21 +1,17 @@
 import type { Location, MealType } from './types';
+import { locale } from './i18n';
 
-export const LOCATION_LABELS: Record<Location, string> = { fridge: 'Frigo', freezer: 'Congélateur', pantry: 'Placard' };
-export const MEAL_LABELS: Record<MealType, string> = {
-  breakfast: 'Petit-déjeuner',
-  lunch: 'Déjeuner',
-  snack: 'Goûter',
-  dinner: 'Dîner',
-};
+export const LOCATIONS: Location[] = ['fridge', 'freezer', 'pantry'];
+export const MEALS: MealType[] = ['breakfast', 'lunch', 'snack', 'dinner'];
 
-const num = (n: number) => n.toLocaleString('fr-FR', { maximumFractionDigits: 2 });
+const num = (n: number) => n.toLocaleString(locale(), { maximumFractionDigits: 2 });
 
-/** Quantities are stored in g / ml / pièce; show them in the most readable unit. */
+/** Quantities are stored in g / ml / piece; show them in the most readable unit. */
 export function formatQty(quantity: number | null, unit: string): string {
   if (quantity == null) return '';
   if (unit === 'g' && quantity >= 1000) return `${num(quantity / 1000)} kg`;
   if (unit === 'ml' && quantity >= 1000) return `${num(quantity / 1000)} l`;
-  if (unit === 'pièce') return num(quantity);
+  if (unit === 'piece') return num(quantity);
   return `${num(quantity)} ${unit}`;
 }
 
@@ -42,9 +38,9 @@ export function weekStart(iso: string): string {
 }
 
 export const formatDay = (iso: string) =>
-  fromIso(iso).toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'short' });
+  fromIso(iso).toLocaleDateString(locale(), { weekday: 'long', day: 'numeric', month: 'short' });
 
-export const formatDate = (iso: string) => fromIso(iso).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' });
+export const formatDate = (iso: string) => fromIso(iso).toLocaleDateString(locale(), { day: 'numeric', month: 'short' });
 
 export function daysUntil(iso: string): number {
   return Math.round((fromIso(iso).getTime() - fromIso(today()).getTime()) / 86_400_000);

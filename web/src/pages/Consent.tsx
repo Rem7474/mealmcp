@@ -1,6 +1,7 @@
 import { useQuery } from '@tanstack/react-query';
 import { useState } from 'react';
 import { api } from '../api';
+import { LanguageSwitch, localizeError, useI18n } from '../i18n';
 import { Button, Card } from '../ui';
 
 interface RequestInfo {
@@ -11,9 +12,10 @@ interface RequestInfo {
 
 /**
  * Last step of "connect an AI to MealMCP": the MCP client sent the browser here
- * (through /authorize) and the user, already logged in, approves or refuses.
+ * (through /authorize) and the user, already signed in, approves or refuses.
  */
 export function Consent({ userName, householdName }: { userName: string; householdName: string }) {
+  const { t, rich } = useI18n();
   const request = new URLSearchParams(location.search).get('request') ?? '';
   const info = useQuery({ queryKey: ['oauth-request', request], queryFn: () => api.get<RequestInfo>(`/oauth/requests/${request}`) });
   const [busy, setBusy] = useState(false);
@@ -27,30 +29,29 @@ export function Consent({ userName, householdName }: { userName: string; househo
       // Back to the application, carrying the authorization code (or the refusal).
       window.location.href = redirectTo;
     } catch (err) {
-      setError(err instanceof Error ? err.message : String(err));
+      setError(localizeError(t, err instanceof Error ? err.message : String(err)));
       setBusy(false);
     }
   };
 
   return (
     <main className="mx-auto max-w-md px-4 py-12">
-      <h1 className="mb-6 text-center text-2xl font-bold text-accent">MealMCP</h1>
+      <div className="mb-6 flex items-center justify-between">
+        <h1 className="text-2xl font-bold text-accent">MealMCP</h1>
+        <LanguageSwitch />
+      </div>
       {info.isLoading ? null : info.error ? (
-        <Card title="Demande introuvable">
-          <p className="text-sm">Cette demande d’autorisation a expiré ou n’existe pas. Relancez la connexion depuis l’application.</p>
+        <Card title={t('consent.notFound.title')}>
+          <p className="text-sm">{t('consent.notFound.text')}</p>
         </Card>
       ) : (
-        <Card title="Autoriser l’accès ?">
-          <p>
-            <strong>{info.data!.clientName}</strong> demande l’accès à MealMCP.
-          </p>
+        <Card title={t('consent.title')}>
+          <p>{rich('consent.asking', { name: <strong>{info.data!.clientName}</strong> })}</p>
           <ul className="my-3 list-disc space-y-1 pl-5 text-sm">
-            <li>Lire et modifier les recettes, le planning, les courses et le stock du foyer « {householdName} ».</li>
-            <li>Agir en votre nom ({userName}).</li>
+            <li>{t('consent.scope.data', { household: householdName })}</li>
+            <li>{t('consent.scope.actAs', { user: userName })}</li>
           </ul>
-          <p className="text-sm text-muted">
-            Après votre choix, vous serez redirigé vers <code className="break-all">{info.data!.redirectTo}</code>. Ne continuez que si vous reconnaissez cette application.
-          </p>
+          <p className="text-sm text-muted">{rich('consent.redirect', { url: <code className="break-all">{info.data!.redirectTo}</code> })}</p>
           {error && (
             <p role="alert" className="mt-3 text-sm text-danger">
               {error}
@@ -58,13 +59,13 @@ export function Consent({ userName, householdName }: { userName: string; househo
           )}
           <div className="mt-4 flex gap-2">
             <Button variant="primary" disabled={busy} onClick={() => decide(true)}>
-              Autoriser
+              {t('consent.allow')}
             </Button>
             <Button disabled={busy} onClick={() => decide(false)}>
-              Refuser
+              {t('consent.deny')}
             </Button>
           </div>
-          <p className="mt-3 text-xs text-muted">Vous pourrez retirer cet accès à tout moment depuis l’onglet Compte.</p>
+          <p className="mt-3 text-xs text-muted">{t('consent.revokeHint')}</p>
         </Card>
       )}
     </main>

@@ -12,8 +12,8 @@ async function request<T>(method: string, path: string, body?: unknown): Promise
   });
   if (res.status === 204) return undefined as T;
   const data = await res.json().catch(() => null);
-  if (res.status === 401) throw new UnauthorizedError(data?.error ?? 'Non connecté');
-  if (!res.ok) throw new Error(data?.error ?? `Erreur ${res.status}`);
+  if (res.status === 401) throw new UnauthorizedError(data?.error ?? 'Not signed in');
+  if (!res.ok) throw new Error(data?.error ?? `Error ${res.status}`);
   return data as T;
 }
 

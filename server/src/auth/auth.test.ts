@@ -131,7 +131,7 @@ describe('accounts', () => {
     expect((await bob.call('/api/household/invites', { method: 'POST', json: {} })).status).toBe(403);
 
     // Shared data inside the household.
-    await alice.call('/api/shopping', { method: 'POST', json: { name: 'Lait' } });
+    await alice.call('/api/shopping', { method: 'POST', json: { name: 'Milk' } });
     expect(await (await bob.call('/api/shopping')).json()).toHaveLength(1);
 
     // Login / logout.
@@ -172,7 +172,7 @@ describe('MCP OAuth', () => {
     const { tokens, exchange, code, verifier } = flow as Exclude<typeof flow, { denied: string | null }>;
 
     // The token acts on Alice's household.
-    expect(await toolText(await rpc(tokens.access_token, 'tools/call', { name: 'list_shopping_list', arguments: {} }))).toContain('Lait');
+    expect(await toolText(await rpc(tokens.access_token, 'tools/call', { name: 'list_shopping_list', arguments: {} }))).toContain('Milk');
 
     // Authorization codes are single use.
     expect((await exchange({ grant_type: 'authorization_code', code, code_verifier: verifier, redirect_uri: 'http://localhost:9999/callback' })).status).toBe(400);
@@ -206,7 +206,7 @@ describe('MCP OAuth', () => {
     await alice.call('/api/auth/login', { method: 'POST', json: { email: 'a@x.fr', password: 'correct horse battery' } });
     const { token } = await (await alice.call('/api/tokens', { method: 'POST', json: { name: 'script' } })).json();
     expect(token).toMatch(/^mmcp_/);
-    expect(await toolText(await rpc(token, 'tools/call', { name: 'list_shopping_list', arguments: {} }))).toContain('Lait');
+    expect(await toolText(await rpc(token, 'tools/call', { name: 'list_shopping_list', arguments: {} }))).toContain('Milk');
     expect((await fetch(`${base}/api/shopping`, { headers: { authorization: `Bearer ${token}` } })).status).toBe(200);
 
     // A second, separate household (created via a fresh instance of the flow is not possible: signup is closed),
