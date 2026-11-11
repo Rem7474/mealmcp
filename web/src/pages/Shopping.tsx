@@ -140,6 +140,11 @@ export function Shopping() {
                   <span className="flex min-w-0 flex-1 flex-col sm:flex-row sm:items-baseline sm:gap-3">
                     <span className={`wrap-break-word ${item.checked ? 'text-muted line-through' : ''}`}>{item.name}</span>
                     <span className="text-sm whitespace-nowrap text-muted tabular-nums">{formatQty(item.quantity, item.unit)}</span>
+                    {item.season === 'out' && !item.checked && (
+                      <span className="mt-0.5 self-start sm:hidden" title={item.seasonAlternatives.length ? t('season.instead', { list: item.seasonAlternatives.map((p) => p[lang]).join(', ') }) : undefined}>
+                        <Badge tone="warn">{t('season.out')}</Badge>
+                      </span>
+                    )}
                   </span>
                 </label>
                 {groupBy === 'meal' && item.meals.length > 1 && (
@@ -167,7 +172,7 @@ export function Shopping() {
                   </span>
                 )}
                 {item.season === 'out' && !item.checked && (
-                  <span title={item.seasonAlternatives.length ? t('season.instead', { list: item.seasonAlternatives.map((p) => p[lang]).join(', ') }) : undefined}>
+                  <span className="hidden sm:inline" title={item.seasonAlternatives.length ? t('season.instead', { list: item.seasonAlternatives.map((p) => p[lang]).join(', ') }) : undefined}>
                     <Badge tone="warn">{t('season.out')}</Badge>
                   </span>
                 )}
