@@ -11,7 +11,11 @@ type View = { mode: 'list' } | { mode: 'detail'; id: number } | { mode: 'edit'; 
 
 export function Recipes() {
   const t = useT();
-  const [view, setView] = useState<View>({ mode: 'list' });
+  // `#recipes/12` (a link from the planning) opens that recipe directly.
+  const [view, setView] = useState<View>(() => {
+    const id = Number(location.hash.match(/^#recipes\/(\d+)/)?.[1]);
+    return id ? { mode: 'detail', id } : { mode: 'list' };
+  });
   const [search, setSearch] = useState('');
   const [tag, setTag] = useState('');
   const { data: recipes = [] } = useQuery({
@@ -125,6 +129,17 @@ function RecipeDetail({ id, onBack, onEdit }: { id: number; onBack: () => void; 
             ))}
           </div>
         )}
+        {recipe.equipment.length > 0 && (
+          <div className="mt-2 flex flex-wrap items-center gap-1 text-sm">
+            <span className="text-muted">{t('recipes.equipment')}:</span>
+            {recipe.equipment.map((e) => (
+              <Badge key={e.id} tone={e.owned ? undefined : 'warn'}>
+                {e.name}
+                {!e.owned && ` · ${t('recipes.equipment.missingBadge')}`}
+              </Badge>
+            ))}
+          </div>
+        )}
         {recipe.description && <p className="mt-2">{recipe.description}</p>}
         {cost && (
           <p className="mt-2 text-sm">
@@ -223,6 +238,7 @@ function RecipeForm({ recipe, onDone }: { recipe?: Recipe; onDone: (id?: number)
     cookMinutes: recipe?.cookMinutes != null ? String(recipe.cookMinutes) : '',
     tags: recipe?.tags.join(', ') ?? '',
     instructions: recipe?.instructions ?? '',
+    equipment: recipe?.equipment.map((e) => e.name).join(', ') ?? '',
   });
   const [rows, setRows] = useState<Row[]>(
     recipe?.ingredients.map((i) => ({
@@ -254,6 +270,7 @@ function RecipeForm({ recipe, onDone }: { recipe?: Recipe; onDone: (id?: number)
       cookMinutes: form.cookMinutes ? Number(form.cookMinutes) : null,
       tags: form.tags.split(',').map((x) => x.trim()).filter(Boolean),
       instructions: form.instructions || null,
+      equipment: form.equipment.split(',').map((x) => x.trim()).filter(Boolean),
       steps: steps
         .filter((s) => s.text.trim())
         .map((s) => ({
@@ -296,6 +313,7 @@ function RecipeForm({ recipe, onDone }: { recipe?: Recipe; onDone: (id?: number)
             <Input type="number" min={0} value={form.cookMinutes} onChange={(e) => setForm({ ...form, cookMinutes: e.target.value })} className="w-20" />
           </label>
         </div>
+        <Input placeholder={t('recipes.form.equipment')} aria-label={t('recipes.form.equipment')} value={form.equipment} onChange={(e) => setForm({ ...form, equipment: e.target.value })} className="w-full" />
         <Input placeholder={t('recipes.form.tags')} aria-label={t('recipes.form.tags')} value={form.tags} onChange={(e) => setForm({ ...form, tags: e.target.value })} className="w-full" />
 
         <fieldset className="space-y-2">

@@ -99,7 +99,15 @@ export interface RecipeStep {
   appliance: string | null;
 }
 
+export interface Equipment {
+  id: number;
+  name: string;
+  kind: 'appliance' | 'utensil';
+  owned: boolean;
+}
+
 export interface Recipe extends Omit<RecipeSummary, 'ingredientCount'> {
+  equipment: Equipment[];
   instructions: string | null;
   ingredients: Ingredient[];
   steps: RecipeStep[];
@@ -108,6 +116,7 @@ export interface Recipe extends Omit<RecipeSummary, 'ingredientCount'> {
 
 export interface Availability {
   canCook: boolean;
+  missingEquipment: string[];
   servings: number;
   ingredients: { name: string; unit: string; needed: number; inStock: number; missing: number; staple?: true; toTaste?: true; approximate?: true }[];
 }

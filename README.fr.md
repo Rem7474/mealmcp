@@ -6,10 +6,11 @@
 
 Gestion des repas, des courses et du stock d'un foyer, avec un serveur MCP intégré pour le piloter depuis une IA.
 
-- **Planning** : repas par jour, à partir d'une recette ou en texte libre.
-- **Recettes** : ingrédients, portions, préparation, disponibilité par rapport au stock.
+- **Planning** : repas par jour, à partir d'une recette ou en texte libre. Les réglages du foyer (nombre de personnes, repas attendus par jour de semaine) font ressortir les créneaux vides à remplir.
+- **Recettes** : ingrédients (les produits de base et les ingrédients « à votre goût » ne sont jamais achetés), portions, temps de préparation et de cuisson, étiquettes (air fryer, rapide, sans courses), étapes structurées (appareil, température, durée), matériel nécessaire et disponibilité par rapport au stock.
+- **Matériel** : les appareils et ustensiles que vous possédez. Les recettes qui demandent quelque chose qui vous manque sont signalées.
 - **Courses** : liste générée depuis le planning (besoins − stock + produits sous leur seuil), ajouts manuels, rangement des achats dans le stock.
-- **Stock** : par emplacement (frigo, congélateur, placard), dates de péremption, seuils d'alerte.
+- **Stock** : par emplacement (frigo, congélateur, placard), dates de péremption, seuils d'alerte, quantités « beaucoup », conversions par produit (1 patate douce = 300 g, 1 c. à soupe = 15 ml) et alias (libellés de tickets). Des recettes peuvent être suggérées pour utiliser ce qui expire bientôt.
 - **Budget** : enregistrement des achats (à la main, depuis un ticket via une IA, ou en terminant les courses), budget mensuel avec projection, dépenses par catégorie / magasin / mois, et estimation du coût des recettes, des repas de la semaine et de la liste de courses à partir des prix de ce que vous avez acheté.
 - **Tableau de bord en direct** : l'interface web se met à jour toute seule quand quelque chose change ailleurs, par exemple quand une IA modifie votre stock via MCP.
 - **Bilingue** : interface en anglais et en français (sélecteur de langue en haut à droite, langue du navigateur par défaut). Les descriptions des outils MCP sont en anglais.
@@ -92,7 +93,7 @@ Le même jeton fonctionne sur l'API REST (`/api`). Pour tester le flux OAuth en 
 
 Argent : les montants que vous envoyez sont des décimaux dans la devise du foyer (`2.49`), ceux que vous recevez sont des entiers en centimes (`249`). Les écritures faites via MCP (ou l'API) sont poussées aux tableaux de bord ouverts par Server-Sent Events (`GET /api/events`) : rien à rafraîchir.
 
-Outils exposés (35) : stock (`list_stock`, `add_stock`, `update_stock_item`, `consume_stock`, `remove_stock_item`, `get_stock_alerts`), produits (`list_products`, `update_product`), recettes (`list_recipes`, `get_recipe`, `create_recipe`, `update_recipe`, `delete_recipe`, `check_recipe_availability`), planning (`list_meal_plan`, `plan_meal`, `remove_planned_meal`, `cook_planned_meal`), courses (`list_shopping_list`, `add_shopping_item`, `check_shopping_item`, `remove_shopping_item`, `generate_shopping_list`, `complete_shopping`), budget (`record_expense`, `list_expenses`, `get_expense`, `delete_expense`, `get_spending_summary`, `get_budget_status`, `set_budget`, `set_product_price`, `estimate_recipe_cost`, `estimate_meal_plan_cost`, `estimate_shopping_list_cost`).
+Outils exposés : stock (`list_stock`, `add_stock`, `update_stock_item`, `consume_stock`, `remove_stock_item`, `get_stock_alerts`), produits (`list_products`, `update_product`, `add_product_alias`, `remove_product_alias`), recettes (`list_recipes`, `get_recipe`, `create_recipe`, `update_recipe`, `delete_recipe`, `check_recipe_availability`, `suggest_recipes_to_use_up`), matériel (`list_equipment`, `add_equipment`, `update_equipment`, `remove_equipment`), planning (`list_meal_plan`, `plan_meal`, `remove_planned_meal`, `cook_planned_meal`, `list_planning_slots`), courses (`list_shopping_list`, `add_shopping_item`, `check_shopping_item`, `remove_shopping_item`, `generate_shopping_list`, `complete_shopping`), foyer (`get_household_settings`, `set_household_settings`), variantes en lot (`add_stock_bulk`, `create_recipes_bulk`, `plan_meals_bulk`, `add_shopping_items_bulk`), budget (`record_expense`, `list_expenses`, `get_expense`, `delete_expense`, `get_spending_summary`, `get_budget_status`, `set_budget`, `set_product_price`, `estimate_recipe_cost`, `estimate_meal_plan_cost`, `estimate_shopping_list_cost`).
 
 ## Licence
 

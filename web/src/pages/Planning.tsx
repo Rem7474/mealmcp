@@ -97,7 +97,15 @@ function MealRow({ meal }: { meal: PlannedMeal }) {
       <div className="text-xs text-muted">
         {t(`meal.${meal.mealType}`)} · {t('common.servings', { n: meal.servings })}
       </div>
-      <div className={`font-medium ${meal.cooked ? 'text-muted line-through' : ''}`}>{meal.recipeName ?? meal.title}</div>
+      <div className={`font-medium ${meal.cooked ? 'text-muted line-through' : ''}`}>
+        {meal.recipeId ? (
+          <a href={`#recipes/${meal.recipeId}`} className="hover:text-accent hover:underline">
+            {meal.recipeName}
+          </a>
+        ) : (
+          meal.title
+        )}
+      </div>
       <div className="mt-1 flex items-center gap-3">
         {meal.cooked ? (
           <Badge tone="accent">{t('plan.cooked')}</Badge>

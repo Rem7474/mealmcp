@@ -6,10 +6,11 @@
 
 Meal planning, shopping and pantry stock for a household, with a built-in MCP server so an AI assistant can drive it.
 
-- **Planning**: meals per day, from a recipe or free text.
-- **Recipes**: ingredients, servings, instructions, and availability against your stock.
+- **Planning**: meals per day, from a recipe or free text. Household settings (people eating, which meals on which weekdays) highlight the empty slots to fill.
+- **Recipes**: ingredients (staples and "to taste" items are never bought), servings, prep and cook time, tags (air fryer, quick, no shopping), structured steps (appliance, temperature, duration), the equipment they need, and availability against your stock.
+- **Equipment**: the appliances and utensils you own. Recipes needing something you do not have are flagged.
 - **Shopping**: a list generated from the meal plan (needs − stock + products below their threshold), manual additions, and putting purchases away into stock.
-- **Stock**: by location (fridge, freezer, pantry), expiry dates, low-stock alerts.
+- **Stock**: by location (fridge, freezer, pantry), expiry dates, low-stock alerts, "plenty of it" quantities, per-product conversions (1 sweet potato = 300 g, 1 tbsp = 15 ml) and aliases (receipt wording). Recipes can be suggested to use up what expires soon.
 - **Budget**: record purchases (by hand, from a receipt via an AI, or when you finish shopping), a monthly budget with a projection, spending by category / shop / month, and cost estimates for recipes, the week's meals and the shopping list, from the prices of what you bought.
 - **Live dashboard**: the web UI refreshes by itself when something changes elsewhere, for example when an AI edits your stock through MCP.
 - **Bilingual**: English and French UI (language switcher at the top right, browser language by default). MCP tool descriptions are in English.
@@ -94,7 +95,7 @@ The same token works on the REST API (`/api`). To try the OAuth flow locally, us
 
 Money: amounts you send are decimals in the household currency (`2.49`), amounts you receive are integers in cents (`249`). Writes made through MCP (or the API) are pushed to open dashboards over Server-Sent Events (`GET /api/events`), so there is nothing to refresh.
 
-Tools (35): stock (`list_stock`, `add_stock`, `update_stock_item`, `consume_stock`, `remove_stock_item`, `get_stock_alerts`), products (`list_products`, `update_product`), recipes (`list_recipes`, `get_recipe`, `create_recipe`, `update_recipe`, `delete_recipe`, `check_recipe_availability`), meal plan (`list_meal_plan`, `plan_meal`, `remove_planned_meal`, `cook_planned_meal`), shopping (`list_shopping_list`, `add_shopping_item`, `check_shopping_item`, `remove_shopping_item`, `generate_shopping_list`, `complete_shopping`), budget (`record_expense`, `list_expenses`, `get_expense`, `delete_expense`, `get_spending_summary`, `get_budget_status`, `set_budget`, `set_product_price`, `estimate_recipe_cost`, `estimate_meal_plan_cost`, `estimate_shopping_list_cost`).
+Tools: stock (`list_stock`, `add_stock`, `update_stock_item`, `consume_stock`, `remove_stock_item`, `get_stock_alerts`), products (`list_products`, `update_product`, `add_product_alias`, `remove_product_alias`), recipes (`list_recipes`, `get_recipe`, `create_recipe`, `update_recipe`, `delete_recipe`, `check_recipe_availability`, `suggest_recipes_to_use_up`), equipment (`list_equipment`, `add_equipment`, `update_equipment`, `remove_equipment`), meal plan (`list_meal_plan`, `plan_meal`, `remove_planned_meal`, `cook_planned_meal`, `list_planning_slots`), shopping (`list_shopping_list`, `add_shopping_item`, `check_shopping_item`, `remove_shopping_item`, `generate_shopping_list`, `complete_shopping`), household (`get_household_settings`, `set_household_settings`), bulk variants (`add_stock_bulk`, `create_recipes_bulk`, `plan_meals_bulk`, `add_shopping_items_bulk`), budget (`record_expense`, `list_expenses`, `get_expense`, `delete_expense`, `get_spending_summary`, `get_budget_status`, `set_budget`, `set_product_price`, `estimate_recipe_cost`, `estimate_meal_plan_cost`, `estimate_shopping_list_cost`).
 
 ## License
 

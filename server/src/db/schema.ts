@@ -216,6 +216,37 @@ export const recipes = sqliteTable(
   (t) => [index('recipes_household_idx').on(t.householdId)],
 );
 
+/** Appliances (air fryer, oven) and utensils (whisk, mandoline) the household has, or a recipe asks for. */
+export const equipment = sqliteTable(
+  'equipment',
+  {
+    id: integer('id').primaryKey({ autoIncrement: true }),
+    householdId: household(),
+    name: text('name').notNull(),
+    /** Lower-cased name used for case-insensitive lookups. */
+    nameKey: text('name_key').notNull(),
+    kind: text('kind', { enum: ['appliance', 'utensil'] }).notNull().default('utensil'),
+    /** False when a recipe mentions it but the household does not have it (yet). */
+    owned: integer('owned', { mode: 'boolean' }).notNull().default(true),
+  },
+  (t) => [uniqueIndex('equipment_household_name_idx').on(t.householdId, t.nameKey)],
+);
+
+/** What a recipe needs besides ingredients. */
+export const recipeEquipment = sqliteTable(
+  'recipe_equipment',
+  {
+    id: integer('id').primaryKey({ autoIncrement: true }),
+    recipeId: integer('recipe_id')
+      .notNull()
+      .references(() => recipes.id, { onDelete: 'cascade' }),
+    equipmentId: integer('equipment_id')
+      .notNull()
+      .references(() => equipment.id, { onDelete: 'cascade' }),
+  },
+  (t) => [uniqueIndex('recipe_equipment_unique_idx').on(t.recipeId, t.equipmentId)],
+);
+
 /** Free-form labels such as "air fryer", "quick" or "no shopping". Lower-cased. */
 export const recipeTags = sqliteTable(
   'recipe_tags',

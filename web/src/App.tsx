@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query';
-import { useCallback, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { ErrorContext } from './api';
 import { LanguageSwitch, localizeError, useT } from './i18n';
 import { useLiveUpdates } from './live';
@@ -16,7 +16,7 @@ import type { User } from './types';
 const TABS = ['planning', 'recipes', 'shopping', 'stock', 'budget', 'account'] as const;
 type TabId = (typeof TABS)[number];
 
-const initialTab = (): TabId => TABS.find((id) => id === location.hash.slice(1)) ?? 'planning';
+const initialTab = (): TabId => TABS.find((id) => id === location.hash.slice(1).split('/')[0]) ?? 'planning';
 
 function Page({ tab, user }: { tab: TabId; user: User }) {
   switch (tab) {
@@ -59,6 +59,12 @@ function Shell({ user }: { user: User }) {
   const live = useLiveUpdates();
   const [tab, setTab] = useState<TabId>(initialTab);
   const [error, setError] = useState<string | null>(null);
+  // Links such as #recipes/12 switch tab too.
+  useEffect(() => {
+    const sync = () => setTab(initialTab());
+    window.addEventListener('hashchange', sync);
+    return () => window.removeEventListener('hashchange', sync);
+  }, []);
   const report = useCallback((e: unknown) => setError(e instanceof Error ? e.message : String(e)), []);
   const select = (id: TabId) => {
     setTab(id);

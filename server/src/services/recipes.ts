@@ -1,10 +1,11 @@
 import { and, asc, eq, like, or, sql } from 'drizzle-orm';
 import type { z } from 'zod';
 import type { Db } from '../db/index.js';
-import { products, recipeIngredients, recipeSteps, recipeTags, recipes } from '../db/schema.js';
+import { equipment as equipmentTable, products, recipeEquipment, recipeIngredients, recipeSteps, recipeTags, recipes } from '../db/schema.js';
 import { NotFoundError, ValidationError } from '../domain/errors.js';
 import type { recipeAvailability, recipeCreate, recipeList, recipeUpdate, suggestRecipes } from '../domain/schemas.js';
 import { round, toBase } from '../domain/units.js';
+import type { EquipmentService } from './equipment.js';
 import type { ProductService } from './products.js';
 import type { SettingsService } from './settings.js';
 import type { StockService } from './stock.js';
@@ -12,7 +13,7 @@ import type { StockService } from './stock.js';
 type Ingredients = NonNullable<z.input<typeof recipeUpdate>['ingredients']>;
 type Steps = NonNullable<z.input<typeof recipeUpdate>['steps']>;
 
-export function createRecipeService(db: Db, hid: number, productService: ProductService, stock: StockService, settings: SettingsService) {
+export function createRecipeService(db: Db, hid: number, productService: ProductService, stock: StockService, settings: SettingsService, equipmentService: EquipmentService) {
   const mine = eq(recipes.householdId, hid);
 
   const insertIngredients = (recipeId: number, ingredients: Ingredients) => {
@@ -34,6 +35,25 @@ export function createRecipeService(db: Db, hid: number, productService: Product
   const insertTags = (recipeId: number, tags: string[]) => {
     for (const tag of new Set(tags.map((t) => t.trim().toLowerCase()).filter(Boolean))) db.insert(recipeTags).values({ recipeId, tag }).run();
   };
+
+  /** Links equipment to a recipe; unknown items are created as "not owned". Step appliances are included. */
+  const insertEquipment = (recipeId: number, names: string[], steps: Steps) => {
+    const wanted = new Map<string, { name: string; kind: 'appliance' | 'utensil' }>();
+    for (const name of names) wanted.set(name.trim().toLowerCase(), { name: name.trim(), kind: 'utensil' });
+    for (const step of steps) if (step.appliance) wanted.set(step.appliance.trim().toLowerCase(), { name: step.appliance.trim(), kind: 'appliance' });
+    for (const { name, kind } of wanted.values()) {
+      const item = equipmentService.findOrCreate(name, kind);
+      db.insert(recipeEquipment).values({ recipeId, equipmentId: item.id }).onConflictDoNothing().run();
+    }
+  };
+  const equipmentOf = (recipeId: number) =>
+    db
+      .select({ id: equipmentTable.id, name: equipmentTable.name, kind: equipmentTable.kind, owned: equipmentTable.owned })
+      .from(recipeEquipment)
+      .innerJoin(equipmentTable, eq(equipmentTable.id, recipeEquipment.equipmentId))
+      .where(eq(recipeEquipment.recipeId, recipeId))
+      .orderBy(equipmentTable.name)
+      .all();
 
   const svc = {
     list({ search, tag }: z.input<typeof recipeList> = {}) {
@@ -100,10 +120,10 @@ export function createRecipeService(db: Db, hid: number, productService: Product
         .orderBy(asc(recipeSteps.position))
         .all();
       const tags = db.select({ tag: recipeTags.tag }).from(recipeTags).where(eq(recipeTags.recipeId, id)).orderBy(recipeTags.tag).all();
-      return { ...recipe, ingredients, steps, tags: tags.map((t) => t.tag) };
+      return { ...recipe, ingredients, steps, tags: tags.map((t) => t.tag), equipment: equipmentOf(id) };
     },
 
-    create({ ingredients, steps, tags, ...data }: z.input<typeof recipeCreate>) {
+    create({ ingredients, steps, tags, equipment, ...data }: z.input<typeof recipeCreate>) {
       const id = db.transaction(() => {
         const row = db
           .insert(recipes)
@@ -113,6 +133,7 @@ export function createRecipeService(db: Db, hid: number, productService: Product
         insertIngredients(row.id, ingredients ?? []);
         insertSteps(row.id, steps ?? []);
         insertTags(row.id, tags ?? []);
+        insertEquipment(row.id, equipment ?? [], steps ?? []);
         return row.id;
       });
       return svc.get(id);
@@ -123,7 +144,7 @@ export function createRecipeService(db: Db, hid: number, productService: Product
       return db.transaction(() => list.map((r) => svc.create(r)));
     },
 
-    update({ id, ingredients, steps, tags, ...patch }: z.input<typeof recipeUpdate>) {
+    update({ id, ingredients, steps, tags, equipment, ...patch }: z.input<typeof recipeUpdate>) {
       const recipeId = id as number;
       svc.get(recipeId);
       db.transaction(() => {
@@ -135,10 +156,15 @@ export function createRecipeService(db: Db, hid: number, productService: Product
         if (steps) {
           db.delete(recipeSteps).where(eq(recipeSteps.recipeId, recipeId)).run();
           insertSteps(recipeId, steps);
+          if (equipment === undefined) insertEquipment(recipeId, [], steps);
         }
         if (tags) {
           db.delete(recipeTags).where(eq(recipeTags.recipeId, recipeId)).run();
           insertTags(recipeId, tags);
+        }
+        if (equipment) {
+          db.delete(recipeEquipment).where(eq(recipeEquipment.recipeId, recipeId)).run();
+          insertEquipment(recipeId, equipment, steps ?? svc.get(recipeId).steps.map((st) => ({ text: st.text, appliance: st.appliance ?? undefined })));
         }
       });
       return svc.get(recipeId);
@@ -168,11 +194,13 @@ export function createRecipeService(db: Db, hid: number, productService: Product
         const inStock = snap.available(product, ing.unit);
         return { ...base, inStock, missing: round(Math.max(0, needed - inStock)) };
       });
+      const missingEquipment = recipe.equipment.filter((e) => !e.owned).map((e) => e.name);
       return {
         recipeId: recipe.id,
         name: recipe.name,
         servings: servings ?? recipe.servings,
         canCook: ingredients.every((i) => i.missing === 0),
+        missingEquipment,
         ingredients,
       };
     },
@@ -205,8 +233,9 @@ export function createRecipeService(db: Db, hid: number, productService: Product
             cookMinutes: recipe.cookMinutes,
             usesExpiring: uses,
             canCook: availability.canCook,
+            missingEquipment: availability.missingEquipment,
             missing,
-            score: uses.length * 10 - missing.length * 3 + (availability.canCook ? 5 : 0),
+            score: uses.length * 10 - missing.length * 3 + (availability.canCook ? 5 : 0) - availability.missingEquipment.length * 4,
           };
         })
         .filter((s) => s.usesExpiring.length > 0)

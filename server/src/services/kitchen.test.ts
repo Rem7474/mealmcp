@@ -261,3 +261,31 @@ describe('suggestions to use up expiring food', () => {
     expect(svc.recipes.suggest({ withinDays: 3, tag: 'quick' }).suggestions.map((s) => s.name)).toEqual(['French toast']);
   });
 });
+
+describe('equipment', () => {
+  it('tracks what the household owns and what recipes need', () => {
+    svc.equipment.add({ name: 'Air fryer', kind: 'appliance' });
+    svc.equipment.add({ name: 'air fryer', kind: 'appliance' }); // same name: no duplicate
+    expect(svc.equipment.list()).toHaveLength(1);
+
+    const recipe = svc.recipes.create({
+      name: 'Fries',
+      ingredients: [{ name: 'Potatoes', quantity: 500, unit: 'g' }],
+      equipment: ['Mandoline'],
+      steps: [{ text: 'Cook', appliance: 'Air fryer', temperatureC: 200, durationMinutes: 20 }],
+    });
+    // Step appliances are attached too; the unknown mandoline is recorded as not owned.
+    expect(recipe.equipment.map((e) => [e.name, e.owned])).toEqual([['Air fryer', true], ['Mandoline', false]]);
+    expect(svc.recipes.availability({ id: recipe.id }).missingEquipment).toEqual(['Mandoline']);
+
+    const mandoline = svc.equipment.list().find((e) => e.name === 'Mandoline')!;
+    svc.equipment.update({ id: mandoline.id, owned: true });
+    expect(svc.recipes.availability({ id: recipe.id }).missingEquipment).toEqual([]);
+
+    // Replacing the list keeps step appliances.
+    expect(svc.recipes.update({ id: recipe.id, equipment: [] }).equipment.map((e) => e.name)).toEqual(['Air fryer']);
+    // Deleting an item removes it from recipes.
+    svc.equipment.remove(svc.equipment.list().find((e) => e.name === 'Air fryer')!.id);
+    expect(svc.recipes.get(recipe.id).equipment).toEqual([]);
+  });
+});

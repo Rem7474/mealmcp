@@ -8,12 +8,13 @@ const INSTRUCTIONS = `MealMCP manages one household's kitchen: stock (what is at
 Products are identified by name and created automatically the first time a name is used; reuse existing names (see list_stock / get_recipe) rather than inventing variants.
 Quantities are stored in base units: g for mass, ml for volume, "piece" for countable items. kg, l, cl, tablespoons, teaspoons and cups are converted automatically.
 Products can carry conversions (update_product: gramsPerPiece, gramsPerMl) so grams, ml and pieces are comparable (1 sweet potato = 300 g), and a staple flag for things always at home (oil, salt, pepper): staples stay in recipes but are never bought, missing or used up. Use toTaste for "a pinch" ingredients and approximate=true for "plenty of it" stock.
+Equipment: list_equipment shows the appliances and utensils the household owns; recipes can require some (create_recipe equipment, step appliance) and check_recipe_availability reports missingEquipment. Check it before suggesting a recipe.
 Several items at once? Use the *_bulk tools instead of many single calls.
 Money: amounts you send are decimal numbers in the household currency (2.49); amounts you receive are integers in cents (249). Record purchases with record_expense so prices feed the cost estimates.
 Typical flow: plan meals (plan_meal) -> generate_shopping_list for the planned period -> check items while shopping -> complete_shopping moves them into stock -> cook_planned_meal takes ingredients out of stock.`;
 
 /** MCP adapter: exposes the same services as the REST API, as tools for AI clients. */
-export function createMcpServer({ settings, products, stock, recipes, planner, budget, shopping }: Services, onChange?: () => void) {
+export function createMcpServer({ settings, equipment, products, stock, recipes, planner, budget, shopping }: Services, onChange?: () => void) {
   const server = new McpServer({ name: 'mealmcp', version: '0.1.0' }, { instructions: INSTRUCTIONS });
 
   function tool<Shape extends ZodRawShape>(
@@ -103,6 +104,10 @@ export function createMcpServer({ settings, products, stock, recipes, planner, b
   tool('add_shopping_items_bulk', 'Add many shopping list items in one call (all or nothing). Same fields as add_shopping_item, in an items array.', s.shoppingAddMany.shape, rw, (a) => shopping.addMany(a.items));
   tool('add_product_alias', 'Teach another name for a product (e.g. the wording on a receipt), so receipts, recipes and lists using it resolve to the same product.', s.aliasAdd.shape, rw, (a) => products.addAlias(a));
   tool('remove_product_alias', 'Remove an alias of a product.', s.aliasRemove.shape, del, (a) => products.removeAlias(a.alias));
+  tool('list_equipment', 'Appliances (air fryer, oven...) and utensils the household owns, plus ones recipes need that it does not have (owned=false).', {}, ro, () => equipment.list());
+  tool('add_equipment', 'Record an appliance or utensil the household has (owned=true, default) or a missing one. Idempotent by name.', s.equipmentAdd.shape, rw, (a) => equipment.add(a));
+  tool('update_equipment', 'Rename an item, change its kind, or mark it owned/not owned.', s.equipmentUpdate.shape, rw, (a) => equipment.update(a));
+  tool('remove_equipment', 'Delete an appliance or utensil (also removes it from recipes that required it).', s.idParam.shape, del, (a) => equipment.remove(a.id));
   tool('get_household_settings', 'Household preferences: default servings and which meals are planned on which weekdays.', {}, ro, () => settings.get());
   tool('set_household_settings', 'Set the default number of servings and/or the weekly meal pattern (e.g. dinners from Sunday to Thursday). plannedMeals replaces the whole pattern when given.', s.settingsSet.shape, rw, (a) => settings.set(a));
   tool('list_planning_slots', 'Meals the household expects to plan (from its settings) that have nothing planned yet between two dates: the empty slots to fill with plan_meal / plan_meals_bulk.', s.planSlots.shape, ro, (a) => ({ today: today(), slots: planner.slots(a) }));

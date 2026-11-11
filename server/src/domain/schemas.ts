@@ -88,6 +88,22 @@ const step = z.object({
   temperatureC: z.number().int().min(0).max(500).optional().describe('Oven/appliance temperature in °C'),
   appliance: z.string().trim().min(1).max(60).optional().describe('e.g. "air fryer", "oven", "stovetop"'),
 });
+export const EQUIPMENT_KINDS = ['appliance', 'utensil'] as const;
+const equipmentName = z.string().trim().min(1).max(60);
+const equipmentList = z.array(equipmentName).describe('Appliances/utensils the recipe needs, e.g. "air fryer", "mandoline". Appliances named in steps are added automatically');
+
+export const equipmentAdd = z.object({
+  name: equipmentName,
+  kind: z.enum(EQUIPMENT_KINDS).default('utensil'),
+  owned: z.boolean().default(true).describe('False for something a recipe needs but the household does not have'),
+});
+export const equipmentUpdate = z.object({
+  id,
+  name: equipmentName.optional(),
+  kind: z.enum(EQUIPMENT_KINDS).optional(),
+  owned: z.boolean().optional(),
+});
+
 const tags = z.array(z.string().trim().min(1).max(40)).describe('Labels such as "air fryer", "quick", "no shopping"');
 
 export const recipeCreate = z.object({
@@ -99,6 +115,7 @@ export const recipeCreate = z.object({
   instructions: z.string().max(20000).nullable().optional().describe('Free-text instructions, plain text or markdown'),
   steps: z.array(step).default([]).describe('Structured steps with optional duration, temperature and appliance'),
   tags: tags.default([]),
+  equipment: equipmentList.default([]),
   ingredients: z.array(ingredient).default([]),
 });
 
@@ -112,6 +129,7 @@ export const recipeUpdate = z.object({
   instructions: z.string().max(20000).nullable().optional(),
   steps: z.array(step).optional().describe('If given, replaces all steps'),
   tags: tags.optional().describe('If given, replaces all tags'),
+  equipment: equipmentList.optional().describe('If given, replaces the equipment list'),
   ingredients: z.array(ingredient).optional().describe('If given, replaces the whole ingredient list'),
 });
 

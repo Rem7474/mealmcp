@@ -124,6 +124,13 @@ export function createApiRouter({ db, config, accounts, oauth, hub }: Deps) {
 
   // --- Kitchen ----------------------------------------------------------------
 
+  r.get('/equipment', (req, res) => void res.json(kitchen(req).equipment.list()));
+  r.post('/equipment', (req, res) => void res.status(201).json(kitchen(req).equipment.add(s.equipmentAdd.parse(req.body))));
+  r.patch('/equipment/:id', (req, res) => void res.json(kitchen(req).equipment.update({ ...s.equipmentUpdate.omit({ id: true }).parse(req.body), id: Number(req.params.id) })));
+  r.delete('/equipment/:id', (req, res) => {
+    kitchen(req).equipment.remove(Number(req.params.id));
+    res.status(204).end();
+  });
   r.get('/settings', (req, res) => void res.json(kitchen(req).settings.get()));
   r.put('/settings', (req, res) => void res.json(kitchen(req).settings.set(s.settingsSet.parse(req.body))));
   r.post('/products/alias', (req, res) => void res.status(201).json(kitchen(req).products.addAlias(s.aliasAdd.parse(req.body))));
