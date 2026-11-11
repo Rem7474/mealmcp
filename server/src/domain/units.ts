@@ -12,6 +12,21 @@ const FACTORS: Record<string, { unit: string; factor: number }> = {
   cl: { unit: 'ml', factor: 10 },
   dl: { unit: 'ml', factor: 100 },
   l: { unit: 'ml', factor: 1000 },
+  // Kitchen measures, converted to ml (metric spoons and cups).
+  tsp: { unit: 'ml', factor: 5 },
+  teaspoon: { unit: 'ml', factor: 5 },
+  cc: { unit: 'ml', factor: 5 },
+  'c. à café': { unit: 'ml', factor: 5 },
+  'c à café': { unit: 'ml', factor: 5 },
+  'cuillère à café': { unit: 'ml', factor: 5 },
+  tbsp: { unit: 'ml', factor: 15 },
+  tablespoon: { unit: 'ml', factor: 15 },
+  cs: { unit: 'ml', factor: 15 },
+  'c. à soupe': { unit: 'ml', factor: 15 },
+  'c à soupe': { unit: 'ml', factor: 15 },
+  'cuillère à soupe': { unit: 'ml', factor: 15 },
+  cup: { unit: 'ml', factor: 240 },
+  cups: { unit: 'ml', factor: 240 },
 };
 
 const PIECE_ALIASES = new Set(['', 'piece', 'pieces', 'pc', 'pcs', 'unit', 'units', 'x', 'u', 'pièce', 'pièces', 'unité', 'unités']);

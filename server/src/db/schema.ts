@@ -18,6 +18,8 @@ export const households = sqliteTable('households', {
   currency: text('currency').notNull().default('EUR'),
   /** Optional monthly grocery budget, in cents. */
   monthlyBudgetCents: integer('monthly_budget_cents'),
+  /** JSON, see domain/settings.ts: default servings and which meals are planned on which days. */
+  settings: text('settings').notNull().default('{}'),
 });
 
 export const users = sqliteTable('users', {
@@ -154,8 +156,29 @@ export const products = sqliteTable(
     /** Last known price in cents per 1 `priceUnit` (g, ml, piece, ...). Null until a price is recorded. */
     unitPrice: real('unit_price'),
     priceUnit: text('price_unit'),
+    /** Always at home (oil, salt, pepper...): kept in recipes but never bought, counted or used up. */
+    isStaple: integer('is_staple', { mode: 'boolean' }).notNull().default(false),
+    /** Conversions that let g, ml and pieces be compared: 1 piece weighs this many grams... */
+    gramsPerPiece: real('grams_per_piece'),
+    /** ...and 1 ml weighs this many grams (density). */
+    gramsPerMl: real('grams_per_ml'),
   },
   (t) => [uniqueIndex('products_household_name_idx').on(t.householdId, t.nameKey)],
+);
+
+/** Other names a product goes by, e.g. the wording on a receipt. Lower-cased and unique per household. */
+export const productAliases = sqliteTable(
+  'product_aliases',
+  {
+    id: integer('id').primaryKey({ autoIncrement: true }),
+    householdId: household(),
+    productId: integer('product_id')
+      .notNull()
+      .references(() => products.id, { onDelete: 'cascade' }),
+    alias: text('alias').notNull(),
+    aliasKey: text('alias_key').notNull(),
+  },
+  (t) => [uniqueIndex('product_aliases_household_key_idx').on(t.householdId, t.aliasKey)],
 );
 
 export const stockItems = sqliteTable(
@@ -172,6 +195,8 @@ export const stockItems = sqliteTable(
     /** ISO date YYYY-MM-DD. */
     expiresOn: text('expires_on'),
     addedOn: text('added_on').notNull(),
+    /** "There is some, amount unknown" (plenty of pasta): counts as available, never used up by cooking. */
+    approximate: integer('approximate', { mode: 'boolean' }).notNull().default(false),
   },
   (t) => [index('stock_household_idx').on(t.householdId)],
 );
@@ -185,10 +210,37 @@ export const recipes = sqliteTable(
     description: text('description'),
     servings: integer('servings').notNull().default(4),
     prepMinutes: integer('prep_minutes'),
+    cookMinutes: integer('cook_minutes'),
     instructions: text('instructions'),
   },
   (t) => [index('recipes_household_idx').on(t.householdId)],
 );
+
+/** Free-form labels such as "air fryer", "quick" or "no shopping". Lower-cased. */
+export const recipeTags = sqliteTable(
+  'recipe_tags',
+  {
+    id: integer('id').primaryKey({ autoIncrement: true }),
+    recipeId: integer('recipe_id')
+      .notNull()
+      .references(() => recipes.id, { onDelete: 'cascade' }),
+    tag: text('tag').notNull(),
+  },
+  (t) => [uniqueIndex('recipe_tags_unique_idx').on(t.recipeId, t.tag)],
+);
+
+/** Ordered, structured steps: enough for a machine to start the right program (appliance, °C, minutes). */
+export const recipeSteps = sqliteTable('recipe_steps', {
+  id: integer('id').primaryKey({ autoIncrement: true }),
+  recipeId: integer('recipe_id')
+    .notNull()
+    .references(() => recipes.id, { onDelete: 'cascade' }),
+  position: integer('position').notNull(),
+  text: text('text').notNull(),
+  durationMinutes: integer('duration_minutes'),
+  temperatureC: integer('temperature_c'),
+  appliance: text('appliance'),
+});
 
 export const recipeIngredients = sqliteTable('recipe_ingredients', {
   id: integer('id').primaryKey({ autoIncrement: true }),
@@ -201,6 +253,8 @@ export const recipeIngredients = sqliteTable('recipe_ingredients', {
   quantity: real('quantity').notNull(),
   unit: text('unit').notNull(),
   note: text('note'),
+  /** "To taste" (pepper, thyme): listed in the recipe but not counted, bought or priced. */
+  toTaste: integer('to_taste', { mode: 'boolean' }).notNull().default(false),
 });
 
 export const mealPlan = sqliteTable(

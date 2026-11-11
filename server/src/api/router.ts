@@ -124,6 +124,13 @@ export function createApiRouter({ db, config, accounts, oauth, hub }: Deps) {
 
   // --- Kitchen ----------------------------------------------------------------
 
+  r.get('/settings', (req, res) => void res.json(kitchen(req).settings.get()));
+  r.put('/settings', (req, res) => void res.json(kitchen(req).settings.set(s.settingsSet.parse(req.body))));
+  r.post('/products/alias', (req, res) => void res.status(201).json(kitchen(req).products.addAlias(s.aliasAdd.parse(req.body))));
+  r.delete('/products/alias', (req, res) => {
+    kitchen(req).products.removeAlias(s.aliasRemove.parse(req.query).alias);
+    res.status(204).end();
+  });
   r.get('/products', (req, res) => void res.json(kitchen(req).products.list()));
   r.patch('/products/:id', (req, res) =>
     void res.json(kitchen(req).products.update(s.productUpdate.parse({ ...req.body, id: id(req.params) }))),
@@ -132,6 +139,7 @@ export function createApiRouter({ db, config, accounts, oauth, hub }: Deps) {
   r.get('/stock', (req, res) => void res.json(kitchen(req).stock.list(s.stockList.parse(req.query))));
   r.get('/stock/alerts', (req, res) => void res.json(kitchen(req).stock.alerts()));
   r.post('/stock', (req, res) => void res.status(201).json(kitchen(req).stock.add(s.stockAdd.parse(req.body))));
+  r.post('/stock/bulk', (req, res) => void res.status(201).json(kitchen(req).stock.addMany(s.stockAddMany.parse(req.body).items)));
   r.post('/stock/consume', (req, res) => void res.json(kitchen(req).stock.consume(s.stockConsume.parse(req.body))));
   r.patch('/stock/:id', (req, res) =>
     void res.json(kitchen(req).stock.update(s.stockUpdate.parse({ ...req.body, id: id(req.params) }))),
@@ -141,7 +149,9 @@ export function createApiRouter({ db, config, accounts, oauth, hub }: Deps) {
     res.status(204).end();
   });
 
-  r.get('/recipes', (req, res) => void res.json(kitchen(req).recipes.list(s.recipeList.parse(req.query).search)));
+  r.get('/recipes', (req, res) => void res.json(kitchen(req).recipes.list(s.recipeList.parse(req.query))));
+  r.get('/recipes/suggest', (req, res) => void res.json(kitchen(req).recipes.suggest(s.suggestRecipes.parse(req.query))));
+  r.post('/recipes/bulk', (req, res) => void res.status(201).json(kitchen(req).recipes.createMany(s.recipeCreateMany.parse(req.body).recipes)));
   r.get('/recipes/:id', (req, res) => void res.json(kitchen(req).recipes.get(id(req.params))));
   r.get('/recipes/:id/availability', (req, res) =>
     void res.json(kitchen(req).recipes.availability(s.recipeAvailability.parse({ ...req.query, id: id(req.params) }))),
@@ -156,6 +166,8 @@ export function createApiRouter({ db, config, accounts, oauth, hub }: Deps) {
   });
 
   r.get('/plan', (req, res) => void res.json(kitchen(req).planner.list(s.planList.parse(req.query))));
+  r.get('/plan/slots', (req, res) => void res.json(kitchen(req).planner.slots(s.planSlots.parse(req.query))));
+  r.post('/plan/bulk', (req, res) => void res.status(201).json(kitchen(req).planner.addMany(s.planAddMany.parse(req.body).meals)));
   r.post('/plan', (req, res) => void res.status(201).json(kitchen(req).planner.add(s.planAdd.parse(req.body))));
   r.post('/plan/:id/cook', (req, res) => void res.json(kitchen(req).planner.cook(id(req.params))));
   r.delete('/plan/:id', (req, res) => {
@@ -164,6 +176,7 @@ export function createApiRouter({ db, config, accounts, oauth, hub }: Deps) {
   });
 
   r.get('/shopping', (req, res) => void res.json(kitchen(req).shopping.list()));
+  r.post('/shopping/bulk', (req, res) => void res.status(201).json(kitchen(req).shopping.addMany(s.shoppingAddMany.parse(req.body).items)));
   r.post('/shopping', (req, res) => void res.status(201).json(kitchen(req).shopping.add(s.shoppingAdd.parse(req.body))));
   r.post('/shopping/generate', (req, res) =>
     void res.json(kitchen(req).shopping.generateFromPlan(s.shoppingGenerate.parse(req.body))),

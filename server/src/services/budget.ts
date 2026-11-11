@@ -4,7 +4,7 @@ import type { Db } from '../db/index.js';
 import { expenseItems, expenses, households, products } from '../db/schema.js';
 import { today } from '../domain/dates.js';
 import { NotFoundError, ValidationError } from '../domain/errors.js';
-import { toCents, unitCostCents } from '../domain/pricing.js';
+import { costCents, toCents } from '../domain/pricing.js';
 import type { budgetSet, expenseList, expenseRecord, productPrice, recipeAvailability, spendingSummary } from '../domain/schemas.js';
 import { toBase } from '../domain/units.js';
 import type { PlannerService } from './planner.js';
@@ -198,9 +198,10 @@ export function createBudgetService(db: Db, hid: number, productService: Product
       let total = 0;
       const unpriced: string[] = [];
       for (const ing of recipe.ingredients) {
-        const unitCost = unitCostCents(byId.get(ing.productId)!, ing.unit);
-        if (unitCost === null) unpriced.push(ing.name);
-        else total += ing.quantity * scale * unitCost;
+        if (ing.toTaste || byId.get(ing.productId)!.isStaple) continue; // not counted, not bought
+        const cost = costCents(byId.get(ing.productId)!, ing.quantity * scale, ing.unit);
+        if (cost === null) unpriced.push(ing.name);
+        else total += cost;
       }
       const servingsUsed = servings ?? recipe.servings;
       return {

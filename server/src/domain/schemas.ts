@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { LOCATIONS, MEAL_TYPES } from '../db/schema.js';
+import { householdSettings } from './settings.js';
 
 /**
  * Input schemas shared by the REST API and the MCP tools. The `.describe()`
@@ -30,6 +31,12 @@ export const productUpdate = z.object({
     .nullable()
     .optional()
     .describe('Low-stock alert threshold, in the product default unit. null disables the alert.'),
+  staple: z
+    .boolean()
+    .optional()
+    .describe('Always at home (oil, salt, pepper, thyme): stays in recipes but is never bought, counted as missing, or used up'),
+  gramsPerPiece: z.number().positive().nullable().optional().describe('Weight of one piece in grams (e.g. 300 for a sweet potato), so pieces and grams can be compared'),
+  gramsPerMl: z.number().positive().nullable().optional().describe('Density in grams per ml (e.g. 0.92 for oil), so ml and grams can be compared'),
 });
 
 export const stockList = z.object({
@@ -44,7 +51,11 @@ export const stockList = z.object({
 
 export const stockAdd = z.object({
   name: productName.describe('Product name; created automatically if unknown'),
-  quantity: z.number().positive(),
+  quantity: z.number().positive().optional().describe('Required unless approximate is true'),
+  approximate: z
+    .boolean()
+    .default(false)
+    .describe('"There is plenty/some, amount unknown" (e.g. lots of pasta): counts as available in checks and shopping lists and is never used up by cooking'),
   unit,
   location: location.default('pantry'),
   expiresOn: isoDate.nullable().optional().describe('Expiry date YYYY-MM-DD'),
@@ -65,17 +76,29 @@ export const stockConsume = z.object({
 
 const ingredient = z.object({
   name: productName,
-  quantity: z.number().positive(),
+  quantity: z.number().positive().optional().describe('Required unless toTaste is true'),
+  toTaste: z.boolean().default(false).describe('"To taste" (pepper, a pinch of thyme): listed in the recipe but not counted, bought or priced'),
   unit,
   note: z.string().max(200).nullable().optional().describe('e.g. "sliced", "optional"'),
 });
+
+const step = z.object({
+  text: z.string().trim().min(1).max(1000),
+  durationMinutes: z.number().int().positive().max(1440).optional().describe('How long this step takes or cooks'),
+  temperatureC: z.number().int().min(0).max(500).optional().describe('Oven/appliance temperature in °C'),
+  appliance: z.string().trim().min(1).max(60).optional().describe('e.g. "air fryer", "oven", "stovetop"'),
+});
+const tags = z.array(z.string().trim().min(1).max(40)).describe('Labels such as "air fryer", "quick", "no shopping"');
 
 export const recipeCreate = z.object({
   name: z.string().trim().min(1).max(160),
   description: z.string().max(2000).nullable().optional(),
   servings: z.number().int().positive().default(4).describe('Number of servings the quantities are written for'),
-  prepMinutes: z.number().int().nonnegative().nullable().optional(),
-  instructions: z.string().max(20000).nullable().optional().describe('Steps, plain text or markdown'),
+  prepMinutes: z.number().int().nonnegative().nullable().optional().describe('Preparation time (not cooking)'),
+  cookMinutes: z.number().int().nonnegative().nullable().optional().describe('Cooking time, separate from preparation'),
+  instructions: z.string().max(20000).nullable().optional().describe('Free-text instructions, plain text or markdown'),
+  steps: z.array(step).default([]).describe('Structured steps with optional duration, temperature and appliance'),
+  tags: tags.default([]),
   ingredients: z.array(ingredient).default([]),
 });
 
@@ -85,12 +108,16 @@ export const recipeUpdate = z.object({
   description: z.string().max(2000).nullable().optional(),
   servings: z.number().int().positive().optional(),
   prepMinutes: z.number().int().nonnegative().nullable().optional(),
+  cookMinutes: z.number().int().nonnegative().nullable().optional(),
   instructions: z.string().max(20000).nullable().optional(),
+  steps: z.array(step).optional().describe('If given, replaces all steps'),
+  tags: tags.optional().describe('If given, replaces all tags'),
   ingredients: z.array(ingredient).optional().describe('If given, replaces the whole ingredient list'),
 });
 
 export const recipeList = z.object({
   search: z.string().optional().describe('Filter on recipe name or ingredient name'),
+  tag: z.string().trim().optional().describe('Only recipes carrying this tag'),
 });
 
 export const recipeAvailability = z.object({
@@ -108,7 +135,7 @@ export const planAdd = z.object({
   mealType: z.enum(MEAL_TYPES),
   recipeId: id.nullable().optional().describe('Recipe to cook; omit for a free-text meal'),
   title: z.string().max(160).nullable().optional().describe('Free text when there is no recipe, e.g. "Restaurant"'),
-  servings: z.number().int().positive().optional().describe('Defaults to the recipe servings'),
+  servings: z.number().int().positive().optional().describe('Defaults to the household default servings, else the recipe servings'),
 });
 
 export const shoppingAdd = z.object({
@@ -188,3 +215,32 @@ export const productPrice = z.object({
   quantity: z.number().positive().default(1).describe('How much that price buys, e.g. 1 with unit kg'),
   unit,
 });
+
+// --- Aliases, settings, suggestions, bulk -----------------------------------
+
+export const aliasAdd = z.object({
+  name: productName.describe('The product (its name or an existing alias)'),
+  alias: productName.describe('Another name for it, e.g. the wording on a receipt ("COTE FILET DE PORC")'),
+});
+
+export const aliasRemove = z.object({ alias: productName });
+
+export const settingsSet = householdSettings;
+
+export const planSlots = z.object({
+  from: isoDate.describe('First day, inclusive'),
+  to: isoDate.describe('Last day, inclusive'),
+});
+
+export const suggestRecipes = z.object({
+  withinDays: z.coerce.number().int().nonnegative().default(5).describe('Use up what expires within this many days'),
+  products: z.array(productName).optional().describe('Extra product names to use up, whatever their expiry'),
+  tag: z.string().trim().optional().describe('Only consider recipes with this tag'),
+  servings: z.coerce.number().int().positive().optional().describe('Servings to check availability for; defaults to the household default'),
+  limit: z.coerce.number().int().positive().max(20).default(5),
+});
+
+export const stockAddMany = z.object({ items: z.array(stockAdd).min(1).max(200) });
+export const recipeCreateMany = z.object({ recipes: z.array(recipeCreate).min(1).max(50) });
+export const planAddMany = z.object({ meals: z.array(planAdd).min(1).max(100) });
+export const shoppingAddMany = z.object({ items: z.array(shoppingAdd).min(1).max(200) });

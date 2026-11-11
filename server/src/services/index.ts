@@ -3,6 +3,7 @@ import { createBudgetService } from './budget.js';
 import { createPlannerService } from './planner.js';
 import { createProductService } from './products.js';
 import { createRecipeService } from './recipes.js';
+import { createSettingsService } from './settings.js';
 import { createShoppingService } from './shopping.js';
 import { createStockService } from './stock.js';
 
@@ -15,13 +16,14 @@ import { createStockService } from './stock.js';
  * Build one set per request, from the authenticated user's household.
  */
 export function createServices(db: Db, householdId: number) {
+  const settings = createSettingsService(db, householdId);
   const products = createProductService(db, householdId);
   const stock = createStockService(db, householdId, products);
-  const recipes = createRecipeService(db, householdId, products, stock);
-  const planner = createPlannerService(db, householdId, recipes, stock);
+  const recipes = createRecipeService(db, householdId, products, stock, settings);
+  const planner = createPlannerService(db, householdId, recipes, stock, settings);
   const budget = createBudgetService(db, householdId, products, stock, recipes, planner);
   const shopping = createShoppingService(db, householdId, products, stock, recipes, planner, budget);
-  return { products, stock, recipes, planner, budget, shopping };
+  return { settings, products, stock, recipes, planner, budget, shopping };
 }
 
 export type Services = ReturnType<typeof createServices>;

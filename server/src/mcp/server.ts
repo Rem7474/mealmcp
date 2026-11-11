@@ -6,12 +6,14 @@ import type { Services } from '../services/index.js';
 
 const INSTRUCTIONS = `MealMCP manages one household's kitchen: stock (what is at home), recipes, a meal plan and a shopping list.
 Products are identified by name and created automatically the first time a name is used; reuse existing names (see list_stock / get_recipe) rather than inventing variants.
-Quantities are stored in base units: g for mass, ml for volume, "piece" for countable items. kg, l, cl are converted automatically.
+Quantities are stored in base units: g for mass, ml for volume, "piece" for countable items. kg, l, cl, tablespoons, teaspoons and cups are converted automatically.
+Products can carry conversions (update_product: gramsPerPiece, gramsPerMl) so grams, ml and pieces are comparable (1 sweet potato = 300 g), and a staple flag for things always at home (oil, salt, pepper): staples stay in recipes but are never bought, missing or used up. Use toTaste for "a pinch" ingredients and approximate=true for "plenty of it" stock.
+Several items at once? Use the *_bulk tools instead of many single calls.
 Money: amounts you send are decimal numbers in the household currency (2.49); amounts you receive are integers in cents (249). Record purchases with record_expense so prices feed the cost estimates.
 Typical flow: plan meals (plan_meal) -> generate_shopping_list for the planned period -> check items while shopping -> complete_shopping moves them into stock -> cook_planned_meal takes ingredients out of stock.`;
 
 /** MCP adapter: exposes the same services as the REST API, as tools for AI clients. */
-export function createMcpServer({ products, stock, recipes, planner, budget, shopping }: Services, onChange?: () => void) {
+export function createMcpServer({ settings, products, stock, recipes, planner, budget, shopping }: Services, onChange?: () => void) {
   const server = new McpServer({ name: 'mealmcp', version: '0.1.0' }, { instructions: INSTRUCTIONS });
 
   function tool<Shape extends ZodRawShape>(
@@ -50,7 +52,7 @@ export function createMcpServer({ products, stock, recipes, planner, budget, sho
 
   // --- Stock ---------------------------------------------------------------
   tool('list_stock', 'List what is currently in stock, soonest expiry first. Optionally filter by location or by upcoming expiry.', s.stockList.shape, ro, (a) => stock.list(a));
-  tool('add_stock', 'Add a quantity of a product to the stock (after shopping, or to record what is at home).', s.stockAdd.shape, rw, (a) => stock.add(a));
+  tool('add_stock', 'Add a quantity of a product to the stock (after shopping, or to record what is at home). Use approximate=true (no quantity) for "plenty of it".', s.stockAdd.shape, rw, (a) => stock.add(a));
   tool('update_stock_item', 'Correct a stock line: quantity, location or expiry date. Use the id from list_stock.', s.stockUpdate.shape, rw, (a) => stock.update(a) ?? { removed: true });
   tool('consume_stock', 'Take a quantity of a product out of stock (used or thrown away), soonest-expiring first. Reports what could not be covered.', s.stockConsume.shape, rw, (a) => stock.consume(a));
   tool('remove_stock_item', 'Delete a stock line entirely. Use the id from list_stock.', s.idParam.shape, del, (a) => stock.remove(a.id));
@@ -64,10 +66,10 @@ export function createMcpServer({ products, stock, recipes, planner, budget, sho
 
   // --- Products ------------------------------------------------------------
   tool('list_products', 'List all known products with their category, default unit and minimum stock threshold.', {}, ro, () => products.list());
-  tool('update_product', 'Rename a product, set its category, or set/clear its low-stock threshold.', s.productUpdate.shape, rw, (a) => products.update(a));
+  tool('update_product', 'Rename a product, set its category, low-stock threshold, staple flag, or conversions (gramsPerPiece, gramsPerMl).', s.productUpdate.shape, rw, (a) => products.update(a));
 
   // --- Recipes -------------------------------------------------------------
-  tool('list_recipes', 'List recipes (summary). Optionally search by recipe or ingredient name.', s.recipeList.shape, ro, (a) => recipes.list(a.search));
+  tool('list_recipes', 'List recipes (summary). Optionally search by recipe or ingredient name.', s.recipeList.shape, ro, (a) => recipes.list(a));
   tool('get_recipe', 'Get a recipe with its ingredients and instructions.', s.idParam.shape, ro, (a) => recipes.get(a.id));
   tool('create_recipe', 'Create a recipe with its ingredient list.', s.recipeCreate.shape, rw, (a) => recipes.create(a));
   tool('update_recipe', 'Update a recipe. Passing ingredients replaces the whole ingredient list.', s.recipeUpdate.shape, rw, (a) => recipes.update(a));
@@ -93,6 +95,24 @@ export function createMcpServer({ products, stock, recipes, planner, budget, sho
     (a) => shopping.generateFromPlan(a),
   );
   tool('complete_shopping', 'Shopping done: move every checked item into stock and remove it from the list. If prices were entered on the lines (or a total is given) the purchase is also recorded as an expense.', s.shoppingComplete.shape, rw, (a) => shopping.completePurchase(a.location, { store: a.store, total: a.total, date: a.date }));
+
+  // --- Bulk, aliases, settings, planning help ----------------------------------------
+  tool('add_stock_bulk', 'Add many stock lines in one call (all or nothing). Same fields as add_stock, in an items array.', s.stockAddMany.shape, rw, (a) => stock.addMany(a.items));
+  tool('create_recipes_bulk', 'Create many recipes in one call (all or nothing). Same fields as create_recipe, in a recipes array.', s.recipeCreateMany.shape, rw, (a) => recipes.createMany(a.recipes));
+  tool('plan_meals_bulk', 'Plan many meals in one call (all or nothing). Same fields as plan_meal, in a meals array.', s.planAddMany.shape, rw, (a) => planner.addMany(a.meals));
+  tool('add_shopping_items_bulk', 'Add many shopping list items in one call (all or nothing). Same fields as add_shopping_item, in an items array.', s.shoppingAddMany.shape, rw, (a) => shopping.addMany(a.items));
+  tool('add_product_alias', 'Teach another name for a product (e.g. the wording on a receipt), so receipts, recipes and lists using it resolve to the same product.', s.aliasAdd.shape, rw, (a) => products.addAlias(a));
+  tool('remove_product_alias', 'Remove an alias of a product.', s.aliasRemove.shape, del, (a) => products.removeAlias(a.alias));
+  tool('get_household_settings', 'Household preferences: default servings and which meals are planned on which weekdays.', {}, ro, () => settings.get());
+  tool('set_household_settings', 'Set the default number of servings and/or the weekly meal pattern (e.g. dinners from Sunday to Thursday). plannedMeals replaces the whole pattern when given.', s.settingsSet.shape, rw, (a) => settings.set(a));
+  tool('list_planning_slots', 'Meals the household expects to plan (from its settings) that have nothing planned yet between two dates: the empty slots to fill with plan_meal / plan_meals_bulk.', s.planSlots.shape, ro, (a) => ({ today: today(), slots: planner.slots(a) }));
+  tool(
+    'suggest_recipes_to_use_up',
+    'Recipes that use up what is about to expire (or the products you name), best first: which expiring items each uses, whether it can be cooked now, and what is missing.',
+    s.suggestRecipes.shape,
+    ro,
+    (a) => recipes.suggest(a),
+  );
 
   // --- Budget ----------------------------------------------------------------
   tool(

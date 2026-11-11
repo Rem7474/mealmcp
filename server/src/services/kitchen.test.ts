@@ -1,0 +1,263 @@
+import { beforeEach, describe, expect, it } from 'vitest';
+import { createDb, type Db } from '../db/index.js';
+import { households } from '../db/schema.js';
+import { addDays, today } from '../domain/dates.js';
+import { createServices, type Services } from './index.js';
+
+let db: Db;
+let svc: Services;
+beforeEach(() => {
+  db = createDb(':memory:');
+  svc = createServices(db, db.insert(households).values({ name: 'Test', createdAt: Date.now() }).returning().get().id);
+});
+
+describe('bulk operations', () => {
+  it('add everything or nothing', () => {
+    const added = svc.stock.addMany([
+      { name: 'Rice', quantity: 1, unit: 'kg' },
+      { name: 'Beans', quantity: 400, unit: 'g' },
+    ]);
+    expect(added).toHaveLength(2);
+    // The second line is invalid (no quantity, not approximate): the first must be rolled back too.
+    expect(() => svc.stock.addMany([{ name: 'Pasta', quantity: 500, unit: 'g' }, { name: 'Oats' }])).toThrow(/quantity/);
+    expect(svc.stock.list().map((i) => i.name).sort()).toEqual(['Beans', 'Rice']);
+
+    const recipes = svc.recipes.createMany([
+      { name: 'A', ingredients: [{ name: 'Rice', quantity: 100, unit: 'g' }] },
+      { name: 'B', ingredients: [{ name: 'Beans', quantity: 100, unit: 'g' }] },
+    ]);
+    expect(recipes.map((r) => r.name)).toEqual(['A', 'B']);
+    const meals = svc.planner.addMany([
+      { date: '2030-01-07', mealType: 'dinner', recipeId: recipes[0].id },
+      { date: '2030-01-08', mealType: 'dinner', recipeId: recipes[1].id },
+    ]);
+    expect(meals).toHaveLength(2);
+    expect(svc.shopping.addMany([{ name: 'Salt' }, { name: 'Pepper' }])).toHaveLength(2);
+  });
+});
+
+describe('staples, "to taste" and approximate quantities', () => {
+  it('keep ingredients in recipes without buying, missing-checking or using them up', () => {
+    const oil = svc.products.findOrCreate('Olive oil');
+    svc.products.update({ id: oil.id, staple: true });
+    svc.stock.add({ name: 'Pasta', approximate: true }); // plenty of pasta, amount unknown
+    svc.stock.add({ name: 'Tomatoes', quantity: 2 });
+
+    const recipe = svc.recipes.create({
+      name: 'Pasta al pomodoro',
+      servings: 2,
+      ingredients: [
+        { name: 'Pasta', quantity: 200, unit: 'g' },
+        { name: 'Tomatoes', quantity: 4 },
+        { name: 'Olive oil', quantity: 2, unit: 'tbsp' },
+        { name: 'Pepper', toTaste: true },
+      ],
+    });
+    // 2 tablespoons became 30 ml, "to taste" has no quantity.
+    expect(recipe.ingredients.map((i) => [i.name, i.quantity, i.unit, i.toTaste])).toEqual([
+      ['Pasta', 200, 'g', false],
+      ['Tomatoes', 4, 'piece', false],
+      ['Olive oil', 30, 'ml', false],
+      ['Pepper', 0, 'piece', true],
+    ]);
+
+    const availability = svc.recipes.availability({ id: recipe.id });
+    expect(availability.canCook).toBe(false);
+    expect(availability.ingredients.filter((i) => i.missing > 0).map((i) => [i.name, i.missing])).toEqual([['Tomatoes', 2]]);
+    expect(availability.ingredients.map((i) => [i.name, 'approximate' in i, 'staple' in i, 'toTaste' in i])).toEqual([
+      ['Pasta', true, false, false],
+      ['Tomatoes', false, false, false],
+      ['Olive oil', false, true, false],
+      ['Pepper', false, false, true],
+    ]);
+
+    // Shopping: only the tomatoes (2 missing); pasta, oil and pepper never show up.
+    svc.planner.add({ date: '2030-01-07', mealType: 'dinner', recipeId: recipe.id });
+    expect(svc.shopping.generateFromPlan({ from: '2030-01-01', to: '2030-01-31', includeLowStock: true }).map((i) => [i.name, i.quantity])).toEqual([['Tomatoes', 2]]);
+
+    // Cooking uses the tomatoes but leaves the "plenty of pasta" marker (and the oil) alone.
+    const { usage } = svc.planner.cook(svc.planner.list({ from: '2030-01-01', to: '2030-01-31' })[0].id);
+    expect(usage.map((u) => u.name)).toEqual(['Pasta', 'Tomatoes', 'Olive oil']);
+    expect(svc.stock.list().map((i) => [i.name, i.approximate])).toEqual([['Pasta', true]]);
+
+    // Approximate stock and staples never raise low-stock alerts.
+    svc.products.update({ id: svc.products.findByName('Pasta')!.id, minStock: 500 });
+    svc.products.update({ id: oil.id, minStock: 500 });
+    expect(svc.stock.lowStock()).toEqual([]);
+  });
+
+  it('does not price staples or "to taste" ingredients', () => {
+    svc.products.update({ id: svc.products.findOrCreate('Salt').id, staple: true });
+    svc.budget.setProductPrice({ name: 'Flour', price: 2, quantity: 1, unit: 'kg' });
+    const recipe = svc.recipes.create({
+      name: 'Bread',
+      servings: 1,
+      ingredients: [
+        { name: 'Flour', quantity: 500, unit: 'g' },
+        { name: 'Salt', quantity: 10, unit: 'g' },
+        { name: 'Thyme', toTaste: true },
+      ],
+    });
+    expect(svc.budget.recipeCost({ id: recipe.id })).toMatchObject({ totalCents: 100, unpricedIngredients: [] });
+  });
+});
+
+describe('unit conversions per product', () => {
+  it('compares pieces, grams and millilitres once the product has the conversion', () => {
+    const potato = svc.products.findOrCreate('Sweet potato');
+    svc.products.update({ id: potato.id, gramsPerPiece: 300 });
+    svc.stock.add({ name: 'Sweet potato', quantity: 2 }); // 2 pieces = 600 g
+    const recipe = svc.recipes.create({ name: 'Mash', servings: 2, ingredients: [{ name: 'Sweet potato', quantity: 450, unit: 'g' }] });
+    expect(svc.recipes.availability({ id: recipe.id })).toMatchObject({ canCook: true });
+    expect(svc.recipes.availability({ id: recipe.id, servings: 4 }).ingredients[0]).toMatchObject({ needed: 900, inStock: 600, missing: 300 });
+
+    // Cooking takes 450 g out of the 2 pieces: 0.5 piece (150 g) is left.
+    svc.planner.add({ date: '2030-01-07', mealType: 'dinner', recipeId: recipe.id });
+    svc.planner.cook(svc.planner.list({ from: '2030-01-01', to: '2030-01-31' })[0].id);
+    expect(svc.stock.list()).toMatchObject([{ name: 'Sweet potato', quantity: 0.5, unit: 'piece' }]);
+
+    // Prices follow: a price per kg values a recipe written in pieces.
+    svc.budget.setProductPrice({ name: 'Sweet potato', price: 3, quantity: 1, unit: 'kg' });
+    const bake = svc.recipes.create({ name: 'Bake', servings: 1, ingredients: [{ name: 'Sweet potato', quantity: 2 }] });
+    expect(svc.budget.recipeCost({ id: bake.id }).totalCents).toBe(180); // 2 x 300 g x 0.3 cents/g
+  });
+
+  it('uses density for ml <-> g and understands spoons and cups', () => {
+    svc.products.update({ id: svc.products.findOrCreate('Honey').id, gramsPerMl: 1.4 });
+    svc.stock.add({ name: 'Honey', quantity: 280, unit: 'g' });
+    const recipe = svc.recipes.create({ name: 'Glaze', servings: 1, ingredients: [{ name: 'Honey', quantity: 2, unit: 'cups' }] }); // 480 ml = 672 g
+    expect(svc.recipes.get(recipe.id).ingredients[0]).toMatchObject({ quantity: 480, unit: 'ml' });
+    expect(svc.recipes.availability({ id: recipe.id }).ingredients[0]).toMatchObject({ inStock: 200, missing: 280 });
+    // Without a conversion nothing is guessed: grams stock does not cover a volume.
+    const other = svc.recipes.create({ name: 'Other', servings: 1, ingredients: [{ name: 'Syrup', quantity: 1, unit: 'tsp' }] });
+    svc.stock.add({ name: 'Syrup', quantity: 500, unit: 'g' });
+    expect(svc.recipes.availability({ id: other.id }).ingredients[0]).toMatchObject({ unit: 'ml', needed: 5, inStock: 0, missing: 5 });
+  });
+
+  it('rounds countable shopping needs up to whole pieces', () => {
+    const recipe = svc.recipes.create({
+      name: 'Salad',
+      servings: 4,
+      ingredients: [
+        { name: 'Lemon', quantity: 0.25 },
+        { name: 'Lettuce', quantity: 0.5 },
+        { name: 'Olives', quantity: 120, unit: 'g' },
+      ],
+    });
+    svc.planner.add({ date: '2030-01-07', mealType: 'lunch', recipeId: recipe.id, servings: 4 });
+    const list = svc.shopping.generateFromPlan({ from: '2030-01-01', to: '2030-01-31', includeLowStock: false });
+    expect(list.map((i) => [i.name, i.quantity, i.unit])).toEqual([
+      ['Lemon', 1, 'piece'],
+      ['Lettuce', 1, 'piece'],
+      ['Olives', 120, 'g'],
+    ]);
+  });
+});
+
+describe('aliases', () => {
+  it('resolve receipt wording to the right product', () => {
+    svc.stock.add({ name: 'Pork chops', quantity: 600, unit: 'g' });
+    svc.products.addAlias({ name: 'pork chops', alias: 'COTE FILET DE PORC' });
+    expect(svc.products.list().find((p) => p.name === 'Pork chops')?.aliases).toEqual(['COTE FILET DE PORC']);
+
+    const expense = svc.budget.recordExpense({ items: [{ name: 'cote filet de porc', quantity: 400, unit: 'g', price: 4.8 }], addToStock: true });
+    expect(expense.items[0].name).toBe('Pork chops');
+    expect(svc.products.list()).toHaveLength(1); // no duplicate product was created
+    expect(svc.stock.list()).toMatchObject([{ name: 'Pork chops', quantity: 1000 }]);
+
+    // An alias cannot steal another product's name.
+    svc.stock.add({ name: 'Beef', quantity: 1 });
+    expect(() => svc.products.addAlias({ name: 'Beef', alias: 'Pork chops' })).toThrow(/already refers/);
+    svc.products.removeAlias('cote filet de porc');
+    expect(svc.products.findByName('COTE FILET DE PORC')).toBeUndefined();
+  });
+});
+
+describe('recipe details', () => {
+  it('keeps cooking time, tags and structured steps, and filters by tag', () => {
+    const recipe = svc.recipes.create({
+      name: 'Crispy fries',
+      prepMinutes: 10,
+      cookMinutes: 20,
+      tags: ['Air Fryer', 'quick', 'quick'],
+      steps: [
+        { text: 'Cut and season the potatoes' },
+        { text: 'Cook until golden', appliance: 'air fryer', temperatureC: 200, durationMinutes: 20 },
+      ],
+      ingredients: [{ name: 'Potatoes', quantity: 600, unit: 'g' }],
+    });
+    expect(recipe).toMatchObject({ prepMinutes: 10, cookMinutes: 20, tags: ['air fryer', 'quick'] });
+    expect(recipe.steps).toEqual([
+      { position: 1, text: 'Cut and season the potatoes', durationMinutes: null, temperatureC: null, appliance: null },
+      { position: 2, text: 'Cook until golden', durationMinutes: 20, temperatureC: 200, appliance: 'air fryer' },
+    ]);
+    svc.recipes.create({ name: 'Soup', ingredients: [] });
+    expect(svc.recipes.list({ tag: 'air fryer' }).map((r) => r.name)).toEqual(['Crispy fries']);
+    expect(svc.recipes.list({}).map((r) => r.tags.length)).toEqual([2, 0]);
+
+    const updated = svc.recipes.update({ id: recipe.id, tags: ['dinner'], steps: [{ text: 'Eat' }] });
+    expect(updated).toMatchObject({ tags: ['dinner'], cookMinutes: 20 });
+    expect(updated.steps).toHaveLength(1);
+  });
+});
+
+describe('household settings and planning slots', () => {
+  it('lists the meals still to plan and scales new meals to the usual number of eaters', () => {
+    expect(svc.settings.get()).toEqual({});
+    svc.settings.set({ defaultServings: 1, plannedMeals: { dinner: [0, 1, 2, 3, 4] } }); // dinners Sunday to Thursday
+    expect(svc.settings.get()).toMatchObject({ defaultServings: 1 });
+
+    // 2030-01-06 is a Sunday.
+    const week = { from: '2030-01-06', to: '2030-01-12' };
+    expect(svc.planner.slots(week).map((s) => [s.date, s.mealType])).toEqual([
+      ['2030-01-06', 'dinner'],
+      ['2030-01-07', 'dinner'],
+      ['2030-01-08', 'dinner'],
+      ['2030-01-09', 'dinner'],
+      ['2030-01-10', 'dinner'],
+    ]);
+
+    const recipe = svc.recipes.create({ name: 'Stew', servings: 4, ingredients: [{ name: 'Beef', quantity: 800, unit: 'g' }] });
+    const meal = svc.planner.add({ date: '2030-01-07', mealType: 'dinner', recipeId: recipe.id });
+    expect(meal.servings).toBe(1); // not the recipe's 4
+    expect(svc.planner.slots(week)).toHaveLength(4);
+    expect(svc.planner.add({ date: '2030-01-08', mealType: 'dinner', recipeId: recipe.id, servings: 3 }).servings).toBe(3);
+
+    // Merging keeps the other settings; the meal pattern is replaced as a whole.
+    expect(svc.settings.set({ plannedMeals: { lunch: [1] } })).toEqual({ defaultServings: 1, plannedMeals: { lunch: [1] } });
+  });
+});
+
+describe('suggestions to use up expiring food', () => {
+  it('ranks recipes by how much of what is about to expire they use', () => {
+    const soon = addDays(today(), 2);
+    svc.stock.add({ name: 'Eggs', quantity: 6, expiresOn: soon });
+    svc.stock.add({ name: 'Sandwich bread', quantity: 8, expiresOn: soon });
+    svc.stock.add({ name: 'Milk', quantity: 1, unit: 'l', expiresOn: addDays(today(), 30) });
+    svc.stock.add({ name: 'Flour', quantity: 1, unit: 'kg' });
+
+    svc.recipes.create({
+      name: 'French toast',
+      servings: 2,
+      tags: ['quick'],
+      ingredients: [
+        { name: 'Eggs', quantity: 3 },
+        { name: 'Sandwich bread', quantity: 4 },
+        { name: 'Milk', quantity: 200, unit: 'ml' },
+      ],
+    });
+    svc.recipes.create({ name: 'Omelette', servings: 2, ingredients: [{ name: 'Eggs', quantity: 4 }, { name: 'Cheese', quantity: 100, unit: 'g' }] });
+    svc.recipes.create({ name: 'Pancakes', servings: 2, ingredients: [{ name: 'Flour', quantity: 200, unit: 'g' }, { name: 'Milk', quantity: 300, unit: 'ml' }] });
+
+    const result = svc.recipes.suggest({ withinDays: 3 });
+    expect(result.expiring.map((e) => e.name).sort()).toEqual(['Eggs', 'Sandwich bread']);
+    // Pancakes use nothing that expires soon, so they are not suggested.
+    expect(result.suggestions.map((s) => s.name)).toEqual(['French toast', 'Omelette']);
+    expect(result.suggestions[0]).toMatchObject({ canCook: true, missing: [], usesExpiring: [{ name: 'Eggs' }, { name: 'Sandwich bread' }] });
+    expect(result.suggestions[1]).toMatchObject({ canCook: false, missing: [{ name: 'Cheese', missing: 100 }] });
+
+    // Naming products extends the targets; a tag narrows the recipes considered.
+    expect(svc.recipes.suggest({ withinDays: 0, products: ['Flour'] }).suggestions.map((s) => s.name)).toEqual(['Pancakes']);
+    expect(svc.recipes.suggest({ withinDays: 3, tag: 'quick' }).suggestions.map((s) => s.name)).toEqual(['French toast']);
+  });
+});
