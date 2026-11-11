@@ -218,9 +218,20 @@ export function createBudgetService(db: Db, hid: number, productService: Product
 
     planCost(range: { from: string; to: string }) {
       const meals = planner.list(range).map((meal) => {
-        if (!meal.recipeId) return { id: meal.id, date: meal.date, name: meal.title ?? '', costCents: null as number | null, unpricedIngredients: [] as string[] };
+        if (!meal.recipeId) return { id: meal.id, date: meal.date, name: meal.title ?? '', costCents: null as number | null, unpricedIngredients: [] as string[], canCook: null as boolean | null, missing: [] as string[], missingEquipment: [] as string[] };
         const cost = svc.recipeCost({ id: meal.recipeId, servings: meal.servings });
-        return { id: meal.id, date: meal.date, name: cost.name, costCents: cost.totalCents, unpricedIngredients: cost.unpricedIngredients };
+        // Stock status of this meal on its own (other planned meals are not subtracted).
+        const availability = recipes.availability({ id: meal.recipeId, servings: meal.servings });
+        return {
+          id: meal.id,
+          date: meal.date,
+          name: cost.name,
+          costCents: cost.totalCents,
+          unpricedIngredients: cost.unpricedIngredients,
+          canCook: availability.canCook,
+          missing: availability.ingredients.filter((i) => i.missing > 0).map((i) => i.name),
+          missingEquipment: availability.missingEquipment,
+        };
       });
       return {
         ...range,

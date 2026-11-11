@@ -1,4 +1,5 @@
 import { useQuery } from '@tanstack/react-query';
+import { Package, Snowflake, Thermometer } from '@phosphor-icons/react';
 import { type FormEvent, useState } from 'react';
 import { api, useAction } from '../api';
 import { daysUntil, formatDate, formatQty, LOCATIONS } from '../format';
@@ -6,6 +7,8 @@ import { useT } from '../i18n';
 import type { Product, StockAlerts, StockItem } from '../types';
 import { Badge, Button, Card, Empty, Input } from '../ui';
 import { LocationSelect, parseQty, ProductDatalist, useProducts } from './shared';
+
+const LOCATION_ICON = { fridge: <Thermometer size={16} className="text-accent" />, freezer: <Snowflake size={16} className="text-accent" />, pantry: <Package size={16} className="text-accent" /> };
 
 export function Stock() {
   const t = useT();
@@ -17,7 +20,6 @@ export function Stock() {
   return (
     <>
       <ProductDatalist />
-      <AddForm />
       {alerts.data && alerts.data.lowStock.length > 0 && (
         <Card title={t('stock.lowStock')}>
           <ul className="flex flex-wrap gap-2 text-sm">
@@ -31,11 +33,12 @@ export function Stock() {
           </ul>
         </Card>
       )}
+      <AddForm />
       <div className="grid gap-4 md:grid-cols-3">
         {LOCATIONS.map((location) => {
           const here = items.filter((i) => i.location === location);
           return (
-            <Card key={location} title={t(`location.${location}`)} actions={<span className="text-sm text-muted">{here.length}</span>}>
+            <Card key={location} title={<span className="inline-flex items-center gap-2">{LOCATION_ICON[location]}{t(`location.${location}`)}</span>} actions={<span className="text-sm text-muted">{here.length}</span>}>
               {here.length === 0 ? (
                 <Empty>{t('stock.nothingHere')}</Empty>
               ) : (

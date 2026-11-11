@@ -1,22 +1,31 @@
 import { useQuery } from '@tanstack/react-query';
+import { ArrowsClockwise, Basket, Package, Plus, X } from '@phosphor-icons/react';
 import { type FormEvent, useState } from 'react';
 import { api, useAction } from '../api';
 import { addDays, formatMoney, formatQty, today } from '../format';
 import { useT } from '../i18n';
-import type { ShoppingEstimate, ShoppingItem } from '../types';
+import type { BudgetStatus, ShoppingItem } from '../types';
 import { Badge, Button, Card, Empty, Input } from '../ui';
 import { LocationSelect, parseQty, ProductDatalist, useCurrency } from './shared';
 
+const sum = (items: ShoppingItem[]) => items.reduce((total, i) => total + (i.priceCents ?? i.estimatedCents ?? 0), 0);
+
+/** One priced list: tick while shopping, enter what each line cost, then put the basket away in one go. */
 export function Shopping() {
   const t = useT();
   const currency = useCurrency();
   const { data: items = [] } = useQuery({ queryKey: ['shopping'], queryFn: () => api.get<ShoppingItem[]>('/shopping') });
-  const { data: estimate } = useQuery({ queryKey: ['shopping', 'estimate'], queryFn: () => api.get<ShoppingEstimate>('/shopping/estimate') });
+  const { data: budget } = useQuery({ queryKey: ['budget', 'status'], queryFn: () => api.get<BudgetStatus>('/budget/status') });
   const { run, pending } = useAction();
   const [form, setForm] = useState({ name: '', quantity: '', unit: '' });
   const [range, setRange] = useState({ from: today(), to: addDays(today(), 6) });
   const [complete, setComplete] = useState({ location: 'pantry', store: '', total: '' });
-  const checkedCount = items.filter((i) => i.checked).length;
+
+  const basket = items.filter((i) => i.checked);
+  const open = items.filter((i) => !i.checked);
+  const unpriced = open.filter((i) => i.priceCents === null && i.estimatedCents === null).length;
+  const toBuy = sum(open);
+  const inBasket = sum(basket);
 
   const add = async (e: FormEvent) => {
     e.preventDefault();
@@ -42,53 +51,50 @@ export function Shopping() {
     ).then(() => setComplete({ ...complete, store: '', total: '' }));
 
   return (
-    <>
+    <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_18.5rem]">
       <ProductDatalist />
-      <Card title={t('shopping.generate.title')}>
-        <div className="flex flex-wrap items-center gap-2 text-sm">
-          <span className="text-muted">{t('shopping.generate.from')}</span>
+      <div className="min-w-0 space-y-4">
+        <div className="flex flex-wrap items-end gap-2">
+          <div className="mr-auto">
+            <h2 className="text-xl">{t('shopping.list.title')}</h2>
+            <p className="text-sm text-muted">{t('shopping.list.toBuy', { n: open.length })}</p>
+          </div>
+          <span className="text-sm text-muted">{t('shopping.generate.from')}</span>
           <Input type="date" aria-label={t('shopping.generate.fromAria')} value={range.from} onChange={(e) => setRange({ ...range, from: e.target.value })} />
-          <span className="text-muted">{t('shopping.generate.to')}</span>
+          <span className="text-sm text-muted">{t('shopping.generate.to')}</span>
           <Input type="date" aria-label={t('shopping.generate.toAria')} value={range.to} onChange={(e) => setRange({ ...range, to: e.target.value })} />
           <Button variant="primary" disabled={pending} onClick={() => run(() => api.post('/shopping/generate', range))}>
+            <ArrowsClockwise size={16} />
             {t('shopping.generate.button')}
           </Button>
         </div>
-        <p className="mt-2 text-sm text-muted">{t('shopping.generate.help')}</p>
-      </Card>
+        <p className="max-w-2xl text-xs text-muted">{t('shopping.generate.help')}</p>
 
-      <Card title={t('shopping.list.title')} actions={<span className="text-sm text-muted">{t('shopping.list.toBuy', { n: items.length - checkedCount })}</span>}>
-        <form onSubmit={add} className="mb-3 flex flex-wrap gap-2">
+        <form onSubmit={add} className="flex flex-wrap gap-2">
           <Input required list="product-names" placeholder={t('shopping.list.item')} aria-label={t('shopping.list.item')} value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} className="flex-1 basis-40" />
           <Input inputMode="decimal" placeholder={t('common.qty')} aria-label={t('common.quantity')} value={form.quantity} onChange={(e) => setForm({ ...form, quantity: e.target.value })} className="w-20" />
           <Input list="unit-names" placeholder={t('common.unit')} aria-label={t('common.unit')} value={form.unit} onChange={(e) => setForm({ ...form, unit: e.target.value })} className="w-24" />
-          <Button type="submit" variant="primary" disabled={pending}>
+          <Button type="submit" disabled={pending}>
+            <Plus size={16} />
             {t('common.add')}
           </Button>
         </form>
 
-        {estimate && estimate.pricedItems > 0 && (
-          <p className="mb-2 text-sm text-muted">
-            {t('shopping.estimate', { total: formatMoney(estimate.totalCents, currency) })}
-            {estimate.unpricedItems > 0 && ` ${t('shopping.unpriced', { n: estimate.unpricedItems })}`}
-          </p>
-        )}
-
         {items.length === 0 ? (
           <Empty>{t('shopping.list.empty')}</Empty>
         ) : (
-          <ul className="divide-y divide-line">
+          <ul>
             {items.map((item) => (
-              <li key={item.id} className="flex items-center gap-3 py-1">
+              <li key={item.id} className="relative flex items-center gap-3 px-2 py-1 hover:bg-ink/5">
                 <label className="flex min-h-11 min-w-0 flex-1 cursor-pointer items-center gap-3">
                   <input
                     type="checkbox"
-                    className="size-5 accent-(--accent)"
+                    className="size-[18px] accent-(--accent)"
                     checked={item.checked}
                     onChange={() => run(() => api.patch(`/shopping/${item.id}`, { checked: !item.checked }))}
                   />
                   <span className={`truncate ${item.checked ? 'text-muted line-through' : ''}`}>{item.name}</span>
-                  <span className="text-sm text-muted">{formatQty(item.quantity, item.unit)}</span>
+                  <span className="text-sm whitespace-nowrap text-muted tabular-nums">{formatQty(item.quantity, item.unit)}</span>
                 </label>
                 {item.source === 'plan' && <Badge tone="accent">{t('shopping.list.fromPlan')}</Badge>}
                 <Input
@@ -99,28 +105,60 @@ export function Shopping() {
                   aria-label={t('shopping.price', { name: item.name })}
                   onBlur={(e) => savePrice(item, e.target.value)}
                   onKeyDown={(e) => e.key === 'Enter' && e.currentTarget.blur()}
-                  className="h-8 w-24 px-2 text-right"
+                  className="h-8 w-24 px-2 text-right tabular-nums"
                 />
-                <Button variant="ghost" className="h-8 px-2" aria-label={t('stock.remove', { name: item.name })} onClick={() => run(() => api.del(`/shopping/${item.id}`))}>
-                  ✕
+                <Button variant="ghost" className="size-8 px-0" aria-label={t('stock.remove', { name: item.name })} onClick={() => run(() => api.del(`/shopping/${item.id}`))}>
+                  <X size={14} />
                 </Button>
+                <span className="fade-rule absolute inset-x-0 bottom-0 opacity-50" />
               </li>
             ))}
           </ul>
         )}
 
-        {checkedCount > 0 && (
-          <div className="mt-3 flex flex-wrap items-center gap-2 border-t border-line pt-3 text-sm">
-            <span>{t('shopping.complete.text', { n: checkedCount })}</span>
-            <LocationSelect value={complete.location} onChange={(e) => setComplete({ ...complete, location: e.target.value })} />
-            <Input placeholder={t('shopping.complete.store')} aria-label={t('shopping.complete.store')} value={complete.store} onChange={(e) => setComplete({ ...complete, store: e.target.value })} className="w-40" />
-            <Input inputMode="decimal" placeholder={t('shopping.complete.total')} aria-label={t('shopping.complete.total')} value={complete.total} onChange={(e) => setComplete({ ...complete, total: e.target.value })} className="w-44" />
-            <Button variant="primary" disabled={pending} onClick={finish}>
-              {t('shopping.complete.button')}
-            </Button>
-          </div>
+        {basket.length > 0 && (
+          <Card>
+            <div className="flex flex-wrap items-center gap-2 text-sm">
+              <Basket size={20} className="text-accent" />
+              <span>{t('shopping.complete.text', { n: basket.length })}</span>
+              <LocationSelect value={complete.location} onChange={(e) => setComplete({ ...complete, location: e.target.value })} />
+              <Input placeholder={t('shopping.complete.store')} aria-label={t('shopping.complete.store')} value={complete.store} onChange={(e) => setComplete({ ...complete, store: e.target.value })} className="w-40" />
+              <span className="flex-1" />
+              <Input inputMode="decimal" placeholder={t('shopping.complete.total')} aria-label={t('shopping.complete.total')} value={complete.total} onChange={(e) => setComplete({ ...complete, total: e.target.value })} className="w-44" />
+              <Button variant="primary" disabled={pending} onClick={finish}>
+                <Package size={16} />
+                {t('shopping.complete.button')}
+              </Button>
+            </div>
+          </Card>
         )}
-      </Card>
-    </>
+      </div>
+
+      <aside className="space-y-3 lg:pt-2">
+        <Card>
+          <h3 className="text-[11px] font-normal tracking-wider text-muted uppercase">{t('shopping.rail.toBuy')}</h3>
+          <div className="mt-2 text-3xl tracking-tight tabular-nums">≈ {formatMoney(toBuy, currency)}</div>
+          {unpriced > 0 && <p className="mt-1 text-xs text-muted">{t('shopping.unpriced', { n: unpriced })}</p>}
+          <dl className="mt-4 space-y-1.5 text-sm">
+            <div className="flex justify-between">
+              <dt className="text-muted">{t('shopping.rail.basket')}</dt>
+              <dd className="tabular-nums">{formatMoney(inBasket, currency)}</dd>
+            </div>
+            {budget?.budgetCents ? (
+              <div className="flex justify-between">
+                <dt className="text-muted">{t('shopping.rail.after')}</dt>
+                <dd className="tabular-nums">≈ {formatMoney(budget.budgetCents - budget.spentCents - toBuy - inBasket, currency)}</dd>
+              </div>
+            ) : null}
+          </dl>
+          {budget?.budgetCents ? (
+            <div className="relative mt-3 flex h-1.5 overflow-hidden rounded-full bg-line">
+              <div className="bg-accent" style={{ width: `${Math.min(100, (budget.spentCents / budget.budgetCents) * 100)}%` }} />
+              <div className="bg-accent-700" style={{ width: `${Math.min(100, ((toBuy + inBasket) / budget.budgetCents) * 100)}%` }} />
+            </div>
+          ) : null}
+        </Card>
+      </aside>
+    </div>
   );
 }

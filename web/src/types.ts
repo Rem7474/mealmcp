@@ -194,6 +194,15 @@ export interface RecipeCost {
 export interface PlanCost {
   totalCents: number;
   incompleteMeals: number;
+  meals: {
+    id: number;
+    costCents: number | null;
+    unpricedIngredients: string[];
+    /** Null for free-text meals. Judged on this meal alone, other planned meals are not subtracted. */
+    canCook: boolean | null;
+    missing: string[];
+    missingEquipment: string[];
+  }[];
 }
 
 export interface ShoppingEstimate {

@@ -28,11 +28,10 @@ export function Recipes() {
 
   if (view.mode === 'edit')
     return <RecipeForm recipe={view.recipe} onDone={(id) => setView(id ? { mode: 'detail', id } : { mode: 'list' })} />;
-  if (view.mode === 'detail')
-    return <RecipeDetail id={view.id} onBack={() => setView({ mode: 'list' })} onEdit={(recipe) => setView({ mode: 'edit', recipe })} />;
+  const selected = view.mode === 'detail' ? view.id : null;
 
-  return (
-    <>
+  const list = (
+    <div className="min-w-0 space-y-3">
       <div className="flex gap-2">
         <Input type="search" placeholder={t('recipes.search')} aria-label={t('recipes.searchAria')} value={search} onChange={(e) => setSearch(e.target.value)} className="flex-1" />
         <Button variant="primary" onClick={() => setView({ mode: 'edit' })}>
@@ -51,14 +50,14 @@ export function Recipes() {
       {recipes.length === 0 ? (
         <Empty>{search || tag ? t('recipes.noMatch') : t('recipes.none')}</Empty>
       ) : (
-        <ul className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+        <ul className="grid gap-3 sm:grid-cols-2 lg:grid-cols-1">
           {recipes.map((r) => (
             <li key={r.id}>
               <button
                 onClick={() => setView({ mode: 'detail', id: r.id })}
-                className="h-full w-full cursor-pointer rounded-xl border border-line bg-surface p-4 text-left hover:border-accent"
+                className={`h-full w-full cursor-pointer rounded-xl bg-surface p-3.5 text-left hover:shadow-[0_0_0_1px_var(--muted)] ${selected === r.id ? 'shadow-[0_0_0_1px_var(--accent)]' : 'shadow-[0_0_0_1px_var(--line)]'}`}
               >
-                <div className="font-semibold">{r.name}</div>
+                <div className="font-medium">{r.name}</div>
                 <div className="mt-1 text-sm text-muted">
                   {t('common.servings', { n: r.servings })} · {t('recipes.ingredientCount', { n: r.ingredientCount })}
                   {r.prepMinutes ? ` · ${t('recipes.prep', { time: t('common.minutes', { n: r.prepMinutes }) })}` : ''}
@@ -77,7 +76,21 @@ export function Recipes() {
           ))}
         </ul>
       )}
-    </>
+    </div>
+  );
+
+  // Wide screens keep the list next to the open recipe; narrow ones show one at a time.
+  return (
+    <div className="grid gap-5 lg:grid-cols-[22rem_minmax(0,1fr)]">
+      <div className={selected === null ? '' : 'hidden lg:block'}>{list}</div>
+      <div className={selected === null ? 'hidden lg:block' : ''}>
+        {selected === null ? (
+          <Empty>{t('recipes.pick')}</Empty>
+        ) : (
+          <RecipeDetail key={selected} id={selected} onBack={() => setView({ mode: 'list' })} onEdit={(recipe) => setView({ mode: 'edit', recipe })} />
+        )}
+      </div>
+    </div>
   );
 }
 
@@ -107,7 +120,7 @@ function RecipeDetail({ id, onBack, onEdit }: { id: number; onBack: () => void; 
 
   return (
     <>
-      <Button variant="ghost" className="px-0" onClick={onBack}>
+      <Button variant="ghost" className="px-0 lg:hidden" onClick={onBack}>
         {t('recipes.back')}
       </Button>
       <Card

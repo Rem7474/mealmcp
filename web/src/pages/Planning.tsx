@@ -1,11 +1,15 @@
 import { useQuery } from '@tanstack/react-query';
+import { ArrowsClockwise, CaretLeft, CaretRight, ChefHat, Check, CheckCircle, Plus, ShoppingCart, Users, Wallet, WarningCircle, X } from '@phosphor-icons/react';
 import { type FormEvent, useState } from 'react';
 import { api, useAction } from '../api';
-import { addDays, formatDate, formatDay, formatMoney, fromIso, MEALS, today, weekStart } from '../format';
+import { addDays, formatDate, formatDay, formatMoney, fromIso, MEALS, monthStart, today, weekStart } from '../format';
 import { locale, useT } from '../i18n';
-import type { MealType, PlanCost, PlanSlot, PlannedMeal, RecipeSummary, Suggestions } from '../types';
-import { Badge, Button, Card, Input, Select } from '../ui';
+import type { BudgetStatus, MealType, PlanCost, PlanSlot, PlannedMeal, RecipeSummary, Suggestions } from '../types';
+import { Button, Card, Input, Select } from '../ui';
 import { useCurrency } from './shared';
+
+type Composer = { date: string; mealType: MealType } | null;
+type MealInsight = PlanCost['meals'][number];
 
 export function Planning() {
   const t = useT();
@@ -19,8 +23,11 @@ export function Planning() {
   const currency = useCurrency();
   const { data: slots = [] } = useQuery({ queryKey: ['plan', start, 'slots'], queryFn: () => api.get<PlanSlot[]>(`/plan/slots?from=${start}&to=${end}`) });
   const { data: cost } = useQuery({ queryKey: ['plan', start, 'cost'], queryFn: () => api.get<PlanCost>(`/budget/plan-cost?from=${start}&to=${end}`) });
+  const insights = new Map((cost?.meals ?? []).map((m) => [m.id, m]));
   const { run, pending } = useAction();
   const [generated, setGenerated] = useState(false);
+  // The add-a-meal form opens from the toolbar, or from the "+" of an empty cell with that cell preselected.
+  const [composer, setComposer] = useState<Composer>(null);
 
   const generate = async () => {
     await run(() => api.post('/shopping/generate', { from: start, to: end }));
@@ -30,56 +37,69 @@ export function Planning() {
   return (
     <>
       <div className="flex flex-wrap items-center gap-2">
-        <Button aria-label={t('plan.prevWeek')} onClick={() => setStart(addDays(start, -7))}>
-          ←
+        <Button className="w-9 px-0" aria-label={t('plan.prevWeek')} onClick={() => setStart(addDays(start, -7))}>
+          <CaretLeft size={16} />
         </Button>
-        <Button aria-label={t('plan.nextWeek')} onClick={() => setStart(addDays(start, 7))}>
-          →
+        <Button className="w-9 px-0" aria-label={t('plan.nextWeek')} onClick={() => setStart(addDays(start, 7))}>
+          <CaretRight size={16} />
         </Button>
         <Button variant="ghost" onClick={() => setStart(weekStart(today()))}>
           {t('plan.thisWeek')}
         </Button>
-        <span className="font-semibold">
+        <h2 className="ml-1 text-xl">
           {formatDate(start)} – {formatDate(end)}
-        </span>
+        </h2>
         <span className="flex-1" />
+        {cost && cost.totalCents > 0 && (
+          <div className="mr-2 text-right">
+            <div className="text-[11px] tracking-wider text-muted uppercase">{t('plan.weekEstimate')}</div>
+            <div className="text-base tabular-nums">
+              {formatMoney(cost.totalCents, currency)}
+              {cost.incompleteMeals > 0 && <span className="text-xs text-muted"> · {t('plan.cost.incomplete', { n: cost.incompleteMeals })}</span>}
+            </div>
+          </div>
+        )}
         {generated && <span className="text-sm text-accent">{t('plan.listUpdated')}</span>}
+        <Button onClick={() => setComposer(composer ? null : { date: days.includes(today()) ? today() : start, mealType: 'dinner' })}>
+          <Plus size={16} />
+          {t('plan.add.title')}
+        </Button>
         <Button variant="primary" disabled={pending} onClick={generate}>
+          <ShoppingCart size={16} />
           {t('plan.generate')}
         </Button>
       </div>
 
-      {cost && cost.totalCents > 0 && (
-        <p className="text-sm text-muted">
-          {t('plan.cost', { total: formatMoney(cost.totalCents, currency) })}
-          {cost.incompleteMeals > 0 && ` ${t('plan.cost.incomplete', { n: cost.incompleteMeals })}`}
-        </p>
-      )}
+      {composer && <AddMeal key={`${composer.date}-${composer.mealType}`} preset={composer} onClose={() => setComposer(null)} />}
 
       <UseItUp />
 
-      <AddMeal defaultDate={days.includes(today()) ? today() : start} />
-
-      <WeekMatrix days={days} meals={meals} slots={slots} />
+      <WeekMatrix days={days} meals={meals} slots={slots} insights={insights} onAdd={(date, mealType) => setComposer({ date, mealType })} />
       <div className="grid gap-3 sm:grid-cols-2 lg:hidden">
         {days.map((day) => {
           const dayMeals = meals.filter((m) => m.date === day);
           const daySlots = slots.filter((slot) => slot.date === day);
           return (
-            <section key={day} className={`rounded-xl border bg-surface p-3 ${day === today() ? 'border-accent' : 'border-line'}`}>
-              <h2 className="mb-2 text-sm font-semibold first-letter:uppercase">{formatDay(day)}</h2>
+            <section key={day} className={`rounded-xl bg-surface p-3 ${day === today() ? 'shadow-[0_0_0_1px_var(--accent)]' : 'shadow-[0_0_0_1px_var(--line)]'}`}>
+              <h2 className="mb-2 text-sm font-medium first-letter:uppercase">{formatDay(day)}</h2>
               {dayMeals.length === 0 && daySlots.length === 0 ? (
                 <p className="text-sm text-muted">{t('plan.nothing')}</p>
               ) : (
-                <ul className="space-y-2">
+                <ul className="space-y-3">
                   {dayMeals.map((meal) => (
                     <li key={meal.id}>
-                      <MealRow meal={meal} />
+                      <div className="mb-0.5 text-xs text-muted">{t(`meal.${meal.mealType}`)}</div>
+                      <MealCard meal={meal} insight={insights.get(meal.id)} />
                     </li>
                   ))}
                   {daySlots.map((slot) => (
-                    <li key={slot.mealType} className="rounded-lg border border-dashed border-line px-2 py-1 text-sm text-muted">
-                      {t('plan.slot', { meal: t(`meal.${slot.mealType}`) })}
+                    <li key={slot.mealType}>
+                      <button
+                        onClick={() => setComposer({ date: day, mealType: slot.mealType })}
+                        className="w-full cursor-pointer rounded-lg border border-dashed border-line px-2 py-1.5 text-left text-sm text-muted hover:border-accent hover:text-accent"
+                      >
+                        {t('plan.slot', { meal: t(`meal.${slot.mealType}`) })}
+                      </button>
                     </li>
                   ))}
                 </ul>
@@ -88,15 +108,67 @@ export function Planning() {
           );
         })}
       </div>
+
+      <BudgetStrip />
     </>
   );
 }
 
+/** Where the month stands against its budget, so the week's plan is read in context. */
+function BudgetStrip() {
+  const t = useT();
+  const currency = useCurrency();
+  const { data } = useQuery({ queryKey: ['budget', 'status'], queryFn: () => api.get<BudgetStatus>('/budget/status') });
+  if (!data?.budgetCents) return null;
+  const pct = Math.min(100, (data.spentCents / data.budgetCents) * 100);
+  const projectedPct = Math.min(100, (data.projectedCents / data.budgetCents) * 100);
+  const over = data.projectedCents > data.budgetCents;
+
+  return (
+    <div className="grid grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-4 rounded-lg bg-linear-to-r from-surface to-transparent px-3.5 py-3 text-sm">
+      <div className="flex items-center gap-1.5">
+        <Wallet size={16} className="text-accent" />
+        {t('plan.budget', { month: new Date(monthStart(today())).toLocaleDateString(locale(), { month: 'long' }) })}
+      </div>
+      <div className="relative h-1.5 rounded-full bg-line">
+        <div className="absolute inset-y-0 left-0 rounded-full bg-accent shadow-[0_0_10px_var(--glow)]" style={{ width: `${pct}%` }} />
+        {projectedPct > pct && (
+          <div
+            className="absolute inset-y-0 rounded-r-full"
+            style={{
+              left: `${pct}%`,
+              width: `${projectedPct - pct}%`,
+              background: `repeating-linear-gradient(135deg, color-mix(in srgb, var(--${over ? 'warn' : 'accent'}) 45%, transparent) 0 3px, transparent 3px 7px)`,
+            }}
+          />
+        )}
+      </div>
+      <div className="tabular-nums">
+        {formatMoney(data.spentCents, currency)} <span className="text-muted">/ {formatMoney(data.budgetCents, currency)} · </span>
+        <span className={over ? 'text-warn' : 'text-muted'}>{t('plan.budget.projected', { amount: formatMoney(data.projectedCents, currency) })}</span>
+      </div>
+    </div>
+  );
+}
+
 /** Desktop week view: meals as rows, days as columns, today highlighted with the accent line. */
-function WeekMatrix({ days, meals, slots }: { days: string[]; meals: PlannedMeal[]; slots: PlanSlot[] }) {
+function WeekMatrix({
+  days,
+  meals,
+  slots,
+  insights,
+  onAdd,
+}: {
+  days: string[];
+  meals: PlannedMeal[];
+  slots: PlanSlot[];
+  insights: Map<number, MealInsight>;
+  onAdd: (date: string, mealType: MealType) => void;
+}) {
   const t = useT();
   // Breakfast and snack rows only appear when something is planned (or expected) in them.
   const rows = MEALS.filter((m) => ['lunch', 'dinner'].includes(m) || meals.some((x) => x.mealType === m) || slots.some((x) => x.mealType === m));
+  const hidden = MEALS.filter((m) => !rows.includes(m));
   const columns = 'grid grid-cols-[5.5rem_repeat(7,minmax(0,1fr))] gap-1.5';
 
   return (
@@ -109,7 +181,7 @@ function WeekMatrix({ days, meals, slots }: { days: string[]; meals: PlannedMeal
             <div key={day} className={`relative rounded-t-lg px-2.5 pt-2 pb-1.5 ${isToday ? 'bg-accent/10' : ''}`}>
               {isToday && <span className="absolute inset-x-2.5 top-0 h-0.5 rounded-full bg-accent shadow-[0_0_10px_var(--accent)]" />}
               <div className={`text-xs first-letter:uppercase ${isToday ? 'text-accent-soft' : 'text-muted'}`}>{fromIso(day).toLocaleDateString(locale(), { weekday: 'short' })}</div>
-              <div className="text-xl leading-tight tabular-nums">{fromIso(day).getDate()}</div>
+              <div className="text-[22px] leading-tight tabular-nums">{fromIso(day).getDate()}</div>
             </div>
           );
         })}
@@ -119,33 +191,53 @@ function WeekMatrix({ days, meals, slots }: { days: string[]; meals: PlannedMeal
           <div className="pt-3 text-xs text-muted">{t(`meal.${mealType}`)}</div>
           {days.map((day) => {
             const here = meals.filter((m) => m.date === day && m.mealType === mealType);
-            const open = here.length === 0 && slots.some((x) => x.date === day && x.mealType === mealType);
+            const expected = slots.some((x) => x.date === day && x.mealType === mealType);
             return (
-              <div key={day} className={`min-h-24 space-y-1.5 rounded-lg p-1 ${day === today() ? 'bg-accent/10' : ''}`}>
+              <div key={day} className={`flex min-h-24 flex-col gap-1.5 rounded-lg p-1 ${day === today() ? 'bg-accent/10' : ''}`}>
                 {here.map((meal) => (
-                  <div key={meal.id} className="rounded-lg bg-surface px-2.5 py-2 shadow-[0_0_0_1px_var(--line)]">
-                    <MealRow meal={meal} compact />
+                  <div key={meal.id} className={`flex-1 rounded-lg bg-surface px-2.5 py-2 shadow-[0_0_0_1px_var(--line)] ${meal.cooked ? 'opacity-70' : ''}`}>
+                    <MealCard meal={meal} insight={insights.get(meal.id)} />
                   </div>
                 ))}
-                {open && <div className="rounded-lg border border-dashed border-line px-2.5 py-2 text-xs text-muted">{t('plan.slot', { meal: t(`meal.${mealType}`) })}</div>}
+                {here.length === 0 && (
+                  <button
+                    onClick={() => onAdd(day, mealType)}
+                    aria-label={t('plan.slot', { meal: t(`meal.${mealType}`) })}
+                    title={t('plan.slot', { meal: t(`meal.${mealType}`) })}
+                    className={`grid flex-1 cursor-pointer place-items-center rounded-lg border border-dashed text-line hover:border-accent hover:text-accent ${expected ? 'border-muted text-muted' : 'border-line'}`}
+                  >
+                    <Plus size={16} />
+                  </button>
+                )}
               </div>
             );
           })}
         </div>
       ))}
+      {hidden.length > 0 && (
+        <div className={columns}>
+          <div />
+          <div className="col-span-7 flex items-center gap-1.5 px-1 py-1.5 text-xs text-muted">
+            <CaretRight size={12} />
+            {hidden.map((m) => t(`meal.${m}`)).join(', ')}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
 
-function MealRow({ meal, compact = false }: { meal: PlannedMeal; compact?: boolean }) {
+/** One planned meal: name (a link to the recipe), servings, estimated cost, stock status and the two actions. */
+function MealCard({ meal, insight }: { meal: PlannedMeal; insight?: MealInsight }) {
   const t = useT();
+  const currency = useCurrency();
   const { run, pending } = useAction();
+  const missing = insight ? insight.missing.length : 0;
+  const missingEquipment = insight?.missingEquipment ?? [];
+
   return (
-    <div className="text-sm">
-      <div className="text-xs text-muted">
-        {compact ? t('common.servings', { n: meal.servings }) : `${t(`meal.${meal.mealType}`)} · ${t('common.servings', { n: meal.servings })}`}
-      </div>
-      <div className={`font-medium ${meal.cooked ? 'text-muted line-through' : ''}`}>
+    <div className="flex h-full flex-col gap-1 text-sm">
+      <div className={`text-[13px] leading-tight font-medium text-pretty ${meal.cooked ? 'text-muted line-through' : ''}`}>
         {meal.recipeId ? (
           <a href={`#recipes/${meal.recipeId}`} className="hover:text-accent hover:underline">
             {meal.recipeName}
@@ -154,32 +246,70 @@ function MealRow({ meal, compact = false }: { meal: PlannedMeal; compact?: boole
           meal.title
         )}
       </div>
-      <div className="mt-1 flex items-center gap-3">
-        {meal.cooked ? (
-          <Badge tone="accent">{t('plan.cooked')}</Badge>
-        ) : (
+      <div className="mt-auto flex gap-2.5 text-[11px] text-muted tabular-nums">
+        <span className="inline-flex items-center gap-1">
+          <Users size={12} />
+          {meal.servings}
+        </span>
+        {insight?.costCents ? <span>{formatMoney(insight.costCents, currency)}</span> : null}
+      </div>
+      {meal.cooked ? (
+        <div className="flex items-center gap-1 text-[11px] text-muted">
+          <CheckCircle size={13} />
+          {t('plan.cooked')}
+        </div>
+      ) : (
+        <>
+          {insight?.canCook === false && (
+            <div className="flex items-center gap-1 text-[11px] text-warn" title={insight.missing.join(', ')}>
+              <WarningCircle size={13} />
+              {t('plan.missing', { n: missing })}
+            </div>
+          )}
+          {insight?.canCook === true && missingEquipment.length === 0 && (
+            <div className="flex items-center gap-1 text-[11px] text-accent-soft">
+              <Check size={13} />
+              {t('plan.inStock')}
+            </div>
+          )}
+          {missingEquipment.length > 0 && (
+            <div className="flex items-center gap-1 text-[11px] text-warn">
+              <WarningCircle size={13} />
+              {t('recipes.equipment.missing', { names: missingEquipment.join(', ') })}
+            </div>
+          )}
+        </>
+      )}
+      <div className="flex items-center gap-1 text-muted">
+        {!meal.cooked && (
           <button
-            className="cursor-pointer text-xs text-accent hover:underline disabled:opacity-50"
+            className="inline-flex size-6 cursor-pointer items-center justify-center rounded hover:bg-ink/10 hover:text-accent-soft disabled:opacity-45"
             disabled={pending}
             title={t('plan.cookTitle')}
+            aria-label={t('plan.cookTitle')}
             onClick={() => run(() => api.post(`/plan/${meal.id}/cook`))}
           >
-            {t('plan.cook')}
+            <ChefHat size={14} />
           </button>
         )}
-        <button className="cursor-pointer text-xs text-muted hover:text-danger" onClick={() => run(() => api.del(`/plan/${meal.id}`))}>
-          {t('plan.remove')}
+        <button
+          className="inline-flex size-6 cursor-pointer items-center justify-center rounded hover:bg-ink/10 hover:text-danger"
+          title={t('plan.remove')}
+          aria-label={t('plan.remove')}
+          onClick={() => run(() => api.del(`/plan/${meal.id}`))}
+        >
+          <X size={14} />
         </button>
       </div>
     </div>
   );
 }
 
-function AddMeal({ defaultDate }: { defaultDate: string }) {
+function AddMeal({ preset, onClose }: { preset: { date: string; mealType: MealType }; onClose: () => void }) {
   const t = useT();
-  const { data: recipes = [] } = useQuery({ queryKey: ['recipes', ''], queryFn: () => api.get<RecipeSummary[]>('/recipes') });
+  const { data: recipes = [] } = useQuery({ queryKey: ['recipes', '', ''], queryFn: () => api.get<RecipeSummary[]>('/recipes?search=&tag=') });
   const { run, pending } = useAction();
-  const [form, setForm] = useState({ date: defaultDate, mealType: 'dinner' as MealType, recipeId: '', title: '', servings: '' });
+  const [form, setForm] = useState({ date: preset.date, mealType: preset.mealType, recipeId: '', title: '', servings: '' });
   const set = (patch: Partial<typeof form>) => setForm((f) => ({ ...f, ...patch }));
 
   const submit = async (e: FormEvent) => {
@@ -193,11 +323,18 @@ function AddMeal({ defaultDate }: { defaultDate: string }) {
         servings: form.servings ? Number(form.servings) : undefined,
       }),
     );
-    set({ title: '' });
+    onClose();
   };
 
   return (
-    <Card title={t('plan.add.title')}>
+    <Card
+      title={t('plan.add.title')}
+      actions={
+        <Button variant="ghost" className="w-9 px-0" aria-label={t('app.close')} onClick={onClose}>
+          <X size={16} />
+        </Button>
+      }
+    >
       <form onSubmit={submit} className="flex flex-wrap gap-2">
         <Input type="date" required aria-label={t('plan.add.date')} value={form.date} onChange={(e) => set({ date: e.target.value })} />
         <Select aria-label={t('plan.add.meal')} value={form.mealType} onChange={(e) => set({ mealType: e.target.value as MealType })}>
@@ -216,7 +353,7 @@ function AddMeal({ defaultDate }: { defaultDate: string }) {
           ))}
         </Select>
         {!form.recipeId && (
-          <Input required placeholder={t('plan.add.titlePlaceholder')} aria-label={t('plan.add.titleAria')} value={form.title} onChange={(e) => set({ title: e.target.value })} className="flex-1 basis-40" />
+          <Input required autoFocus placeholder={t('plan.add.titlePlaceholder')} aria-label={t('plan.add.titleAria')} value={form.title} onChange={(e) => set({ title: e.target.value })} className="flex-1 basis-40" />
         )}
         <Input type="number" min={1} placeholder={t('plan.add.servings')} aria-label={t('plan.add.servingsAria')} value={form.servings} onChange={(e) => set({ servings: e.target.value })} className="w-24" />
         <Button type="submit" variant="primary" disabled={pending}>
@@ -234,8 +371,9 @@ function UseItUp() {
   if (!data || data.expiring.length === 0) return null;
 
   return (
-    <details className="rounded-xl border border-line bg-surface p-4">
-      <summary className="cursor-pointer font-semibold">
+    <details className="rounded-xl bg-surface p-4 shadow-[0_0_0_1px_var(--line)]">
+      <summary className="cursor-pointer font-medium">
+        <ArrowsClockwise size={14} className="mr-1.5 inline text-accent" />
         {t('plan.useUp.title')} <span className="font-normal text-muted">({data.expiring.map((e) => e.name).join(', ')})</span>
       </summary>
       {data.suggestions.length === 0 ? (
@@ -244,7 +382,9 @@ function UseItUp() {
         <ul className="mt-3 space-y-2 text-sm">
           {data.suggestions.map((s) => (
             <li key={s.recipeId}>
-              <span className="font-medium">{s.name}</span>
+              <a href={`#recipes/${s.recipeId}`} className="font-medium hover:text-accent hover:underline">
+                {s.name}
+              </a>
               <span className="text-muted">
                 {' '}
                 · {t('plan.useUp.uses', { names: s.usesExpiring.map((u) => u.name).join(', ') })} ·{' '}

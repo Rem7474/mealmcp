@@ -93,11 +93,11 @@ function Shell({ user }: { user: User }) {
     <ErrorContext.Provider value={report}>
       <header className="sticky top-0 z-10 bg-linear-to-b from-surface to-bg">
         <div className="mx-auto flex max-w-6xl flex-wrap items-center gap-x-5 px-4">
-          <h1 className="flex items-center gap-2 py-3 text-base font-medium">
+          <h1 className="flex flex-1 items-center gap-2 py-3 text-base font-medium sm:flex-none">
             <CookingPot size={20} className="text-accent" />
             MealMCP
           </h1>
-          <nav className="flex flex-1 gap-0.5 self-stretch overflow-x-auto">
+          <nav className="hidden flex-1 gap-0.5 self-stretch overflow-x-auto sm:flex">
             {NAV.map(({ id, Icon }) => (
               <button
                 key={id}
@@ -132,7 +132,7 @@ function Shell({ user }: { user: User }) {
         </div>
         <div className="fade-rule absolute inset-x-0 bottom-0" />
       </header>
-      <main className="mx-auto max-w-6xl space-y-4 px-4 py-4">
+      <main className="mx-auto max-w-6xl space-y-4 px-4 py-4 pb-24 sm:pb-4">
         {error && (
           <div role="alert" className="flex items-center justify-between gap-3 rounded-lg border border-danger px-3 py-2 text-sm text-danger">
             <span>{localizeError(t, error)}</span>
@@ -143,6 +143,22 @@ function Shell({ user }: { user: User }) {
         )}
         <Page tab={tab} user={user} />
       </main>
+      {/* Phones: the tabs move to a bar under the thumb. */}
+      <nav className="fixed inset-x-0 bottom-0 z-10 flex bg-linear-to-t from-surface to-bg pb-[env(safe-area-inset-bottom)] sm:hidden">
+        <div className="fade-rule absolute inset-x-0 top-0" />
+        {NAV.map(({ id, Icon }) => (
+          <button
+            key={id}
+            onClick={() => select(id)}
+            aria-current={tab === id ? 'page' : undefined}
+            className={`relative flex flex-1 cursor-pointer flex-col items-center gap-0.5 py-2 text-[11px] ${tab === id ? 'text-ink' : 'text-muted'}`}
+          >
+            <Icon size={20} className={tab === id ? 'text-accent' : ''} />
+            {t(`tab.${id}`)}
+            {tab === id && <span className="absolute inset-x-5 top-0 h-0.5 rounded-full bg-accent shadow-[0_0_12px_var(--accent)]" />}
+          </button>
+        ))}
+      </nav>
     </ErrorContext.Provider>
   );
 }

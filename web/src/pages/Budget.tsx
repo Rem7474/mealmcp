@@ -10,11 +10,17 @@ import { parseQty, useProducts } from './shared';
 export function Budget({ user }: { user: User }) {
   return (
     <>
-      <MonthCard currency={user.currency} />
-      <SummaryCard currency={user.currency} />
-      <AddExpense />
-      <ExpensesCard currency={user.currency} />
-      <PricesCard currency={user.currency} />
+      <div className="grid items-start gap-4 lg:grid-cols-2">
+        <div className="space-y-4">
+          <MonthCard currency={user.currency} />
+          <AddExpense />
+          <ExpensesCard currency={user.currency} />
+        </div>
+        <div className="space-y-4">
+          <SummaryCard currency={user.currency} />
+          <PricesCard currency={user.currency} />
+        </div>
+      </div>
     </>
   );
 }
@@ -43,7 +49,7 @@ function Stat({ label, value, tone }: { label: string; value: string; tone?: 'da
   return (
     <div>
       <div className="text-xs text-muted">{label}</div>
-      <div className={`text-lg font-semibold tabular-nums ${tone === 'danger' ? 'text-danger' : ''}`}>{value}</div>
+      <div className={`text-2xl tracking-tight tabular-nums ${tone === 'danger' ? 'text-danger' : ''}`}>{value}</div>
     </div>
   );
 }
@@ -88,7 +94,7 @@ function MonthCard({ currency }: { currency: string }) {
             aria-label={t('budget.progress', { spent: formatMoney(status.spentCents, currency), budget: formatMoney(status.budgetCents, currency) })}
             className="h-2 rounded-full bg-line"
           >
-            <div className={`h-2 rounded-full ${over ? 'bg-danger' : 'bg-accent'}`} style={{ width: `${pct}%` }} />
+            <div className={`h-2 rounded-full ${over ? 'bg-danger' : 'bg-accent shadow-[0_0_10px_var(--glow)]'}`} style={{ width: `${pct}%` }} />
           </div>
           <p className="mt-1 text-xs text-muted">{t('budget.progress', { spent: formatMoney(status.spentCents, currency), budget: formatMoney(status.budgetCents, currency) })}</p>
         </div>
