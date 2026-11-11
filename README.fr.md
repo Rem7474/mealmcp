@@ -1,6 +1,6 @@
 # MealMCP
 
-**Français** · [English](README.md)
+**Français** · [English](README.md) · [Site web](https://rem7474.github.io/mealmcp/fr/)
 
 [![CI](https://github.com/Rem7474/mealmcp/actions/workflows/ci.yml/badge.svg)](https://github.com/Rem7474/mealmcp/actions/workflows/ci.yml)
 

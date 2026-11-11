@@ -1,0 +1,133 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>MealMCP : repas, courses et placard pilotés par votre IA</title>
+<meta name="description" content="Planning de repas, courses, stock du placard et budget pour votre foyer, auto-hébergé, avec un serveur MCP intégré pour qu’un assistant IA s’en occupe à votre place.">
+<meta name="theme-color" content="#161826">
+<link rel="canonical" href="https://rem7474.github.io/mealmcp/fr/">
+<link rel="alternate" hreflang="en" href="https://rem7474.github.io/mealmcp/">
+<link rel="alternate" hreflang="fr" href="https://rem7474.github.io/mealmcp/fr/">
+<link rel="alternate" hreflang="x-default" href="https://rem7474.github.io/mealmcp/">
+<meta property="og:type" content="website">
+<meta property="og:title" content="MealMCP : repas, courses et placard pilotés par votre IA">
+<meta property="og:description" content="Planning de repas, courses, stock du placard et budget pour votre foyer, auto-hébergé, avec un serveur MCP intégré pour qu’un assistant IA s’en occupe à votre place.">
+<meta property="og:url" content="https://rem7474.github.io/mealmcp/fr/">
+<meta property="og:image" content="https://rem7474.github.io/mealmcp/screens/planning-fr.jpg">
+<meta name="twitter:card" content="summary_large_image">
+<link rel="icon" href="../assets/favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="../assets/style.css">
+</head>
+<body>
+<header class="top">
+  <div class="wrap">
+    <a class="brand" href="#top"><svg viewBox="0 0 32 32" aria-hidden="true"><path d="M7 15h18v3a7 7 0 0 1-7 7h-4a7 7 0 0 1-7-7z" fill="none" stroke="#9184d9" stroke-width="2" stroke-linejoin="round"/><path d="M5 15h22M12 11c0-2 2-2 2-4M18 11c0-2 2-2 2-4" fill="none" stroke="#d2cefd" stroke-width="2" stroke-linecap="round"/></svg>MealMCP</a>
+    <nav aria-label="Main">
+      <a class="hide-sm" href="#features">Fonctions</a>
+      <a class="hide-sm" href="#mcp">IA & MCP</a>
+      <a class="hide-sm" href="#tour">Aperçu</a>
+      <a class="hide-sm" href="#deploy">Installer</a>
+      <a href="https://github.com/Rem7474/mealmcp">GitHub</a>
+      <span class="lang" role="group" aria-label="Language"><a href="../" hreflang="en" lang="en">EN</a><a href="#" hreflang="fr" lang="fr" aria-current="true">FR</a></span>
+    </nav>
+  </div>
+</header>
+
+<main id="top">
+<div class="wrap hero">
+  <h1>Planifiez la semaine. <em>Laissez votre IA</em> faire le reste.</h1>
+  <p class="lead">MealMCP réunit planning de repas, recettes, courses, placard et budget dans une application auto-hébergée pour votre foyer, avec un serveur MCP pour que Claude (ou tout assistant) les lise et les mette à jour à votre place.</p>
+  <div class="cta">
+    <a class="btn primary" href="#deploy">Installer en 2 minutes</a>
+    <a class="btn" href="https://github.com/Rem7474/mealmcp">Voir sur GitHub</a>
+  </div>
+  <div class="badges"><span class="badge">Auto-hébergé</span><span class="badge">MCP + OAuth 2.1</span><span class="badge">Installable (PWA)</span><span class="badge">FR / EN</span><span class="badge">Licence MIT</span></div>
+  <div class="shot"><img src="../screens/planning-fr.jpg" alt="Planning : seuls les repas que vous planifiez sont affichés, avec ce qui manque pour chacun." width="800" height="500"></div>
+</div>
+
+<section id="features"><div class="wrap">
+  <h2>Tout ce qu’il faut à une cuisine</h2>
+  <p class="lead">Un foyer, une seule source de vérité. Chaque écran fonctionne à la main ; chaque action est aussi un outil que votre IA peut appeler.</p>
+  <div class="grid">
+      <div class="card"><div class="ico" aria-hidden="true">📅</div><h3>Planning de repas</h3><p>Les repas du jour depuis une recette ou en texte libre. Dites qui mange et quand : les créneaux vides sont signalés pour voir ce qu’il reste à planifier.</p></div>
+      <div class="card"><div class="ico" aria-hidden="true">📖</div><h3>Recettes</h3><p>Ingrédients, étapes avec appareil et température, étiquettes, notes de 1 à 5 étoiles et favoris. Voyez d’un coup d’œil ce que le stock permet de cuisiner.</p></div>
+      <div class="card"><div class="ico" aria-hidden="true">🛒</div><h3>Courses intelligentes</h3><p>Générées depuis le planning : besoins moins stock, plus les produits sous leur seuil. Affichage par rayon ou par repas concerné.</p></div>
+      <div class="card"><div class="ico" aria-hidden="true">🧊</div><h3>Un vrai placard</h3><p>Frigo, congélateur, placard. Conditionnements « 3 × 200 ml », pots ouverts avec durée de conservation et alerte, poids net ou égoutté, et marqueurs « beaucoup ».</p></div>
+      <div class="card"><div class="ico" aria-hidden="true">💶</div><h3>Budget</h3><p>Enregistrez vos achats, fixez un budget mensuel avec projection, suivez les dépenses par catégorie et magasin, et estimez les coûts d’après ce que vous avez réellement payé.</p></div>
+      <div class="card"><div class="ico" aria-hidden="true">🔧</div><h3>Équipement</h3><p>Indiquez les appareils que vous possédez. Une recette qui demande un air fryer que vous n’avez pas est signalée.</p></div>
+      <div class="card"><div class="ico" aria-hidden="true">⚡</div><h3>Mises à jour en direct</h3><p>Le tableau de bord se rafraîchit tout seul quand quelque chose change ailleurs, par exemple quand votre IA modifie le stock.</p></div>
+      <div class="card"><div class="ico" aria-hidden="true">📱</div><h3>Installable</h3><p>Ajoutez-la à l’écran d’accueil de votre téléphone pour une application plein écran. Thème sombre « Nocturne », français et anglais.</p></div>
+  </div>
+</div></section>
+
+<section id="mcp"><div class="wrap">
+  <div class="split">
+    <div>
+      <div class="eyebrow">MCP</div>
+      <h2>Pensé pour les assistants IA</h2>
+      <p class="lead">La même logique métier alimente l’interface web et un point d’accès MCP. Connectez Claude (ou tout client MCP) et parlez-lui : il lit votre stock, planifie la semaine, construit la liste et enregistre le ticket de caisse.</p>
+      <ul><li><strong>OAuth 2.1 intégré</strong> : découverte, enregistrement dynamique des clients, PKCE. Collez l’adresse, connectez-vous, autorisez. Révocable à tout moment.</li><li><strong>Jetons personnels</strong> pour les scripts et clients sans OAuth. Le même jeton ouvre l’API REST.</li><li><strong>Plus de 40 outils</strong> : stock, recettes, planning, courses, budget, équipement, variantes en lot.</li><li><strong>Cloisonné par foyer</strong> : chaque requête n’agit que sur le foyer de la personne connectée.</li></ul>
+    </div>
+    <div class="chat" aria-label="Example conversation">
+        <div class="msg me">Que cuisiner ce soir avec ce qui va bientôt expirer ?</div>
+        <div class="msg ai">Il vous reste un demi-pot de sauce tomate (ouvert depuis 3 jours) et des pommes de terre qui expirent le 13. Des frites à l’air fryer + des pâtes ?<small>suggest_recipes_to_use_up</small></div>
+        <div class="msg me">Planifie les pâtes jeudi et génère la liste de courses.</div>
+        <div class="msg ai">C’est fait : pâtes au dîner de jeudi. 8 articles à acheter, environ 23 € estimés.<small>plan_meal · generate_shopping_list</small></div>
+    </div>
+  </div>
+  <h2 style="margin-top:56px;font-size:1.3rem">Quelques outils offerts à votre IA</h2>
+  <div class="tools">
+      <div><h3>Stock</h3><code>list_stock</code> <code>add_stock</code> <code>update_stock_item</code> <code>open_stock_item</code> <code>consume_stock</code> <code>remove_stock_item</code> <code>get_stock_alerts</code></div>
+      <div><h3>Recettes</h3><code>list_recipes</code> <code>get_recipe</code> <code>create_recipe</code> <code>update_recipe</code> <code>check_recipe_availability</code> <code>suggest_recipes_to_use_up</code></div>
+      <div><h3>Planning</h3><code>list_meal_plan</code> <code>plan_meal</code> <code>cook_planned_meal</code> <code>list_planning_slots</code></div>
+      <div><h3>Courses</h3><code>list_shopping_list</code> <code>generate_shopping_list</code> <code>add_shopping_item</code> <code>check_shopping_item</code> <code>complete_shopping</code></div>
+      <div><h3>Budget</h3><code>record_expense</code> <code>get_spending_summary</code> <code>get_budget_status</code> <code>set_budget</code> <code>estimate_recipe_cost</code> <code>estimate_shopping_list_cost</code></div>
+      <div><h3>Et plus</h3><code>list_products</code> <code>update_product</code> <code>add_product_alias</code> <code>list_equipment</code> <code>set_household_settings</code> <code>add_stock_bulk</code> <code>create_recipes_bulk</code> <code>plan_meals_bulk</code></div>
+  </div>
+</div></section>
+
+<section id="tour"><div class="wrap">
+  <h2>Petit tour du propriétaire</h2>
+  <p class="lead">Captures de l’application web.</p>
+  <div class="gallery">
+      <figure><div class="shot"><img src="../screens/planning-fr.jpg" alt="Planning : seuls les repas que vous planifiez sont affichés, avec ce qui manque pour chacun." loading="lazy" width="800" height="500"></div><figcaption>Planning : seuls les repas que vous planifiez sont affichés, avec ce qui manque pour chacun.</figcaption></figure>
+      <figure><div class="shot"><img src="../screens/shopping-fr.jpg" alt="Courses : par repas, par rayon ou en liste simple, avec une estimation du coût." loading="lazy" width="800" height="500"></div><figcaption>Courses : par repas, par rayon ou en liste simple, avec une estimation du coût.</figcaption></figure>
+      <figure><div class="shot"><img src="../screens/stock-fr.jpg" alt="Stock : conditionnements, produits entamés à finir vite et « ouvrir une unité » en un clic." loading="lazy" width="800" height="500"></div><figcaption>Stock : conditionnements, produits entamés à finir vite et « ouvrir une unité » en un clic.</figcaption></figure>
+      <figure><div class="shot"><img src="../screens/budget-fr.jpg" alt="Budget : enveloppe mensuelle, projection et répartition des dépenses." loading="lazy" width="800" height="500"></div><figcaption>Budget : enveloppe mensuelle, projection et répartition des dépenses.</figcaption></figure>
+  </div>
+</div></section>
+
+<section id="deploy"><div class="wrap">
+  <h2>Installez-le en deux minutes</h2>
+  <p class="lead">Un conteneur, un fichier SQLite. Image multi-architecture (amd64 et arm64) publiée sur le GitHub Container Registry.</p>
+  <div class="steps">
+      <div class="step"><div><p><strong>Récupérez les fichiers</strong></p><p>Prenez <code>docker-compose.yml</code> et <code>.env.example</code> dans le dépôt et copiez l’exemple vers <code>.env</code>. Renseignez <code>PUBLIC_URL</code> avec l’adresse réelle de l’application.</p></div></div>
+      <div class="step"><div><p><strong>Démarrez</strong></p><pre><code>cp .env.example .env   # puis éditez PUBLIC_URL
+docker compose up -d</code></pre></div></div>
+      <div class="step"><div><p><strong>Créez le premier compte</strong></p><p>Ouvrez l’application : <strong>le premier compte devient propriétaire du foyer</strong>. Invitez les autres depuis l’onglet Compte avec un code à usage unique.</p></div></div>
+      <div class="step"><div><p><strong>Connectez votre IA</strong></p><p>Ajoutez <code>PUBLIC_URL/mcp</code> comme serveur MCP dans Claude. Les clients distants exigent HTTPS : placez l’application derrière un reverse proxy.</p></div></div>
+  </div>
+  <p class="lead" style="margin-top:24px">Les mots de passe sont hachés avec scrypt, les sessions utilisent des cookies HttpOnly/SameSite, les jetons sont stockés hachés et les connexions sont limitées en débit. Vos données restent sur votre serveur.</p>
+</div></section>
+
+<section id="arch"><div class="wrap">
+  <h2>Sous le capot</h2>
+  <p class="lead">Express 5, TypeScript, Drizzle avec SQLite, le SDK MCP officiel et Zod côté serveur ; React 19, Vite et Tailwind 4 côté web. L’API REST et le serveur MCP sont deux fines couches au-dessus des mêmes services : une règle métier s’écrit une seule fois.</p>
+<pre style="margin-top:20px"><code>server/src
+  db/        Drizzle schema + SQLite, migrations at startup
+  domain/    Zod schemas, units, dates, errors
+  auth/      accounts, sessions, households, OAuth server
+  services/  all the business logic (per household)
+  api/       REST adapter (web UI)
+  mcp/       MCP adapter (AI clients)
+web/src      React + Vite + Tailwind UI (EN / FR)</code></pre>
+</div></section>
+</main>
+
+<footer><div class="wrap">
+  <span>MealMCP · Publié sous licence MIT.</span>
+  <span><a href="https://github.com/Rem7474/mealmcp">Dépôt</a> · <a href="https://github.com/Rem7474/mealmcp/blob/main/README.fr.md">Documentation complète</a> · <a href="https://github.com/Rem7474/mealmcp/releases">Versions</a></span>
+</div></footer>
+</body>
+</html>

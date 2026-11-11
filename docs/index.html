@@ -1,0 +1,133 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>MealMCP: meal planning, shopping and pantry, driven by your AI</title>
+<meta name="description" content="Self-hosted meal planning, shopping list, pantry stock and budget for your household, with a built-in MCP server so an AI assistant can run it for you.">
+<meta name="theme-color" content="#161826">
+<link rel="canonical" href="https://rem7474.github.io/mealmcp/">
+<link rel="alternate" hreflang="en" href="https://rem7474.github.io/mealmcp/">
+<link rel="alternate" hreflang="fr" href="https://rem7474.github.io/mealmcp/fr/">
+<link rel="alternate" hreflang="x-default" href="https://rem7474.github.io/mealmcp/">
+<meta property="og:type" content="website">
+<meta property="og:title" content="MealMCP: meal planning, shopping and pantry, driven by your AI">
+<meta property="og:description" content="Self-hosted meal planning, shopping list, pantry stock and budget for your household, with a built-in MCP server so an AI assistant can run it for you.">
+<meta property="og:url" content="https://rem7474.github.io/mealmcp/">
+<meta property="og:image" content="https://rem7474.github.io/mealmcp/screens/planning-en.jpg">
+<meta name="twitter:card" content="summary_large_image">
+<link rel="icon" href="assets/favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="assets/style.css">
+</head>
+<body>
+<header class="top">
+  <div class="wrap">
+    <a class="brand" href="#top"><svg viewBox="0 0 32 32" aria-hidden="true"><path d="M7 15h18v3a7 7 0 0 1-7 7h-4a7 7 0 0 1-7-7z" fill="none" stroke="#9184d9" stroke-width="2" stroke-linejoin="round"/><path d="M5 15h22M12 11c0-2 2-2 2-4M18 11c0-2 2-2 2-4" fill="none" stroke="#d2cefd" stroke-width="2" stroke-linecap="round"/></svg>MealMCP</a>
+    <nav aria-label="Main">
+      <a class="hide-sm" href="#features">Features</a>
+      <a class="hide-sm" href="#mcp">AI & MCP</a>
+      <a class="hide-sm" href="#tour">Tour</a>
+      <a class="hide-sm" href="#deploy">Self-host</a>
+      <a href="https://github.com/Rem7474/mealmcp">GitHub</a>
+      <span class="lang" role="group" aria-label="Language"><a href="#" hreflang="en" lang="en" aria-current="true">EN</a><a href="fr/" hreflang="fr" lang="fr">FR</a></span>
+    </nav>
+  </div>
+</header>
+
+<main id="top">
+<div class="wrap hero">
+  <h1>Plan the week. <em>Let your AI</em> do the rest.</h1>
+  <p class="lead">MealMCP keeps your meal plan, recipes, shopping list, pantry and budget in one self-hosted app for your household, and ships an MCP server so Claude or any assistant can read and update it for you.</p>
+  <div class="cta">
+    <a class="btn primary" href="#deploy">Self-host in 2 minutes</a>
+    <a class="btn" href="https://github.com/Rem7474/mealmcp">View on GitHub</a>
+  </div>
+  <div class="badges"><span class="badge">Self-hosted</span><span class="badge">MCP + OAuth 2.1</span><span class="badge">Installable (PWA)</span><span class="badge">EN / FR</span><span class="badge">MIT licence</span></div>
+  <div class="shot"><img src="screens/planning-en.jpg" alt="Planning: only the meals you actually plan are shown, with what is missing for each." width="800" height="500"></div>
+</div>
+
+<section id="features"><div class="wrap">
+  <h2>Everything a kitchen needs</h2>
+  <p class="lead">One household, one source of truth. Every screen works by hand; every action is also a tool your AI can call.</p>
+  <div class="grid">
+      <div class="card"><div class="ico" aria-hidden="true">📅</div><h3>Meal planning</h3><p>Meals per day from a recipe or free text. Tell it who eats and when: empty slots are highlighted so you know what is left to plan.</p></div>
+      <div class="card"><div class="ico" aria-hidden="true">📖</div><h3>Recipes</h3><p>Ingredients, steps with appliance and temperature, tags, 1–5 star ratings and favorites. See at a glance what you can cook with your stock.</p></div>
+      <div class="card"><div class="ico" aria-hidden="true">🛒</div><h3>Smart shopping</h3><p>Generated from the plan: needs minus stock, plus products under their threshold. View it by aisle or by the meal each item is for.</p></div>
+      <div class="card"><div class="ico" aria-hidden="true">🧊</div><h3>Real pantry</h3><p>Fridge, freezer, pantry. Packs as “3 × 200 ml”, opened jars with a shelf life and an alert, drained vs net weight, and “plenty of it” markers.</p></div>
+      <div class="card"><div class="ico" aria-hidden="true">💶</div><h3>Budget</h3><p>Record purchases, set a monthly budget with a projection, see spending by category and shop, and get cost estimates from what you really paid.</p></div>
+      <div class="card"><div class="ico" aria-hidden="true">🔧</div><h3>Equipment</h3><p>Tell it which appliances you own. Recipes that need an air fryer you do not have are flagged.</p></div>
+      <div class="card"><div class="ico" aria-hidden="true">⚡</div><h3>Live updates</h3><p>The dashboard refreshes by itself when something changes elsewhere, for example when your AI edits the stock.</p></div>
+      <div class="card"><div class="ico" aria-hidden="true">📱</div><h3>Installable</h3><p>Add it to your phone’s home screen for a full-screen app. Dark “Nocturne” theme, English and French.</p></div>
+  </div>
+</div></section>
+
+<section id="mcp"><div class="wrap">
+  <div class="split">
+    <div>
+      <div class="eyebrow">MCP</div>
+      <h2>Built for AI assistants</h2>
+      <p class="lead">The same business logic backs the web UI and an MCP endpoint. Connect Claude (or any MCP client) and just talk: it can read your stock, plan the week, build the list and log the receipt.</p>
+      <ul><li><strong>OAuth 2.1 built in</strong>: discovery, dynamic client registration, PKCE. Paste the address, sign in, allow. Revoke any time.</li><li><strong>Personal tokens</strong> for scripts and clients without OAuth. The same token opens the REST API.</li><li><strong>Over 40 tools</strong>: stock, recipes, plan, shopping, budget, equipment, bulk variants.</li><li><strong>Household-scoped</strong>: every request acts on the signed-in person’s household only.</li></ul>
+    </div>
+    <div class="chat" aria-label="Example conversation">
+        <div class="msg me">What can I cook tonight with what is about to expire?</div>
+        <div class="msg ai">You have a half jar of tomato sauce (opened 3 days ago) and potatoes expiring on the 13th. Air fryer fries + a pasta?<small>suggest_recipes_to_use_up</small></div>
+        <div class="msg me">Plan the pasta for Thursday and generate the shopping list.</div>
+        <div class="msg ai">Done: pasta planned for Thursday dinner. 8 items to buy, about €23 estimated.<small>plan_meal · generate_shopping_list</small></div>
+    </div>
+  </div>
+  <h2 style="margin-top:56px;font-size:1.3rem">Some of the tools your AI gets</h2>
+  <div class="tools">
+      <div><h3>Stock</h3><code>list_stock</code> <code>add_stock</code> <code>update_stock_item</code> <code>open_stock_item</code> <code>consume_stock</code> <code>remove_stock_item</code> <code>get_stock_alerts</code></div>
+      <div><h3>Recipes</h3><code>list_recipes</code> <code>get_recipe</code> <code>create_recipe</code> <code>update_recipe</code> <code>check_recipe_availability</code> <code>suggest_recipes_to_use_up</code></div>
+      <div><h3>Meal plan</h3><code>list_meal_plan</code> <code>plan_meal</code> <code>cook_planned_meal</code> <code>list_planning_slots</code></div>
+      <div><h3>Shopping</h3><code>list_shopping_list</code> <code>generate_shopping_list</code> <code>add_shopping_item</code> <code>check_shopping_item</code> <code>complete_shopping</code></div>
+      <div><h3>Budget</h3><code>record_expense</code> <code>get_spending_summary</code> <code>get_budget_status</code> <code>set_budget</code> <code>estimate_recipe_cost</code> <code>estimate_shopping_list_cost</code></div>
+      <div><h3>And more</h3><code>list_products</code> <code>update_product</code> <code>add_product_alias</code> <code>list_equipment</code> <code>set_household_settings</code> <code>add_stock_bulk</code> <code>create_recipes_bulk</code> <code>plan_meals_bulk</code></div>
+  </div>
+</div></section>
+
+<section id="tour"><div class="wrap">
+  <h2>A quick tour</h2>
+  <p class="lead">Screens from the web app.</p>
+  <div class="gallery">
+      <figure><div class="shot"><img src="screens/planning-en.jpg" alt="Planning: only the meals you actually plan are shown, with what is missing for each." loading="lazy" width="800" height="500"></div><figcaption>Planning: only the meals you actually plan are shown, with what is missing for each.</figcaption></figure>
+      <figure><div class="shot"><img src="screens/shopping-en.jpg" alt="Shopping: grouped by meal, aisle or a flat list, with a running cost estimate." loading="lazy" width="800" height="500"></div><figcaption>Shopping: grouped by meal, aisle or a flat list, with a running cost estimate.</figcaption></figure>
+      <figure><div class="shot"><img src="screens/stock-en.jpg" alt="Stock: packs, opened items to finish soon, and one-click “open a pack”." loading="lazy" width="800" height="500"></div><figcaption>Stock: packs, opened items to finish soon, and one-click “open a pack”.</figcaption></figure>
+      <figure><div class="shot"><img src="screens/budget-en.jpg" alt="Budget: monthly envelope, projection and a breakdown of where the money goes." loading="lazy" width="800" height="500"></div><figcaption>Budget: monthly envelope, projection and a breakdown of where the money goes.</figcaption></figure>
+  </div>
+</div></section>
+
+<section id="deploy"><div class="wrap">
+  <h2>Self-host in two minutes</h2>
+  <p class="lead">One container, one SQLite file. Multi-arch image (amd64 and arm64) published on GitHub Container Registry.</p>
+  <div class="steps">
+      <div class="step"><div><p><strong>Get the files</strong></p><p>Grab <code>docker-compose.yml</code> and <code>.env.example</code> from the repository and copy the example to <code>.env</code>. Set <code>PUBLIC_URL</code> to the real address of the app.</p></div></div>
+      <div class="step"><div><p><strong>Start it</strong></p><pre><code>cp .env.example .env   # then edit PUBLIC_URL
+docker compose up -d</code></pre></div></div>
+      <div class="step"><div><p><strong>Create the first account</strong></p><p>Open the app: <strong>the first account becomes the household owner</strong>. Invite others from the Account tab with a single-use code.</p></div></div>
+      <div class="step"><div><p><strong>Connect your AI</strong></p><p>Add <code>PUBLIC_URL/mcp</code> as an MCP server in Claude. Remote clients need HTTPS: put the app behind a reverse proxy.</p></div></div>
+  </div>
+  <p class="lead" style="margin-top:24px">Passwords are hashed with scrypt, sessions are HttpOnly/SameSite cookies, tokens are stored hashed and logins are rate-limited. Data stays on your server.</p>
+</div></section>
+
+<section id="arch"><div class="wrap">
+  <h2>Under the hood</h2>
+  <p class="lead">Express 5, TypeScript, Drizzle with SQLite, the official MCP SDK and Zod on the server; React 19, Vite and Tailwind 4 on the web. The REST API and the MCP server are two thin adapters over the same services, so a business rule is written once.</p>
+<pre style="margin-top:20px"><code>server/src
+  db/        Drizzle schema + SQLite, migrations at startup
+  domain/    Zod schemas, units, dates, errors
+  auth/      accounts, sessions, households, OAuth server
+  services/  all the business logic (per household)
+  api/       REST adapter (web UI)
+  mcp/       MCP adapter (AI clients)
+web/src      React + Vite + Tailwind UI (EN / FR)</code></pre>
+</div></section>
+</main>
+
+<footer><div class="wrap">
+  <span>MealMCP · Released under the MIT licence.</span>
+  <span><a href="https://github.com/Rem7474/mealmcp">Repository</a> · <a href="https://github.com/Rem7474/mealmcp/blob/main/README.md">Full documentation</a> · <a href="https://github.com/Rem7474/mealmcp/releases">Releases</a></span>
+</div></footer>
+</body>
+</html>
