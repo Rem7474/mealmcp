@@ -400,6 +400,8 @@ export const fr: Messages = {
   'recipes.dietConflict': 'Ne convient pas : {items}',
   'stock.discard': 'Jeté',
   'stock.discardAria': 'Jeter {name}',
+  'stock.unopen': 'Annuler l’ouverture',
+  'stock.unopenAria': 'Remettre {name} comme fermé',
   'waste.title': 'Gaspillage',
   'waste.help': 'Nourriture jetée ces 30 derniers jours.',
   'waste.empty': 'Rien de jeté. Bravo.',

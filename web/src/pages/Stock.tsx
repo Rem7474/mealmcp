@@ -169,6 +169,11 @@ function StockRow({ item }: { item: StockItem }) {
           <span className="w-10 text-muted">{item.unit === 'piece' ? '' : item.unit}</span>
         </>
       )}
+      {item.opened && (item.packSize === null || item.quantity >= item.packSize - 1e-9) && (
+        <Button variant="ghost" className="h-8 px-2 text-xs" aria-label={t('stock.unopenAria', { name: item.name })} onClick={() => run(() => api.post('/stock/' + item.id + '/unopen', {}))}>
+          {t('stock.unopen')}
+        </Button>
+      )}
       {!item.approximate && !item.opened && (
         <Button variant="ghost" className="h-8 px-2 text-xs" aria-label={t('stock.openAria', { name: item.name })} onClick={() => run(() => api.post(`/stock/${item.id}/open`, {}))}>
           {t('stock.open')}

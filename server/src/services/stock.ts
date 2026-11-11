@@ -207,6 +207,42 @@ export function createStockService(db: Db, hid: number, productService: ProductS
       return svc.get(row.id);
     },
 
+    /**
+     * Undoes a mistaken open: a pack that is still full becomes sealed again (and joins an identical sealed line).
+     * An expiry that only came from the opened shelf life is dropped; a printed date is kept.
+     */
+    unopen(id: number) {
+      const line = svc.get(id);
+      if (!line.openedOn) throw new ValidationError('This pack is not opened');
+      if (line.packSize !== null && line.quantity < line.packSize - 1e-9) throw new ValidationError('Part of it was already used: it cannot be sealed again');
+      const product = productService.get(line.productId);
+      const fromShelfLife = product.openedShelfLifeDays && line.expiresOn === addDays(line.openedOn, product.openedShelfLifeDays);
+      const expiresOn = fromShelfLife ? null : line.expiresOn;
+      const twin = db
+        .select()
+        .from(stockItems)
+        .where(
+          and(
+            mine,
+            eq(stockItems.productId, line.productId),
+            eq(stockItems.unit, line.unit),
+            eq(stockItems.location, line.location),
+            eq(stockItems.approximate, false),
+            isNull(stockItems.openedOn),
+            line.packSize === null ? isNull(stockItems.packSize) : eq(stockItems.packSize, line.packSize),
+            expiresOn ? eq(stockItems.expiresOn, expiresOn) : isNull(stockItems.expiresOn),
+          ),
+        )
+        .get();
+      if (twin) {
+        db.update(stockItems).set({ quantity: round(twin.quantity + line.quantity) }).where(and(mine, eq(stockItems.id, twin.id))).run();
+        db.delete(stockItems).where(and(mine, eq(stockItems.id, id))).run();
+        return svc.get(twin.id);
+      }
+      db.update(stockItems).set({ openedOn: null, expiresOn }).where(and(mine, eq(stockItems.id, id))).run();
+      return svc.get(id);
+    },
+
     /** Adds many lines in one go (all or nothing). */
     addMany(items: z.input<typeof stockAdd>[]) {
       return db.transaction(() => items.map((item) => svc.add(item)));

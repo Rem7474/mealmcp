@@ -403,6 +403,8 @@ export const en = {
   'recipes.dietConflict': 'Not suitable: {items}',
   'stock.discard': 'Thrown away',
   'stock.discardAria': 'Throw away {name}',
+  'stock.unopen': 'Undo opening',
+  'stock.unopenAria': 'Mark {name} as sealed again',
   'waste.title': 'Waste',
   'waste.help': 'Food thrown away in the last 30 days.',
   'waste.empty': 'Nothing thrown away. Well done.',

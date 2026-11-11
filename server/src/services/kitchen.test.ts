@@ -454,6 +454,21 @@ describe('meal history', () => {
   });
 });
 
+describe('undoing an open', () => {
+  it('seals a full pack again and merges it back, but not a used one', () => {
+    svc.products.update({ id: svc.stock.add({ name: 'Cream', packCount: 2, packSize: 200, unit: 'ml' }).productId, openedShelfLifeDays: 3 });
+    const line = svc.stock.list()[0]!;
+    const opened = svc.stock.open({ id: line.id });
+    expect(svc.stock.list()).toHaveLength(2);
+    const back = svc.stock.unopen(opened.id);
+    expect(back).toMatchObject({ quantity: 400, opened: false, packCount: 2, expiresOn: null });
+    expect(svc.stock.list()).toHaveLength(1);
+    const again = svc.stock.open({ id: line.id, remaining: 50 });
+    expect(() => svc.stock.unopen(again.id)).toThrow(/already used/);
+    expect(() => svc.stock.unopen(line.id)).toThrow(/not opened/);
+  });
+});
+
 describe('waste tracking', () => {
   it('logs what is thrown away with its estimated cost', () => {
     svc.budget.setProductPrice({ name: 'Milk', quantity: 1, unit: 'l', price: 1.2 });
