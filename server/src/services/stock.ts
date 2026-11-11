@@ -218,11 +218,14 @@ export function createStockService(db: Db, hid: number, productService: ProductS
         if (!current.packSize || current.openedOn) throw new ValidationError('packCount only applies to a line of sealed packs');
         patch = { ...patch, quantity: round(packCount * current.packSize) };
       }
-      if (patch.quantity === 0 && !current.approximate) {
+      // 0 means used up, for a "plenty of it" marker too (which is stored at 0 and would otherwise stay).
+      if (patch.quantity === 0) {
         svc.remove(id);
         return null;
       }
-      if (Object.keys(patch).length) db.update(stockItems).set(patch).where(and(mine, eq(stockItems.id, id))).run();
+      // An exact quantity replaces the "plenty of it" marker.
+      const changes = patch.quantity !== undefined && current.approximate ? { ...patch, approximate: false } : patch;
+      if (Object.keys(changes).length) db.update(stockItems).set(changes).where(and(mine, eq(stockItems.id, id))).run();
       return svc.get(id);
     },
 

@@ -385,4 +385,13 @@ describe('packs, opened jars and drained weight', () => {
     expect(svc.stock.update({ id: rice.id, quantity: 0 })).toBeNull();
     expect(svc.stock.list()).toEqual([]);
   });
+
+  it('removes a "plenty of it" line set to 0, and turns it exact when given a quantity', () => {
+    const flour = svc.stock.add({ name: 'Flour', approximate: true });
+    expect(svc.stock.update({ id: flour.id, quantity: 0 })).toBeNull();
+    expect(svc.stock.list()).toEqual([]);
+
+    const salt = svc.stock.add({ name: 'Salt', approximate: true });
+    expect(svc.stock.update({ id: salt.id, quantity: 250 })).toMatchObject({ quantity: 250, approximate: false });
+  });
 });
