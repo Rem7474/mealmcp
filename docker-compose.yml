@@ -6,10 +6,11 @@ services:
     build: .
     restart: unless-stopped
     ports:
-      - "3000:3000"
+      # PORT (fichier .env) = port exposé sur la machine ; dans le conteneur l'app reste sur 3000.
+      - "${PORT:-3000}:3000"
     environment:
       # Valeurs lues dans un fichier .env à côté de ce fichier (voir .env.example).
-      PUBLIC_URL: ${PUBLIC_URL:-http://localhost:3000}
+      PUBLIC_URL: ${PUBLIC_URL:-http://localhost:${PORT:-3000}}
       ALLOW_REGISTRATION: ${ALLOW_REGISTRATION:-false}
       TRUST_PROXY: ${TRUST_PROXY:-0}
       TZ: Europe/Paris
