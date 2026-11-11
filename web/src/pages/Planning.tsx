@@ -249,13 +249,6 @@ function MealCard({ meal, insight }: { meal: PlannedMeal; insight?: MealInsight 
           meal.title
         )}
       </div>
-      <div className="mt-auto flex gap-2.5 text-[11px] text-muted tabular-nums">
-        <span className="inline-flex items-center gap-1">
-          <Users size={12} />
-          {meal.servings}
-        </span>
-        {insight?.costCents ? <span>{formatMoney(insight.costCents, currency)}</span> : null}
-      </div>
       {meal.cooked ? (
         <div className="flex items-center gap-1 text-[11px] text-muted">
           <CheckCircle size={13} />
@@ -283,10 +276,18 @@ function MealCard({ meal, insight }: { meal: PlannedMeal; insight?: MealInsight 
           )}
         </>
       )}
-      <div className="flex items-center gap-1 text-muted">
+      <div className="mt-auto flex items-center justify-between gap-2">
+      <div className="flex gap-2.5 text-[11px] text-muted tabular-nums">
+        <span className="inline-flex items-center gap-1">
+          <Users size={12} />
+          {meal.servings}
+        </span>
+        {insight?.costCents ? <span>{formatMoney(insight.costCents, currency)}</span> : null}
+      </div>
+      <div className="ml-auto flex items-center gap-1 text-muted">
         {!meal.cooked && (
           <button
-            className="inline-flex size-6 cursor-pointer items-center justify-center rounded hover:bg-ink/10 hover:text-accent-soft disabled:opacity-45"
+            className="inline-flex size-9 sm:size-6 cursor-pointer items-center justify-center rounded hover:bg-ink/10 hover:text-accent-soft disabled:opacity-45"
             disabled={pending}
             title={t('plan.cookTitle')}
             aria-label={t('plan.cookTitle')}
@@ -296,13 +297,14 @@ function MealCard({ meal, insight }: { meal: PlannedMeal; insight?: MealInsight 
           </button>
         )}
         <button
-          className="inline-flex size-6 cursor-pointer items-center justify-center rounded hover:bg-ink/10 hover:text-danger"
+          className="inline-flex size-9 sm:size-6 cursor-pointer items-center justify-center rounded hover:bg-ink/10 hover:text-danger"
           title={t('plan.remove')}
           aria-label={t('plan.remove')}
           onClick={() => run(() => api.del(`/plan/${meal.id}`))}
         >
           <X size={14} />
         </button>
+      </div>
       </div>
     </div>
   );
