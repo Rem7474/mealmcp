@@ -59,6 +59,14 @@ const t = {
     toolsHead: 'Some of the tools your AI gets',
     toolGroups: [['Stock', 'stock'], ['Recipes', 'recipes'], ['Meal plan', 'plan'], ['Shopping', 'shop'], ['Budget', 'budget'], ['And more', 'more']],
     zoom: 'Enlarge the screenshot',
+    mobileHead: 'In your pocket',
+    mobileLead: 'The same app on a phone: bottom tab bar, one-handed use, install it on your home screen.',
+    mobile: [
+      ['planning', 'Planning: the week as a day-by-day list.'],
+      ['shopping', 'Shopping: tick items as you walk the aisles.'],
+      ['stock', 'Stock: fix a quantity or open a pack in one tap.'],
+      ['budget', 'Budget: where the month’s money went.'],
+    ],
     tourHead: 'A quick tour',
     tourLead: 'Screens from the web app. Click one to enlarge it.',
     tour: [
@@ -128,6 +136,14 @@ const t = {
     toolsHead: 'Quelques outils offerts à votre IA',
     toolGroups: [['Stock', 'stock'], ['Recettes', 'recipes'], ['Planning', 'plan'], ['Courses', 'shop'], ['Budget', 'budget'], ['Et plus', 'more']],
     zoom: 'Agrandir la capture',
+    mobileHead: 'Dans votre poche',
+    mobileLead: 'La même application sur téléphone : barre d’onglets en bas, utilisable d’une main, installable sur l’écran d’accueil.',
+    mobile: [
+      ['planning', 'Planning : la semaine, jour par jour.'],
+      ['shopping', 'Courses : cochez au fil des rayons.'],
+      ['stock', 'Stock : corrigez une quantité ou ouvrez une unité en un geste.'],
+      ['budget', 'Budget : où est parti l’argent du mois.'],
+    ],
     tourHead: 'Petit tour du propriétaire',
     tourLead: 'Captures de l’application web. Cliquez pour agrandir.',
     tour: [
@@ -169,6 +185,9 @@ function page(c) {
   const feats = c.features.map(([i, h, p]) => `<div class="card"><div class="ico" aria-hidden="true">${i}</div><h3>${h}</h3><p>${p}</p></div>`).join('\n      ');
   const tour = c.tour
     .map(([k, cap]) => `<figure><div class="shot"><a class="zoom" href="${a}screens/${k}-${c.lang}.jpg" aria-label="${esc(c.zoom)}"><img src="${a}screens/${k}-${c.lang}.jpg" alt="${esc(cap)}" loading="lazy" width="1280" height="800"></a></div><figcaption>${cap}</figcaption></figure>`)
+    .join('\n      ');
+  const phones = c.mobile
+    .map(([k, cap]) => `<figure><a class="zoom phone" href="${a}screens/m-${k}-${c.lang}.jpg" aria-label="${esc(c.zoom)}"><img src="${a}screens/m-${k}-${c.lang}.jpg" alt="${esc(cap)}" loading="lazy" width="780" height="1688"></a><figcaption>${cap}</figcaption></figure>`)
     .join('\n      ');
   const run = `cp .env.example .env   # ${c.lang === 'fr' ? 'puis éditez PUBLIC_URL' : 'then edit PUBLIC_URL'}\ndocker compose up -d`;
   const steps = c.steps
@@ -256,6 +275,14 @@ function page(c) {
   <p class="lead">${c.tourLead}</p>
   <div class="gallery">
       ${tour}
+  </div>
+</div></section>
+
+<section id="mobile"><div class="wrap">
+  <h2>${c.mobileHead}</h2>
+  <p class="lead">${c.mobileLead}</p>
+  <div class="phones">
+      ${phones}
   </div>
 </div></section>
 
