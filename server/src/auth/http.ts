@@ -46,7 +46,7 @@ const bearerOf = (header: string | undefined) => {
 /** Reads who is calling: a personal/OAuth bearer token, or the browser session cookie. */
 export function attachUser(accounts: AccountService): RequestHandler {
   return (req, _res, next) => {
-    const bearer = req.headers.authorization?.match(/^Bearer\s+(.+)$/i)?.[1];
+    const bearer = bearerOf(req.headers.authorization);
     if (bearer) {
       const identity = accounts.verifyToken(bearer);
       if (identity) req.user = accounts.getUser(identity.userId);
