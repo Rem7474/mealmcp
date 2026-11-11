@@ -43,28 +43,32 @@ export function Planning() {
         <Button className="w-9 px-0" aria-label={t('plan.nextWeek')} onClick={() => setStart(addDays(start, 7))}>
           <CaretRight size={16} />
         </Button>
-        <Button variant="ghost" onClick={() => setStart(weekStart(today()))}>
-          {t('plan.thisWeek')}
-        </Button>
-        <h2 className="ml-1 text-xl">
+        {start !== weekStart(today()) && (
+          <Button variant="ghost" onClick={() => setStart(weekStart(today()))}>
+            {t('plan.thisWeek')}
+          </Button>
+        )}
+        <h2 className="ml-1 min-w-0 flex-1 truncate text-lg lg:flex-none lg:text-xl">
           {formatDate(start)} – {formatDate(end)}
         </h2>
-        <span className="flex-1" />
+        <span className="hidden flex-1 lg:block" />
+        {/* Phones: the navigation sits on the first line, the week's cost and the main action on the second. */}
+        <span className="order-1 h-0 basis-full lg:hidden" />
         {cost && cost.totalCents > 0 && (
-          <div className="mr-2 text-right">
+          <div className="order-1 min-w-0 flex-1 lg:order-none lg:mr-2 lg:flex-none lg:text-right">
             <div className="text-[11px] tracking-wider text-muted uppercase">{t('plan.weekEstimate')}</div>
             <div className="text-base tabular-nums">
               {formatMoney(cost.totalCents, currency)}
-              {cost.incompleteMeals > 0 && <span className="text-xs text-muted"> · {t('plan.cost.incomplete', { n: cost.incompleteMeals })}</span>}
+              {cost.incompleteMeals > 0 && <span className="hidden text-xs text-muted sm:inline"> · {t('plan.cost.incomplete', { n: cost.incompleteMeals })}</span>}
             </div>
           </div>
         )}
-        {generated && <span className="text-sm text-accent">{t('plan.listUpdated')}</span>}
-        <Button onClick={() => setComposer(composer ? null : { date: days.includes(today()) ? today() : start, mealType: 'dinner' })}>
+        {generated && <span className="order-1 text-sm text-accent lg:order-none">{t('plan.listUpdated')}</span>}
+        <Button aria-label={t('plan.add.title')} className="w-9 px-0 sm:w-auto sm:px-3" onClick={() => setComposer(composer ? null : { date: days.includes(today()) ? today() : start, mealType: 'dinner' })}>
           <Plus size={16} />
-          {t('plan.add.title')}
+          <span className="hidden sm:inline">{t('plan.add.title')}</span>
         </Button>
-        <Button variant="primary" disabled={pending} onClick={generate}>
+        <Button variant="primary" className="order-1 lg:order-none" disabled={pending} onClick={generate}>
           <ShoppingCart size={16} />
           {t('plan.generate')}
         </Button>
@@ -238,6 +242,43 @@ function MealCard({ meal, insight }: { meal: PlannedMeal; insight?: MealInsight 
   const missing = insight ? insight.missing.length : 0;
   const missingEquipment = insight?.missingEquipment ?? [];
 
+  const actions = (
+    <div className="ml-auto flex items-center gap-1 text-muted">
+      {!meal.cooked && (
+        <button
+          className="inline-flex size-9 sm:size-6 cursor-pointer items-center justify-center rounded hover:bg-ink/10 hover:text-accent-soft disabled:opacity-45"
+          disabled={pending}
+          title={t('plan.cookTitle')}
+          aria-label={t('plan.cookTitle')}
+          onClick={() => run(() => api.post(`/plan/${meal.id}/cook`))}
+        >
+          <ChefHat size={14} />
+        </button>
+      )}
+      <button
+        className="inline-flex size-9 sm:size-6 cursor-pointer items-center justify-center rounded hover:bg-ink/10 hover:text-danger"
+        title={t('plan.remove')}
+        aria-label={t('plan.remove')}
+        onClick={() => run(() => api.del(`/plan/${meal.id}`))}
+      >
+        <X size={14} />
+      </button>
+    </div>
+  );
+
+  // A free-text meal ("Leftovers", "Restaurant") has no recipe, cost or stock status: one line is enough.
+  if (!meal.recipeId)
+    return (
+      <div className="flex items-center gap-2 text-sm">
+        <span className={`min-w-0 flex-1 truncate text-[13px] font-medium ${meal.cooked ? 'text-muted line-through' : ''}`}>{meal.title}</span>
+        <span className="inline-flex items-center gap-1 text-[11px] text-muted tabular-nums">
+          <Users size={12} />
+          {meal.servings}
+        </span>
+        {actions}
+      </div>
+    );
+
   return (
     <div className="flex h-full flex-col gap-1 text-sm">
       <div className={`text-[13px] leading-tight font-medium text-pretty ${meal.cooked ? 'text-muted line-through' : ''}`}>
@@ -284,27 +325,7 @@ function MealCard({ meal, insight }: { meal: PlannedMeal; insight?: MealInsight 
         </span>
         {insight?.costCents ? <span>{formatMoney(insight.costCents, currency)}</span> : null}
       </div>
-      <div className="ml-auto flex items-center gap-1 text-muted">
-        {!meal.cooked && (
-          <button
-            className="inline-flex size-9 sm:size-6 cursor-pointer items-center justify-center rounded hover:bg-ink/10 hover:text-accent-soft disabled:opacity-45"
-            disabled={pending}
-            title={t('plan.cookTitle')}
-            aria-label={t('plan.cookTitle')}
-            onClick={() => run(() => api.post(`/plan/${meal.id}/cook`))}
-          >
-            <ChefHat size={14} />
-          </button>
-        )}
-        <button
-          className="inline-flex size-9 sm:size-6 cursor-pointer items-center justify-center rounded hover:bg-ink/10 hover:text-danger"
-          title={t('plan.remove')}
-          aria-label={t('plan.remove')}
-          onClick={() => run(() => api.del(`/plan/${meal.id}`))}
-        >
-          <X size={14} />
-        </button>
-      </div>
+      {actions}
       </div>
     </div>
   );

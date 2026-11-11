@@ -5,7 +5,7 @@ import { api, useAction } from '../api';
 import { addDays, currencySymbol, formatDay, formatMoney, formatQty, MEALS, today } from '../format';
 import { type MessageKey, useI18n, useT } from '../i18n';
 import type { BudgetStatus, HouseholdSettings, ShoppingItem } from '../types';
-import { Badge, Button, Card, Empty, Input, Select } from '../ui';
+import { Badge, Button, Card, Empty, Input, Select, Disclose } from '../ui';
 import { LocationSelect, parseQty, ProductDatalist, useCurrency } from './shared';
 
 const AISLES = ['produce', 'dairy', 'meat_fish', 'bakery', 'pantry', 'frozen', 'drinks', 'household', 'other'];
@@ -80,40 +80,46 @@ export function Shopping() {
     <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_18.5rem]">
       <ProductDatalist />
       <div className="min-w-0 space-y-4">
-        <div className="flex flex-wrap items-end gap-2">
+        <div className="flex items-end gap-2">
           <div className="mr-auto">
             <h2 className="text-xl">{t('shopping.list.title')}</h2>
             <p className="text-sm text-muted">{t('shopping.list.toBuy', { n: open.length })}</p>
           </div>
-          <span className="text-sm text-muted">{t('shopping.generate.from')}</span>
-          <Input type="date" aria-label={t('shopping.generate.fromAria')} value={range.from} onChange={(e) => setRange({ ...range, from: e.target.value })} />
-          <span className="text-sm text-muted">{t('shopping.generate.to')}</span>
-          <Input type="date" aria-label={t('shopping.generate.toAria')} value={range.to} onChange={(e) => setRange({ ...range, to: e.target.value })} />
           <Button variant="primary" disabled={pending} onClick={() => run(() => api.post('/shopping/generate', range))}>
             <ArrowsClockwise size={16} />
             {t('shopping.generate.button')}
           </Button>
         </div>
-        <p className="max-w-2xl text-xs text-muted">{t('shopping.generate.help')}</p>
 
-        <div className="flex items-center gap-2 text-sm" role="group" aria-label={t('shopping.group')}>
-          <span className="text-muted">{t('shopping.group')}</span>
-          {(['none', 'aisle', 'meal'] as const).map((mode) => (
-            <Button key={mode} variant={groupBy === mode ? 'primary' : 'secondary'} className="h-8 px-3" aria-pressed={groupBy === mode} onClick={() => run(() => api.put('/settings', { shoppingGroupBy: mode }))}>
-              {t(`shopping.group.${mode}`)}
+        <Disclose summary={t('shopping.options')}>
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="text-sm text-muted">{t('shopping.generate.from')}</span>
+            <Input type="date" aria-label={t('shopping.generate.fromAria')} value={range.from} onChange={(e) => setRange({ ...range, from: e.target.value })} />
+            <span className="text-sm text-muted">{t('shopping.generate.to')}</span>
+            <Input type="date" aria-label={t('shopping.generate.toAria')} value={range.to} onChange={(e) => setRange({ ...range, to: e.target.value })} />
+          </div>
+          <p className="mt-2 max-w-2xl text-xs text-muted">{t('shopping.generate.help')}</p>
+          <div className="mt-3 flex flex-wrap items-center gap-2 text-sm" role="group" aria-label={t('shopping.group')}>
+            <span className="text-muted">{t('shopping.group')}</span>
+            {(['none', 'aisle', 'meal'] as const).map((mode) => (
+              <Button key={mode} variant={groupBy === mode ? 'primary' : 'secondary'} className="h-8 px-3" aria-pressed={groupBy === mode} onClick={() => run(() => api.put('/settings', { shoppingGroupBy: mode }))}>
+                {t(`shopping.group.${mode}`)}
+              </Button>
+            ))}
+          </div>
+        </Disclose>
+
+        <Disclose summary={t('shopping.addItem')}>
+          <form onSubmit={add} className="flex flex-wrap gap-2">
+            <Input required list="product-names" placeholder={t('shopping.list.item')} aria-label={t('shopping.list.item')} value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} className="flex-1 basis-40" />
+            <Input inputMode="decimal" placeholder={t('common.qty')} aria-label={t('common.quantity')} value={form.quantity} onChange={(e) => setForm({ ...form, quantity: e.target.value })} className="w-20" />
+            <Input list="unit-names" placeholder={t('common.unit')} aria-label={t('common.unit')} value={form.unit} onChange={(e) => setForm({ ...form, unit: e.target.value })} className="w-24" />
+            <Button type="submit" disabled={pending}>
+              <Plus size={16} />
+              {t('common.add')}
             </Button>
-          ))}
-        </div>
-
-        <form onSubmit={add} className="flex flex-wrap gap-2">
-          <Input required list="product-names" placeholder={t('shopping.list.item')} aria-label={t('shopping.list.item')} value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} className="flex-1 basis-40" />
-          <Input inputMode="decimal" placeholder={t('common.qty')} aria-label={t('common.quantity')} value={form.quantity} onChange={(e) => setForm({ ...form, quantity: e.target.value })} className="w-20" />
-          <Input list="unit-names" placeholder={t('common.unit')} aria-label={t('common.unit')} value={form.unit} onChange={(e) => setForm({ ...form, unit: e.target.value })} className="w-24" />
-          <Button type="submit" disabled={pending}>
-            <Plus size={16} />
-            {t('common.add')}
-          </Button>
-        </form>
+          </form>
+        </Disclose>
 
         {items.length === 0 ? (
           <Empty>{t('shopping.list.empty')}</Empty>

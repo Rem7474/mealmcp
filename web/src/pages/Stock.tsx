@@ -140,9 +140,15 @@ function StockRow({ item }: { item: StockItem }) {
     void run(() => api.patch(`/stock/${item.id}`, { quantity }));
   };
 
+  const actions: { key: string; label: string; aria: string; run: () => void }[] = [];
+  if (item.opened && (item.packSize === null || item.quantity >= item.packSize - 1e-9)) actions.push({ key: 'unopen', label: t('stock.unopen'), aria: t('stock.unopenAria', { name: item.name }), run: () => void run(() => api.post('/stock/' + item.id + '/unopen', {})) });
+  if (!item.approximate && !item.opened) actions.push({ key: 'open', label: t('stock.open'), aria: t('stock.openAria', { name: item.name }), run: () => void run(() => api.post(`/stock/${item.id}/open`, {})) });
+  actions.push({ key: 'discard', label: t('stock.discard'), aria: t('stock.discardAria', { name: item.name }), run: () => void run(() => api.post(`/stock/${item.id}/discard`, { reason: days !== null && days < 0 ? 'expired' : 'spoiled' })) });
+  actions.push({ key: 'remove', label: t('stock.removeShort'), aria: t('stock.remove', { name: item.name }), run: () => void run(() => api.del(`/stock/${item.id}`)) });
+
   return (
-    <li className="flex flex-wrap items-center gap-x-2 gap-y-1 py-2 text-sm">
-      <div className="min-w-40 flex-1">
+    <li className="flex items-center gap-x-2 py-2 text-sm">
+      <div className="min-w-0 flex-1">
         <div className="font-medium wrap-break-word">{item.name}</div>
         {item.opened && item.openedOn && <div className="text-xs text-accent">{t('stock.openedBadge', { date: formatDate(item.openedOn) })}</div>}
         {item.packCount !== null && item.packSize !== null && (
@@ -172,25 +178,35 @@ function StockRow({ item }: { item: StockItem }) {
           <span className="w-10 text-muted">{item.unit === 'piece' ? '' : item.unit}</span>
         </>
       )}
-      {item.opened && (item.packSize === null || item.quantity >= item.packSize - 1e-9) && (
-        <Button variant="secondary" className="h-9 px-3 text-sm sm:h-8 sm:px-2 sm:text-xs" aria-label={t('stock.unopenAria', { name: item.name })} onClick={() => run(() => api.post('/stock/' + item.id + '/unopen', {}))}>
-          {t('stock.unopen')}
-        </Button>
-      )}
-      {/* On phones the secondary actions sit on their own line, right-aligned under the quantity. */}
-      <div className="flex w-full items-center justify-end gap-1 sm:ml-auto sm:w-auto">
-        {!item.approximate && !item.opened && (
-          <Button variant="secondary" className="h-9 px-3 text-sm sm:h-8 sm:px-2 sm:text-xs" aria-label={t('stock.openAria', { name: item.name })} onClick={() => run(() => api.post(`/stock/${item.id}/open`, {}))}>
-            {t('stock.open')}
+      {/* Phones: one "more" menu keeps the row to a single line. Wider screens show the actions as buttons. */}
+      <div className="hidden items-center justify-end gap-1 sm:ml-auto sm:flex">
+        {actions.map((a) => (
+          <Button key={a.key} variant={a.key === 'remove' ? 'ghost' : 'secondary'} className={a.key === 'remove' ? 'size-8 px-0' : 'h-8 px-2 text-xs'} aria-label={a.aria} onClick={a.run}>
+            {a.key === 'remove' ? '✕' : a.label}
           </Button>
-        )}
-        <Button variant="secondary" className="h-9 px-3 text-sm sm:h-8 sm:px-2 sm:text-xs" aria-label={t('stock.discardAria', { name: item.name })} onClick={() => run(() => api.post(`/stock/${item.id}/discard`, { reason: days !== null && days < 0 ? 'expired' : 'spoiled' }))}>
-          {t('stock.discard')}
-        </Button>
-        <Button variant="ghost" className="size-9 px-0 sm:size-8" aria-label={t('stock.remove', { name: item.name })} onClick={() => run(() => api.del(`/stock/${item.id}`))}>
-          ✕
-        </Button>
+        ))}
       </div>
+      <details className="relative sm:hidden">
+        <summary aria-label={t('common.more')} className="flex size-9 cursor-pointer list-none items-center justify-center rounded-lg text-xl leading-none text-muted active:bg-ink/10 [&::-webkit-details-marker]:hidden">
+          ⋯
+        </summary>
+        <div className="absolute right-0 z-20 mt-1 w-48 rounded-xl border border-line bg-surface p-1 shadow-lg">
+          {actions.map((a) => (
+            <button
+              key={a.key}
+              type="button"
+              aria-label={a.aria}
+              className={`flex h-11 w-full cursor-pointer items-center rounded-lg px-3 text-left text-sm active:bg-ink/10 ${a.key === 'remove' ? 'text-danger' : ''}`}
+              onClick={(e) => {
+                e.currentTarget.closest('details')?.removeAttribute('open');
+                a.run();
+              }}
+            >
+              {a.label}
+            </button>
+          ))}
+        </div>
+      </details>
     </li>
   );
 }

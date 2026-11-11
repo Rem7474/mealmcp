@@ -63,6 +63,17 @@ export function Fold({ title, children }: { title: ReactNode; children: ReactNod
   );
 }
 
+/** Folded on phones to keep a page short, always open (and without its summary) from 1024px up. */
+export function Disclose({ summary, children, className = '' }: { summary: ReactNode; children: ReactNode; className?: string }) {
+  const wide = typeof window !== 'undefined' && window.matchMedia('(min-width: 1024px)').matches;
+  return (
+    <details open={wide} className={`group rounded-xl border border-line px-3 py-2.5 lg:border-0 lg:p-0 ${className}`}>
+      <summary className="cursor-pointer text-sm font-medium lg:hidden">{summary}</summary>
+      <div className="mt-3 lg:mt-0">{children}</div>
+    </details>
+  );
+}
+
 export function Badge({ tone = 'muted', children }: { tone?: 'muted' | 'warn' | 'danger' | 'accent'; children: ReactNode }) {
   const tones = {
     muted: 'bg-ink/5 text-muted',
