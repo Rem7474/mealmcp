@@ -1,5 +1,8 @@
 services:
   mealmcp:
+    # Image publiée par le CI. Pour figer une version : MEALMCP_VERSION=0.1.0 dans .env.
+    image: ghcr.io/rem7474/mealmcp:${MEALMCP_VERSION:-latest}
+    # Pour construire localement plutôt que télécharger : docker compose up -d --build
     build: .
     restart: unless-stopped
     ports:

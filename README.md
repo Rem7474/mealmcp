@@ -53,12 +53,14 @@ Interface sur http://localhost:5173, backend sur http://localhost:3000.
 Copiez `.env.example` en `.env` et renseignez au moins `PUBLIC_URL` (l'adresse réelle de l'app, en HTTPS si des clients MCP distants doivent s'y connecter), puis :
 
 ```bash
-docker compose up -d --build
+docker compose up -d
 ```
+
+Cela télécharge l'image publiée (`ghcr.io/rem7474/mealmcp:latest`). Pour figer une version, ajoutez `MEALMCP_VERSION=0.1.0` dans `.env` ; pour construire depuis les sources, utilisez `docker compose up -d --build`.
 
 Ouvrez ensuite l'adresse de l'app : **le premier compte créé devient propriétaire du foyer**.
 
-Une image prête à l'emploi (amd64 et arm64) est publiée à chaque push sur `main` et à chaque tag `vX.Y.Z` : `ghcr.io/rem7474/mealmcp`. Pour l'utiliser sans compiler, remplacez `build: .` par `image: ghcr.io/rem7474/mealmcp:latest` dans `docker-compose.yml`.
+L'image (amd64 et arm64) est publiée à chaque push sur `main` (tag `main`) et à chaque tag `vX.Y.Z` (tags `X.Y.Z`, `X.Y` et `latest`).
 
 La base SQLite est dans le volume `mealmcp-data`. Si l'app est exposée hors du réseau local, placez-la derrière un reverse proxy HTTPS et réglez `PUBLIC_URL` et `TRUST_PROXY` (voir `.env.example`).
 
