@@ -2,26 +2,37 @@ import { useQuery } from '@tanstack/react-query';
 import { type FormEvent, useState } from 'react';
 import { api, useAction } from '../api';
 import { addDays, CURRENCIES, currencyLabel, currencySymbol, formatDate, formatMoney, formatMonth, formatQty, monthStart, today } from '../format';
-import { useT } from '../i18n';
+import { type MessageKey, useT } from '../i18n';
 import type { BudgetStatus, Expense, ExpenseSummary, Product, SpendingSummary, User } from '../types';
 import { Button, Card, Empty, Input, Select } from '../ui';
 import { parseQty, useProducts } from './shared';
 
+const AISLES = ['produce', 'dairy', 'meat_fish', 'bakery', 'pantry', 'frozen', 'drinks', 'household', 'other'];
+
 export function Budget({ user }: { user: User }) {
   return (
-    <>
-      <div className="grid items-start gap-4 lg:grid-cols-2">
-        <div className="space-y-4">
+    // Phones read it top to bottom (month, where it went, then the records); wide screens keep two columns.
+    <div className="flex flex-col gap-4 lg:grid lg:grid-cols-2 lg:items-start">
+      <div className="contents lg:block lg:space-y-4">
+        <div className="order-1">
           <MonthCard currency={user.currency} />
+        </div>
+        <div className="order-3">
           <AddExpense />
+        </div>
+        <div className="order-4">
           <ExpensesCard currency={user.currency} />
         </div>
-        <div className="space-y-4">
+      </div>
+      <div className="contents lg:block lg:space-y-4">
+        <div className="order-2">
           <SummaryCard currency={user.currency} />
+        </div>
+        <div className="order-5">
           <PricesCard currency={user.currency} />
         </div>
       </div>
-    </>
+    </div>
   );
 }
 
@@ -101,7 +112,9 @@ function MonthCard({ currency }: { currency: string }) {
       ) : (
         <p className="mt-3 text-sm text-muted">{t('budget.noBudget')}</p>
       )}
-      <form onSubmit={save} className="mt-4 flex flex-wrap items-center gap-2 border-t border-line pt-3">
+      <details className="mt-4 border-t border-line pt-3" open={status.budgetCents === null}>
+        <summary className="cursor-pointer text-sm text-muted">{t('budget.edit')}</summary>
+      <form onSubmit={save} className="mt-3 flex flex-wrap items-center gap-2">
         <Input
           key={`${status.budgetCents}-${currency}`}
           name="monthly"
@@ -127,6 +140,7 @@ function MonthCard({ currency }: { currency: string }) {
           </Button>
         )}
       </form>
+      </details>
     </Card>
   );
 }
@@ -165,7 +179,7 @@ function SummaryCard({ currency }: { currency: string }) {
             <section>
               <h3 className="mb-2 text-sm font-semibold text-muted">{t('budget.byCategory')}</h3>
               <Bars currency={currency} rows={[
-                  ...data.byCategory.map((c) => ({ label: c.category ?? t('budget.uncategorised'), cents: c.totalCents })),
+                  ...data.byCategory.map((c) => ({ label: c.category === null ? t('budget.uncategorised') : AISLES.includes(c.category) ? t(`aisle.${c.category}` as MessageKey) : c.category, cents: c.totalCents })),
                   ...(data.notItemisedCents > 0 ? [{ label: t('budget.notItemised'), cents: data.notItemisedCents }] : []),
                 ]}
               />
@@ -202,8 +216,9 @@ function AddExpense() {
   };
 
   return (
-    <Card title={t('budget.add.title')}>
-      <form onSubmit={submit} className="flex flex-wrap gap-2">
+    <details className="rounded-xl border border-line bg-surface p-4">
+      <summary className="cursor-pointer font-semibold">{t('budget.add.title')}</summary>
+      <form onSubmit={submit} className="mt-3 flex flex-wrap gap-2">
         <Input type="date" required aria-label={t('budget.add.date')} value={form.date} onChange={(e) => set({ date: e.target.value })} />
         <Input placeholder={t('budget.add.store')} aria-label={t('budget.add.store')} value={form.store} onChange={(e) => set({ store: e.target.value })} className="flex-1 basis-36" />
         <Input required inputMode="decimal" placeholder={t('budget.add.total')} aria-label={t('budget.add.total')} value={form.total} onChange={(e) => set({ total: e.target.value })} className="w-28" />
@@ -212,13 +227,15 @@ function AddExpense() {
           {t('budget.add.submit')}
         </Button>
       </form>
-    </Card>
+    </details>
   );
 }
 
 function ExpensesCard({ currency }: { currency: string }) {
   const t = useT();
   const { data = [] } = useQuery({ queryKey: ['budget', 'expenses'], queryFn: () => api.get<ExpenseSummary[]>('/expenses') });
+  const [all, setAll] = useState(false);
+  const shown = all ? data.slice(0, 50) : data.slice(0, 5);
 
   return (
     <Card title={t('budget.expenses.title')}>
@@ -226,10 +243,15 @@ function ExpensesCard({ currency }: { currency: string }) {
         <Empty>{t('budget.expenses.empty')}</Empty>
       ) : (
         <ul className="divide-y divide-line text-sm">
-          {data.slice(0, 50).map((expense) => (
+          {shown.map((expense) => (
             <ExpenseRow key={expense.id} expense={expense} currency={currency} />
           ))}
         </ul>
+      )}
+      {data.length > 5 && (
+        <Button variant="ghost" className="mt-2 w-full" onClick={() => setAll(!all)}>
+          {all ? t('budget.expenses.less') : t('budget.expenses.all', { n: Math.min(data.length, 50) })}
+        </Button>
       )}
     </Card>
   );

@@ -5,7 +5,7 @@ import { api, useAction } from '../api';
 import { formatDate, MEALS, weekdayName } from '../format';
 import { type MessageKey, useI18n, useT } from '../i18n';
 import { ALLERGENS, COUNTRIES, type Country, DIETS, type Equipment, type Household, type HouseholdSettings, type MealTypeKey, type Product, type TokenInfo, type User } from '../types';
-import { Badge, Button, Card, Empty, Input, Select } from '../ui';
+import { Badge, Button, Card, Empty, Fold, Input, Select } from '../ui';
 import { resetSession } from './AuthPage';
 import { useProducts } from './shared';
 
@@ -31,17 +31,27 @@ export function Account({ user }: { user: User }) {
       <div className="grid grid-cols-1 items-start gap-4 lg:grid-cols-2">
         <div className="min-w-0 space-y-4">
           <HouseholdCard user={user} />
-          <SettingsCard />
-          <EquipmentCard />
+          <Fold title={t('settings.title')}>
+            <SettingsCard />
+          </Fold>
+          <Fold title={t('equipment.title')}>
+            <EquipmentCard />
+          </Fold>
         </div>
         <div className="min-w-0 space-y-4">
-      <Card title={t('account.connect.title')}>
-        <p className="text-sm">{t('account.connect.address')}</p>
-        <code className="mt-1 block rounded-lg border border-line px-3 py-2 text-sm break-all">{mcpUrl}</code>
-        <p className="mt-2 text-sm text-muted">{rich('account.connect.help', { header: <code>Authorization: Bearer …</code> })}</p>
-      </Card>
-      <TokensCard />
-      <ProductsCard />
+          <Fold title={t('account.connect.title')}>
+            <Card>
+              <p className="text-sm">{t('account.connect.address')}</p>
+              <code className="mt-1 block rounded-lg border border-line px-3 py-2 text-sm break-all">{mcpUrl}</code>
+              <p className="mt-2 text-sm text-muted">{rich('account.connect.help', { header: <code>Authorization: Bearer …</code> })}</p>
+            </Card>
+          </Fold>
+          <Fold title={t('tokens.title')}>
+            <TokensCard />
+          </Fold>
+          <Fold title={t('products.title')}>
+            <ProductsCard />
+          </Fold>
         </div>
       </div>
     </>

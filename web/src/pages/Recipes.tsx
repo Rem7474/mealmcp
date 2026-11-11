@@ -45,25 +45,23 @@ export function Recipes() {
           {t('recipes.new')}
         </Button>
       </div>
-      <div className="flex flex-wrap items-center gap-1.5">
-        <Button variant={favoritesOnly ? 'primary' : 'secondary'} className="h-8 px-3" aria-pressed={favoritesOnly} onClick={() => setFavoritesOnly(!favoritesOnly)}>
-          <Heart size={14} weight={favoritesOnly ? 'fill' : 'regular'} />
-          {t('recipes.filter.favorites')}
-        </Button>
+      {/* One swipeable row of filters on phones (it used to take three lines before the first recipe). */}
+      <div className="-mx-4 flex items-center gap-1.5 overflow-x-auto px-4 pb-1 [&>*]:shrink-0 lg:mx-0 lg:flex-wrap lg:overflow-visible lg:px-0">
         <Select aria-label={t('recipes.sort.name')} value={sort} onChange={(e) => setSort(e.target.value as 'name' | 'rating')} className="h-8 text-xs">
           <option value="name">{t('recipes.sort.name')}</option>
           <option value="rating">{t('recipes.sort.rating')}</option>
         </Select>
-      </div>
-      {tags.length > 0 && (
-        <div className="flex flex-wrap gap-1.5">
-          {['', ...tags].map((value) => (
+        <Button variant={favoritesOnly ? 'primary' : 'secondary'} className="h-8 px-3" aria-pressed={favoritesOnly} onClick={() => setFavoritesOnly(!favoritesOnly)}>
+          <Heart size={14} weight={favoritesOnly ? 'fill' : 'regular'} />
+          {t('recipes.filter.favorites')}
+        </Button>
+        {tags.length > 0 &&
+          ['', ...tags].map((value) => (
             <Button key={value} variant={tag === value ? 'primary' : 'secondary'} className="h-8 px-3" aria-pressed={tag === value} onClick={() => setTag(value)}>
               {value || t('recipes.filter.all')}
             </Button>
           ))}
-        </div>
-      )}
+      </div>
       {recipes.length === 0 ? (
         <Empty>{search || tag ? t('recipes.noMatch') : t('recipes.none')}</Empty>
       ) : (
@@ -81,8 +79,7 @@ export function Recipes() {
                 {r.rating ? <Stars value={r.rating} size={13} /> : null}
                 <div className="mt-1 text-sm text-muted">
                   {t('common.servings', { n: r.servings })} · {t('recipes.ingredientCount', { n: r.ingredientCount })}
-                  {r.prepMinutes ? ` · ${t('recipes.prep', { time: t('common.minutes', { n: r.prepMinutes }) })}` : ''}
-                  {r.cookMinutes ? ` · ${t('recipes.cooking', { time: t('common.minutes', { n: r.cookMinutes }) })}` : ''}
+                  {r.prepMinutes || r.cookMinutes ? ` · ${t('common.minutes', { n: (r.prepMinutes ?? 0) + (r.cookMinutes ?? 0) })}` : ''}
                 </div>
                 {r.description && <p className="mt-2 line-clamp-2 text-sm">{r.description}</p>}
                 <div className="mt-2 flex flex-wrap gap-1">
@@ -102,7 +99,7 @@ export function Recipes() {
 
   // Wide screens keep the list next to the open recipe; narrow ones show one at a time.
   return (
-    <div className="grid gap-5 lg:grid-cols-[22rem_minmax(0,1fr)]">
+    <div className="grid grid-cols-[minmax(0,1fr)] gap-5 lg:grid-cols-[22rem_minmax(0,1fr)]">
       <div className={selected === null ? '' : 'hidden lg:block'}>{list}</div>
       <div className={selected === null ? 'hidden lg:block' : ''}>
         {selected === null ? (

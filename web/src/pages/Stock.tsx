@@ -104,8 +104,9 @@ function AddForm() {
   };
 
   return (
-    <Card title={t('stock.add.title')}>
-      <form onSubmit={submit} className="flex flex-wrap gap-2">
+    <details className="rounded-xl border border-line bg-surface p-4">
+      <summary className="cursor-pointer font-semibold">{t('stock.add.title')}</summary>
+      <form onSubmit={submit} className="mt-3 flex flex-wrap gap-2">
         <Input required list="product-names" placeholder={t('common.product')} aria-label={t('common.product')} value={form.name} onChange={(e) => set({ name: e.target.value })} className="flex-1 basis-40" />
         <Input required={!form.approximate} disabled={form.approximate} inputMode="decimal" placeholder={t('common.qty')} aria-label={t('common.quantity')} value={form.approximate ? '' : form.quantity} onChange={(e) => set({ quantity: e.target.value })} className="w-20" />
         <Input inputMode="decimal" placeholder={t('stock.packSize')} aria-label={t('stock.packSize')} value={form.packSize} onChange={(e) => set({ packSize: e.target.value })} className="w-40" />
@@ -124,7 +125,7 @@ function AddForm() {
           {t('common.add')}
         </Button>
       </form>
-    </Card>
+    </details>
   );
 }
 
@@ -176,17 +177,20 @@ function StockRow({ item }: { item: StockItem }) {
           {t('stock.unopen')}
         </Button>
       )}
-      {!item.approximate && !item.opened && (
-        <Button variant="ghost" className="h-8 px-2 text-xs" aria-label={t('stock.openAria', { name: item.name })} onClick={() => run(() => api.post(`/stock/${item.id}/open`, {}))}>
-          {t('stock.open')}
+      {/* On phones the secondary actions sit on their own line, right-aligned under the quantity. */}
+      <div className="flex w-full items-center justify-end gap-1 sm:ml-auto sm:w-auto">
+        {!item.approximate && !item.opened && (
+          <Button variant="ghost" className="h-8 px-2 text-xs" aria-label={t('stock.openAria', { name: item.name })} onClick={() => run(() => api.post(`/stock/${item.id}/open`, {}))}>
+            {t('stock.open')}
+          </Button>
+        )}
+        <Button variant="ghost" className="h-8 px-2 text-xs" aria-label={t('stock.discardAria', { name: item.name })} onClick={() => run(() => api.post(`/stock/${item.id}/discard`, { reason: days !== null && days < 0 ? 'expired' : 'spoiled' }))}>
+          {t('stock.discard')}
         </Button>
-      )}
-      <Button variant="ghost" className="h-8 px-2 text-xs" aria-label={t('stock.discardAria', { name: item.name })} onClick={() => run(() => api.post(`/stock/${item.id}/discard`, { reason: days !== null && days < 0 ? 'expired' : 'spoiled' }))}>
-        {t('stock.discard')}
-      </Button>
-      <Button variant="ghost" className="h-8 px-2" aria-label={t('stock.remove', { name: item.name })} onClick={() => run(() => api.del(`/stock/${item.id}`))}>
-        ✕
-      </Button>
+        <Button variant="ghost" className="h-8 px-2" aria-label={t('stock.remove', { name: item.name })} onClick={() => run(() => api.del(`/stock/${item.id}`))}>
+          ✕
+        </Button>
+      </div>
     </li>
   );
 }
