@@ -65,15 +65,15 @@ export function Recipes() {
       {recipes.length === 0 ? (
         <Empty>{search || tag ? t('recipes.noMatch') : t('recipes.none')}</Empty>
       ) : (
-        <ul className="grid gap-3 sm:grid-cols-2 lg:grid-cols-1">
+        <ul className="grid grid-cols-[minmax(0,1fr)] gap-3 sm:grid-cols-[repeat(2,minmax(0,1fr))] lg:grid-cols-[minmax(0,1fr)]">
           {recipes.map((r) => (
-            <li key={r.id}>
+            <li key={r.id} className="min-w-0">
               <button
                 onClick={() => setView({ mode: 'detail', id: r.id })}
                 className={`h-full w-full cursor-pointer rounded-xl bg-surface p-3.5 text-left hover:shadow-[0_0_0_1px_var(--muted)] ${selected === r.id ? 'shadow-[0_0_0_1px_var(--accent)]' : 'shadow-[0_0_0_1px_var(--line)]'}`}
               >
                 <div className="flex items-center gap-2">
-                  <span className="min-w-0 flex-1 truncate font-medium">{r.name}</span>
+                  <span className="line-clamp-2 min-w-0 flex-1 font-medium">{r.name}</span>
                   {r.favorite && <Heart size={14} weight="fill" className="shrink-0 text-accent" aria-label={t('recipes.favorite')} />}
                 </div>
                 <div className="mt-1 flex flex-wrap items-center gap-x-2 text-sm text-muted">
