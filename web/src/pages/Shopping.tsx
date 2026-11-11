@@ -181,12 +181,12 @@ export function Shopping() {
                 <Input
                   key={`${item.priceCents}-${item.estimatedCents}`}
                   defaultValue={item.priceCents !== null ? item.priceCents / 100 : ''}
-                  placeholder={item.estimatedCents !== null ? `≈ ${(item.estimatedCents / 100).toFixed(2)}` : currencySymbol(currency)}
+                  placeholder={item.estimatedCents !== null ? `≈ ${formatMoney(item.estimatedCents, currency)}` : currencySymbol(currency)}
                   inputMode="decimal"
                   aria-label={t('shopping.price', { name: item.name })}
                   onBlur={(e) => savePrice(item, e.target.value)}
                   onKeyDown={(e) => e.key === 'Enter' && e.currentTarget.blur()}
-                  className="h-8 w-[4.5rem] shrink-0 border-transparent bg-transparent px-1 text-right text-sm text-muted tabular-nums placeholder:text-muted/60 focus:w-20 focus:border-line focus:bg-surface focus:text-ink sm:w-24 sm:border-line sm:bg-surface sm:px-2 sm:text-base sm:text-ink sm:focus:w-24"
+                  className="h-8 w-[5.75rem] shrink-0 border-transparent bg-transparent px-1 text-right text-sm text-muted tabular-nums placeholder:text-muted/60 focus:w-20 focus:border-line focus:bg-surface focus:text-ink sm:w-24 sm:border-line sm:bg-surface sm:px-2 sm:text-base sm:text-ink sm:focus:w-24"
                 />
                 <Button variant="ghost" className="size-8 shrink-0 px-0" aria-label={t('stock.remove', { name: item.name })} onClick={() => run(() => api.del(`/shopping/${item.id}`))}>
                   <X size={14} />
