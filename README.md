@@ -13,6 +13,7 @@ Meal planning, shopping and pantry stock for a household, with a built-in MCP se
 - **Stock**: by location (fridge, freezer, pantry), expiry dates, low-stock alerts, "plenty of it" quantities, per-product conversions (1 sweet potato = 300 g, 1 tbsp = 15 ml) and aliases (receipt wording). Recipes can be suggested to use up what expires soon.
 - **Budget**: record purchases (by hand, from a receipt via an AI, or when you finish shopping), a monthly budget with a projection, spending by category / shop / month, and cost estimates for recipes, the week's meals and the shopping list, from the prices of what you bought.
 - **Live dashboard**: the web UI refreshes by itself when something changes elsewhere, for example when an AI edits your stock through MCP.
+- **Installable (PWA)**: add it to your phone's home screen for a full-screen app (needs HTTPS, see below).
 - **Bilingual**: English and French UI (language switcher at the top right, browser language by default). MCP tool descriptions are in English.
 
 ## Architecture

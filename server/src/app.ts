@@ -72,6 +72,11 @@ export function createApp(db: Db, config: Config) {
 
   // Built web UI, with fallback to index.html for client-side pages such as /consent.
   if (existsSync(webDist)) {
+    // The service worker must always be revalidated so updates reach installed copies.
+    app.get('/sw.js', (_req, res) => {
+      res.setHeader('Cache-Control', 'no-cache');
+      res.sendFile(join(webDist, 'sw.js'));
+    });
     app.use(express.static(webDist));
     app.use((req, res, next) => (req.method === 'GET' ? res.sendFile(join(webDist, 'index.html')) : next()));
   }

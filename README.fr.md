@@ -13,6 +13,7 @@ Gestion des repas, des courses et du stock d'un foyer, avec un serveur MCP inté
 - **Stock** : par emplacement (frigo, congélateur, placard), dates de péremption, seuils d'alerte, quantités « beaucoup », conversions par produit (1 patate douce = 300 g, 1 c. à soupe = 15 ml) et alias (libellés de tickets). Des recettes peuvent être suggérées pour utiliser ce qui expire bientôt.
 - **Budget** : enregistrement des achats (à la main, depuis un ticket via une IA, ou en terminant les courses), budget mensuel avec projection, dépenses par catégorie / magasin / mois, et estimation du coût des recettes, des repas de la semaine et de la liste de courses à partir des prix de ce que vous avez acheté.
 - **Tableau de bord en direct** : l'interface web se met à jour toute seule quand quelque chose change ailleurs, par exemple quand une IA modifie votre stock via MCP.
+- **Installable (PWA)** : ajoutez-la à l'écran d'accueil de votre téléphone pour l'utiliser en plein écran (nécessite HTTPS, voir plus bas).
 - **Bilingue** : interface en anglais et en français (sélecteur de langue en haut à droite, langue du navigateur par défaut). Les descriptions des outils MCP sont en anglais.
 
 ## Architecture
