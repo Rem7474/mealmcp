@@ -125,12 +125,12 @@ function SettingsCard() {
       <h3 className="mt-4 text-sm font-semibold">{t('settings.meals')}</h3>
       <p className="text-sm text-muted">{t('settings.mealsHelp')}</p>
       <div className="mt-2 overflow-x-auto">
-        <table className="text-sm">
+        <table className="w-full text-xs sm:w-auto sm:text-sm">
           <thead>
             <tr>
               <th />
               {WEEK.map((d) => (
-                <th key={d} className="px-2 font-normal text-muted">
+                <th key={d} className="px-0.5 font-normal text-muted sm:px-2">
                   {weekdayName(d)}
                 </th>
               ))}
@@ -139,7 +139,7 @@ function SettingsCard() {
           <tbody>
             {MEALS.map((meal) => (
               <tr key={meal}>
-                <th className="pr-3 text-left font-normal">{t(`meal.${meal}`)}</th>
+                <th className="pr-2 text-left font-normal sm:pr-3">{t(`meal.${meal}`)}</th>
                 {WEEK.map((d) => (
                   <td key={d} className="text-center">
                     <input

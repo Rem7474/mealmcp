@@ -45,6 +45,15 @@
   --radius-xl: 14px;
 }
 
+/* The page scrollbar belongs to <html>: without this it stays a bright native bar on the dark theme. */
+html {
+  color-scheme: dark;
+}
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--line) transparent;
+}
+
 body {
   background: var(--bg);
   color: var(--ink);

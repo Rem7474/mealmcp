@@ -46,7 +46,7 @@ export function Recipes() {
         </Button>
       </div>
       {/* One swipeable row of filters on phones (it used to take three lines before the first recipe). */}
-      <div className="-mx-4 flex items-center gap-1.5 overflow-x-auto px-4 pb-1 [&>*]:shrink-0 lg:mx-0 lg:flex-wrap lg:overflow-visible lg:px-0">
+      <div className="-mx-4 flex items-center gap-1.5 overflow-x-auto px-4 pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden [&>*]:shrink-0 lg:mx-0 lg:flex-wrap lg:overflow-visible lg:px-0">
         <Select aria-label={t('recipes.sort.name')} value={sort} onChange={(e) => setSort(e.target.value as 'name' | 'rating')} className="h-8 text-xs">
           <option value="name">{t('recipes.sort.name')}</option>
           <option value="rating">{t('recipes.sort.rating')}</option>
@@ -76,10 +76,12 @@ export function Recipes() {
                   <span className="min-w-0 flex-1 truncate font-medium">{r.name}</span>
                   {r.favorite && <Heart size={14} weight="fill" className="shrink-0 text-accent" aria-label={t('recipes.favorite')} />}
                 </div>
-                {r.rating ? <Stars value={r.rating} size={13} /> : null}
-                <div className="mt-1 text-sm text-muted">
-                  {t('common.servings', { n: r.servings })} · {t('recipes.ingredientCount', { n: r.ingredientCount })}
-                  {r.prepMinutes || r.cookMinutes ? ` · ${t('common.minutes', { n: (r.prepMinutes ?? 0) + (r.cookMinutes ?? 0) })}` : ''}
+                <div className="mt-1 flex flex-wrap items-center gap-x-2 text-sm text-muted">
+                  {r.rating ? <Stars value={r.rating} size={13} /> : null}
+                  <span>
+                    {t('common.servings', { n: r.servings })} · {t('recipes.ingredientCount', { n: r.ingredientCount })}
+                    {r.prepMinutes || r.cookMinutes ? ` · ${t('common.minutes', { n: (r.prepMinutes ?? 0) + (r.cookMinutes ?? 0) })}` : ''}
+                  </span>
                 </div>
                 {r.description && <p className="mt-2 line-clamp-2 text-sm">{r.description}</p>}
                 <div className="mt-2 flex flex-wrap gap-1">

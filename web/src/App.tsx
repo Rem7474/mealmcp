@@ -97,7 +97,7 @@ function Shell({ user }: { user: User }) {
             <CookingPot size={20} className="text-accent" />
             MealMCP
           </h1>
-          <nav className="hidden flex-1 gap-0.5 self-stretch overflow-x-auto sm:flex">
+          <nav className="hidden flex-1 gap-0.5 self-stretch overflow-x-auto [scrollbar-width:none] sm:flex [&::-webkit-scrollbar]:hidden">
             {NAV.map(({ id, Icon }) => (
               <button
                 key={id}
