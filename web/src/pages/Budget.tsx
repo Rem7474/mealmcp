@@ -146,7 +146,7 @@ function SummaryCard({ currency }: { currency: string }) {
     <Card
       title={t('budget.summary.title')}
       actions={
-        <div className="flex gap-1">
+        <div className="flex flex-wrap gap-1">
           {(Object.keys(presets) as (keyof typeof presets)[]).map((key) => (
             <Button key={key} variant={key === preset ? 'primary' : 'secondary'} className="h-8 px-2" onClick={() => setPreset(key)}>
               {t(`budget.range.${key}`)}

@@ -28,13 +28,13 @@ export function Account({ user }: { user: User }) {
           {t('account.roleLine', { email: user.email, role: t(`role.${user.role}`), household: user.householdName })}
         </p>
       </Card>
-      <div className="grid items-start gap-4 lg:grid-cols-2">
-        <div className="space-y-4">
+      <div className="grid grid-cols-1 items-start gap-4 lg:grid-cols-2">
+        <div className="min-w-0 space-y-4">
           <HouseholdCard user={user} />
           <SettingsCard />
           <EquipmentCard />
         </div>
-        <div className="space-y-4">
+        <div className="min-w-0 space-y-4">
       <Card title={t('account.connect.title')}>
         <p className="text-sm">{t('account.connect.address')}</p>
         <code className="mt-1 block rounded-lg border border-line px-3 py-2 text-sm break-all">{mcpUrl}</code>
