@@ -129,16 +129,18 @@ export function Shopping() {
                 )}
                 <ul>
                   {g.items.map((item) => (
-                    <li key={item.id} className="relative flex items-center gap-3 px-2 py-1 hover:bg-ink/5">
+                    <li key={item.id} className="relative flex items-center gap-x-2 px-2 py-1 hover:bg-ink/5 sm:gap-x-3">
                 <label className="flex min-h-11 min-w-0 flex-1 cursor-pointer items-center gap-3">
                   <input
                     type="checkbox"
-                    className="size-[18px] accent-(--accent)"
+                    className="size-[18px] shrink-0 accent-(--accent)"
                     checked={item.checked}
                     onChange={() => run(() => api.patch(`/shopping/${item.id}`, { checked: !item.checked }))}
                   />
-                  <span className={`truncate ${item.checked ? 'text-muted line-through' : ''}`}>{item.name}</span>
-                  <span className="text-sm whitespace-nowrap text-muted tabular-nums">{formatQty(item.quantity, item.unit)}</span>
+                  <span className="flex min-w-0 flex-1 flex-col sm:flex-row sm:items-baseline sm:gap-3">
+                    <span className={`wrap-break-word ${item.checked ? 'text-muted line-through' : ''}`}>{item.name}</span>
+                    <span className="text-sm whitespace-nowrap text-muted tabular-nums">{formatQty(item.quantity, item.unit)}</span>
+                  </span>
                 </label>
                 {groupBy === 'meal' && item.meals.length > 1 && (
                   <span className="hidden text-xs text-muted sm:inline">{t('shopping.alsoFor', { meals: item.meals.slice(1).map((m) => m.title).join(', ') })}</span>
@@ -148,7 +150,7 @@ export function Shopping() {
                     aria-label={t('products.aisle')}
                     value={item.category ?? ''}
                     onChange={(e) => run(() => api.patch(`/products/${item.productId}`, { category: e.target.value || null }))}
-                    className="h-8 w-36 px-2 text-xs"
+                    className="hidden h-8 w-36 px-2 text-xs sm:block"
                   >
                     <option value="">{t('aisle.none')}</option>
                     {AISLES.map((c) => (
@@ -159,7 +161,11 @@ export function Shopping() {
                     {item.category && !AISLES.includes(item.category) && <option value={item.category}>{item.category}</option>}
                   </Select>
                 )}
-                {item.source === 'plan' && groupBy !== 'meal' && <Badge tone="accent">{t('shopping.list.fromPlan')}</Badge>}
+                {item.source === 'plan' && groupBy !== 'meal' && (
+                  <span className="hidden sm:inline">
+                    <Badge tone="accent">{t('shopping.list.fromPlan')}</Badge>
+                  </span>
+                )}
                 {item.season === 'out' && !item.checked && (
                   <span title={item.seasonAlternatives.length ? t('season.instead', { list: item.seasonAlternatives.map((p) => p[lang]).join(', ') }) : undefined}>
                     <Badge tone="warn">{t('season.out')}</Badge>
@@ -173,9 +179,9 @@ export function Shopping() {
                   aria-label={t('shopping.price', { name: item.name })}
                   onBlur={(e) => savePrice(item, e.target.value)}
                   onKeyDown={(e) => e.key === 'Enter' && e.currentTarget.blur()}
-                  className="h-8 w-24 px-2 text-right tabular-nums"
+                  className="h-8 w-14 shrink-0 border-transparent bg-transparent px-1 text-right text-sm text-muted tabular-nums placeholder:text-muted/60 focus:w-20 focus:border-line focus:bg-surface focus:text-ink sm:w-24 sm:border-line sm:bg-surface sm:px-2 sm:text-base sm:text-ink sm:focus:w-24"
                 />
-                <Button variant="ghost" className="size-8 px-0" aria-label={t('stock.remove', { name: item.name })} onClick={() => run(() => api.del(`/shopping/${item.id}`))}>
+                <Button variant="ghost" className="size-8 shrink-0 px-0" aria-label={t('stock.remove', { name: item.name })} onClick={() => run(() => api.del(`/shopping/${item.id}`))}>
                   <X size={14} />
                 </Button>
                 <span className="fade-rule absolute inset-x-0 bottom-0 opacity-50" />
