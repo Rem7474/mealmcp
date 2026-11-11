@@ -93,7 +93,7 @@ function SettingsCard() {
     setSaved(false);
   };
   const toggle = (meal: MealTypeKey, weekday: number) => {
-    const next = days(meal).includes(weekday) ? days(meal).filter((d) => d !== weekday) : [...days(meal), weekday].sort();
+    const next = days(meal).includes(weekday) ? days(meal).filter((d) => d !== weekday) : [...days(meal), weekday].sort((a, b) => a - b);
     change({ ...current, plannedMeals: { ...current.plannedMeals, [meal]: next } });
   };
   const save = async () => {

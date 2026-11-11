@@ -24,7 +24,7 @@ export function Recipes() {
   });
   // Unfiltered list, only to know which tags exist.
   const { data: all = [] } = useQuery({ queryKey: ['recipes', '', ''], queryFn: () => api.get<RecipeSummary[]>('/recipes?search=&tag=') });
-  const tags = [...new Set(all.flatMap((r) => r.tags))].sort();
+  const tags = [...new Set(all.flatMap((r) => r.tags))].sort((a, b) => a.localeCompare(b));
 
   if (view.mode === 'edit')
     return <RecipeForm recipe={view.recipe} onDone={(id) => setView(id ? { mode: 'detail', id } : { mode: 'list' })} />;

@@ -36,6 +36,13 @@ export const clearSessionCookie = (res: Response) => void res.clearCookie(SESSIO
 
 export const sessionTokenOf = (req: Request) => parseCookies(req.headers.cookie)[SESSION_COOKIE];
 
+/** The token of an `Authorization: Bearer <token>` header (plain string handling, no backtracking regex). */
+const bearerOf = (header: string | undefined) => {
+  const space = header?.indexOf(' ') ?? -1;
+  if (!header || space < 0 || header.slice(0, space).toLowerCase() !== 'bearer') return undefined;
+  return header.slice(space + 1).trim() || undefined;
+};
+
 /** Reads who is calling: a personal/OAuth bearer token, or the browser session cookie. */
 export function attachUser(accounts: AccountService): RequestHandler {
   return (req, _res, next) => {

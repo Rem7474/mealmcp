@@ -5,7 +5,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends python3 make g+
 COPY package.json package-lock.json ./
 COPY server/package.json server/
 COPY web/package.json web/
-RUN npm ci
+# Lifecycle scripts stay off; only the native SQLite binding is built.
+RUN npm ci --ignore-scripts && npm rebuild better-sqlite3
 COPY . .
 RUN npm run build && npm prune --omit=dev
 
