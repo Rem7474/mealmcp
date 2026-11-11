@@ -6,6 +6,7 @@ import { attachUser, clearSessionCookie, requireUser, sameOriginOnly, sessionTok
 import type { OAuthProvider } from '../auth/oauth.js';
 import type { Config } from '../config.js';
 import type { Db } from '../db/index.js';
+import type { Hub } from '../realtime.js';
 import {
   ForbiddenError,
   NotFoundError,
@@ -21,13 +22,14 @@ interface Deps {
   config: Config;
   accounts: AccountService;
   oauth: OAuthProvider;
+  hub: Hub;
 }
 
 const tokenName = z.object({ name: z.string().trim().min(1).max(80) });
 const decision = z.object({ approve: z.boolean() });
 
 /** REST adapter used by the web UI: accounts first, then the kitchen routes. */
-export function createApiRouter({ db, config, accounts, oauth }: Deps) {
+export function createApiRouter({ db, config, accounts, oauth, hub }: Deps) {
   const r = Router();
   const id = (params: unknown) => s.idParam.parse(params).id;
   /** Kitchen services bound to the caller's household. */
@@ -74,6 +76,28 @@ export function createApiRouter({ db, config, accounts, oauth }: Deps) {
   // --- Everything below needs a logged-in user ---------------------------------
 
   r.use(requireUser);
+
+  // Any successful write wakes the open dashboards of the household (see realtime.ts).
+  r.use((req, res, next) => {
+    if (req.method !== 'GET' && req.method !== 'HEAD')
+      res.on('finish', () => {
+        if (res.statusCode < 400) hub.publish(req.user!.householdId);
+      });
+    next();
+  });
+
+  r.get('/events', (req, res) => {
+    res.set({ 'Content-Type': 'text/event-stream', 'Cache-Control': 'no-cache, no-transform', Connection: 'keep-alive', 'X-Accel-Buffering': 'no' });
+    res.flushHeaders();
+    res.write(': connected\n\n');
+    const unsubscribe = hub.subscribe(req.user!.householdId, res);
+    // Comment lines keep the connection alive through proxies that close idle streams.
+    const heartbeat = setInterval(() => res.write(': ping\n\n'), 25_000);
+    req.on('close', () => {
+      clearInterval(heartbeat);
+      unsubscribe();
+    });
+  });
 
   r.get('/household', (req, res) => {
     const { householdId, householdName } = req.user!;
@@ -144,15 +168,38 @@ export function createApiRouter({ db, config, accounts, oauth }: Deps) {
   r.post('/shopping/generate', (req, res) =>
     void res.json(kitchen(req).shopping.generateFromPlan(s.shoppingGenerate.parse(req.body))),
   );
-  r.post('/shopping/complete', (req, res) =>
-    void res.json(kitchen(req).shopping.completePurchase(s.shoppingComplete.parse(req.body ?? {}).location)),
-  );
+  r.post('/shopping/complete', (req, res) => {
+    const { location, ...opts } = s.shoppingComplete.parse(req.body ?? {});
+    res.json(kitchen(req).shopping.completePurchase(location, opts));
+  });
+  r.get('/shopping/estimate', (req, res) => void res.json(kitchen(req).shopping.estimate()));
   r.patch('/shopping/:id', (req, res) => {
-    const { checked } = s.shoppingCheck.parse({ ...req.body, id: id(req.params) });
-    res.json(kitchen(req).shopping.setChecked(id(req.params), checked));
+    const shopping = kitchen(req).shopping;
+    // A price edit alone must not change whether the item is checked.
+    const current = shopping.get(id(req.params));
+    const { checked, price } = s.shoppingCheck.parse({ checked: current.checked, ...req.body, id: id(req.params) });
+    res.json(shopping.setChecked(id(req.params), checked, price));
   });
   r.delete('/shopping/:id', (req, res) => {
     kitchen(req).shopping.remove(id(req.params));
+    res.status(204).end();
+  });
+
+  // --- Budget -----------------------------------------------------------------
+
+  r.get('/budget/status', (req, res) => void res.json(kitchen(req).budget.budgetStatus()));
+  r.put('/budget', (req, res) => void res.json(kitchen(req).budget.setBudget(s.budgetSet.parse(req.body))));
+  r.get('/budget/summary', (req, res) => void res.json(kitchen(req).budget.summary(s.spendingSummary.parse(req.query))));
+  r.get('/budget/plan-cost', (req, res) => void res.json(kitchen(req).budget.planCost(s.planList.parse(req.query))));
+  r.get('/recipes/:id/cost', (req, res) =>
+    void res.json(kitchen(req).budget.recipeCost(s.recipeAvailability.parse({ ...req.query, id: id(req.params) }))),
+  );
+  r.post('/products/price', (req, res) => void res.json(kitchen(req).budget.setProductPrice(s.productPrice.parse(req.body))));
+  r.get('/expenses', (req, res) => void res.json(kitchen(req).budget.listExpenses(s.expenseList.parse(req.query))));
+  r.get('/expenses/:id', (req, res) => void res.json(kitchen(req).budget.getExpense(id(req.params))));
+  r.post('/expenses', (req, res) => void res.status(201).json(kitchen(req).budget.recordExpense(s.expenseRecord.parse(req.body))));
+  r.delete('/expenses/:id', (req, res) => {
+    kitchen(req).budget.deleteExpense(id(req.params));
     res.status(204).end();
   });
 

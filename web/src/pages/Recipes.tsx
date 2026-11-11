@@ -1,11 +1,11 @@
 import { useQuery } from '@tanstack/react-query';
 import { type FormEvent, useState } from 'react';
 import { api, useAction } from '../api';
-import { formatQty } from '../format';
+import { formatMoney, formatQty } from '../format';
 import { useT } from '../i18n';
-import type { Availability, Recipe, RecipeSummary } from '../types';
+import type { Availability, Recipe, RecipeCost, RecipeSummary } from '../types';
 import { Badge, Button, Card, Empty, Input } from '../ui';
-import { parseQty, ProductDatalist } from './shared';
+import { parseQty, ProductDatalist, useCurrency } from './shared';
 
 type View = { mode: 'list' } | { mode: 'detail'; id: number } | { mode: 'edit'; recipe?: Recipe };
 
@@ -63,6 +63,8 @@ function RecipeDetail({ id, onBack, onEdit }: { id: number; onBack: () => void; 
     queryKey: ['recipe', id, 'availability'],
     queryFn: () => api.get<Availability>(`/recipes/${id}/availability`),
   });
+  const currency = useCurrency();
+  const { data: cost } = useQuery({ queryKey: ['recipe', id, 'cost'], queryFn: () => api.get<RecipeCost>(`/recipes/${id}/cost`) });
   const { run, pending } = useAction();
   if (!recipe) return null;
 
@@ -93,6 +95,16 @@ function RecipeDetail({ id, onBack, onEdit }: { id: number; onBack: () => void; 
           {recipe.prepMinutes ? ` · ${t('common.minutes', { n: recipe.prepMinutes })}` : ''}
         </p>
         {recipe.description && <p className="mt-2">{recipe.description}</p>}
+        {cost && (
+          <p className="mt-2 text-sm">
+            {cost.totalCents > 0
+              ? t('recipes.cost', { perServing: formatMoney(cost.perServingCents, currency), total: formatMoney(cost.totalCents, currency) })
+              : t('recipes.cost.none')}
+            {cost.totalCents > 0 && cost.unpricedIngredients.length > 0 && (
+              <span className="text-muted"> {t('recipes.cost.unpriced', { names: cost.unpricedIngredients.join(', ') })}</span>
+            )}
+          </p>
+        )}
 
         <h3 className="mt-4 mb-2 flex items-center gap-2 font-semibold">
           {t('recipes.ingredients')}

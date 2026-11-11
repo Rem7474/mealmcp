@@ -1,10 +1,11 @@
 import { useQuery } from '@tanstack/react-query';
 import { type FormEvent, useState } from 'react';
 import { api, useAction } from '../api';
-import { addDays, formatDate, formatDay, MEALS, today, weekStart } from '../format';
+import { addDays, formatDate, formatDay, formatMoney, MEALS, today, weekStart } from '../format';
 import { useT } from '../i18n';
-import type { MealType, PlannedMeal, RecipeSummary } from '../types';
+import type { MealType, PlanCost, PlannedMeal, RecipeSummary } from '../types';
 import { Badge, Button, Card, Input, Select } from '../ui';
+import { useCurrency } from './shared';
 
 export function Planning() {
   const t = useT();
@@ -15,6 +16,8 @@ export function Planning() {
     queryKey: ['plan', start],
     queryFn: () => api.get<PlannedMeal[]>(`/plan?from=${start}&to=${end}`),
   });
+  const currency = useCurrency();
+  const { data: cost } = useQuery({ queryKey: ['plan', start, 'cost'], queryFn: () => api.get<PlanCost>(`/budget/plan-cost?from=${start}&to=${end}`) });
   const { run, pending } = useAction();
   const [generated, setGenerated] = useState(false);
 
@@ -44,6 +47,13 @@ export function Planning() {
           {t('plan.generate')}
         </Button>
       </div>
+
+      {cost && cost.totalCents > 0 && (
+        <p className="text-sm text-muted">
+          {t('plan.cost', { total: formatMoney(cost.totalCents, currency) })}
+          {cost.incompleteMeals > 0 && ` ${t('plan.cost.incomplete', { n: cost.incompleteMeals })}`}
+        </p>
+      )}
 
       <AddMeal defaultDate={days.includes(today()) ? today() : start} />
 

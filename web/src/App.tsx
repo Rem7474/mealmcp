@@ -2,7 +2,9 @@ import { useQuery } from '@tanstack/react-query';
 import { useCallback, useState } from 'react';
 import { ErrorContext } from './api';
 import { LanguageSwitch, localizeError, useT } from './i18n';
+import { useLiveUpdates } from './live';
 import { Account } from './pages/Account';
+import { Budget } from './pages/Budget';
 import { AuthPage, fetchMe, meKey } from './pages/AuthPage';
 import { Consent } from './pages/Consent';
 import { Planning } from './pages/Planning';
@@ -11,7 +13,7 @@ import { Shopping } from './pages/Shopping';
 import { Stock } from './pages/Stock';
 import type { User } from './types';
 
-const TABS = ['planning', 'recipes', 'shopping', 'stock', 'account'] as const;
+const TABS = ['planning', 'recipes', 'shopping', 'stock', 'budget', 'account'] as const;
 type TabId = (typeof TABS)[number];
 
 const initialTab = (): TabId => TABS.find((id) => id === location.hash.slice(1)) ?? 'planning';
@@ -26,6 +28,8 @@ function Page({ tab, user }: { tab: TabId; user: User }) {
       return <Shopping />;
     case 'stock':
       return <Stock />;
+    case 'budget':
+      return <Budget user={user} />;
     case 'account':
       return <Account user={user} />;
   }
@@ -52,6 +56,7 @@ export function App() {
 
 function Shell({ user }: { user: User }) {
   const t = useT();
+  const live = useLiveUpdates();
   const [tab, setTab] = useState<TabId>(initialTab);
   const [error, setError] = useState<string | null>(null);
   const report = useCallback((e: unknown) => setError(e instanceof Error ? e.message : String(e)), []);
@@ -80,6 +85,12 @@ function Shell({ user }: { user: User }) {
               </button>
             ))}
           </nav>
+          <span
+            role="status"
+            title={live ? t('app.live') : t('app.liveOff')}
+            aria-label={live ? t('app.live') : t('app.liveOff')}
+            className={`size-2 rounded-full ${live ? 'bg-accent' : 'bg-warn'}`}
+          />
           <LanguageSwitch />
         </div>
       </header>

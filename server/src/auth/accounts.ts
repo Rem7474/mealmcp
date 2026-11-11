@@ -31,6 +31,7 @@ export interface CurrentUser {
   role: 'owner' | 'member';
   householdId: number;
   householdName: string;
+  currency: string;
 }
 
 /** What a verified bearer token resolves to. */
@@ -55,6 +56,7 @@ export function createAccountService(db: Db, config: Config) {
         role: users.role,
         householdId: users.householdId,
         householdName: households.name,
+        currency: households.currency,
       })
       .from(users)
       .innerJoin(households, eq(households.id, users.householdId));

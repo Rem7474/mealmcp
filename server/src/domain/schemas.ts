@@ -16,6 +16,7 @@ const unit = z
   .describe('Unit such as g, kg, ml, l, or a free label (can, pack). Omit for countable pieces.');
 const location = z.enum(LOCATIONS).describe('Where it is stored: fridge, freezer or pantry');
 const productName = z.string().trim().min(1).max(120);
+const moneyOrNull = z.number().nonnegative().max(1_000_000).nullable().describe('Amount in the household currency, as a decimal number (e.g. 2.49)');
 
 export const idParam = z.object({ id });
 
@@ -119,6 +120,7 @@ export const shoppingAdd = z.object({
 export const shoppingCheck = z.object({
   id,
   checked: z.boolean().default(true),
+  price: moneyOrNull.optional().describe('What this line cost (or is expected to cost); null clears it'),
 });
 
 export const shoppingGenerate = z.object({
@@ -129,4 +131,60 @@ export const shoppingGenerate = z.object({
 
 export const shoppingComplete = z.object({
   location: location.default('pantry').describe('Where the purchased items are put away'),
+  store: z.string().trim().min(1).max(80).optional().describe('Shop name, recorded with the expense'),
+  total: moneyOrNull.optional().describe('Amount actually paid, when it differs from the sum of the line prices'),
+  date: isoDate.optional().describe('Purchase date; defaults to today'),
+});
+
+// --- Budget -------------------------------------------------------------------
+
+const money = z
+  .number()
+  .nonnegative()
+  .max(1_000_000)
+  .describe('Amount in the household currency, as a decimal number (e.g. 2.49)');
+
+const expenseItem = z.object({
+  name: productName,
+  quantity: z.number().positive().optional().describe('Quantity bought; with it, the product price is remembered and used for cost estimates'),
+  unit,
+  price: money.describe('Line total (what this line cost), not a unit price'),
+});
+
+export const expenseRecord = z.object({
+  date: isoDate.optional().describe('Purchase date; defaults to today'),
+  store: z.string().trim().min(1).max(80).optional().describe('Shop name, e.g. "Leclerc"'),
+  note: z.string().max(300).optional(),
+  items: z.array(expenseItem).default([]).describe('Receipt lines. Optional when only a total is known'),
+  total: money.optional().describe('Amount actually paid. Defaults to the sum of the item prices; set it when discounts apply'),
+  addToStock: z.boolean().default(false).describe('Also put the lines that have a quantity into the stock'),
+  location: location.default('pantry').describe('Where stocked items go when addToStock is true'),
+});
+
+export const expenseList = z.object({
+  from: isoDate.optional().describe('First day, inclusive'),
+  to: isoDate.optional().describe('Last day, inclusive'),
+});
+
+export const spendingSummary = z.object({
+  from: isoDate.describe('First day, inclusive'),
+  to: isoDate.describe('Last day, inclusive'),
+});
+
+export const budgetSet = z.object({
+  monthly: money.nullable().describe('Monthly grocery budget; null removes it'),
+  currency: z
+    .string()
+    .trim()
+    .toUpperCase()
+    .regex(/^[A-Z]{3}$/, 'Expected a 3-letter currency code such as EUR or USD')
+    .optional()
+    .describe('ISO 4217 currency code for the household'),
+});
+
+export const productPrice = z.object({
+  name: productName,
+  price: money.describe('Price paid for `quantity` `unit`'),
+  quantity: z.number().positive().default(1).describe('How much that price buys, e.g. 1 with unit kg'),
+  unit,
 });

@@ -3,8 +3,10 @@ import type { z } from 'zod';
 import type { Db } from '../db/index.js';
 import { type Location, products, shoppingItems } from '../db/schema.js';
 import { NotFoundError } from '../domain/errors.js';
-import type { shoppingAdd, shoppingGenerate } from '../domain/schemas.js';
+import { toCents, unitCostCents } from '../domain/pricing.js';
+import type { shoppingAdd, shoppingComplete, shoppingGenerate } from '../domain/schemas.js';
 import { normalizeUnit, round, toBase } from '../domain/units.js';
+import type { BudgetService } from './budget.js';
 import type { PlannerService } from './planner.js';
 import type { ProductService } from './products.js';
 import type { RecipeService } from './recipes.js';
@@ -17,6 +19,7 @@ export function createShoppingService(
   stock: StockService,
   recipeService: RecipeService,
   planner: PlannerService,
+  budget: BudgetService,
 ) {
   const mine = eq(shoppingItems.householdId, hid);
   const view = () =>
@@ -30,19 +33,46 @@ export function createShoppingService(
         unit: shoppingItems.unit,
         checked: shoppingItems.checked,
         source: shoppingItems.source,
+        priceCents: shoppingItems.priceCents,
+        unitPrice: products.unitPrice,
+        priceUnit: products.priceUnit,
       })
       .from(shoppingItems)
       .innerJoin(products, eq(products.id, shoppingItems.productId));
 
+  type Row = ReturnType<ReturnType<typeof view>['all']>[number];
+  /** Adds `estimatedCents`: the entered price, else quantity x last known unit price, else null. */
+  const decorate = ({ unitPrice, priceUnit, ...row }: Row) => {
+    const unitCost = unitCostCents({ unitPrice, priceUnit }, row.unit);
+    const estimatedCents = row.priceCents ?? (row.quantity != null && unitCost !== null ? Math.round(row.quantity * unitCost) : null);
+    return { ...row, estimatedCents };
+  };
+
   return {
     list() {
-      return view().where(mine).orderBy(shoppingItems.checked, products.category, products.name).all();
+      return view()
+        .where(mine)
+        .orderBy(shoppingItems.checked, products.category, products.name)
+        .all()
+        .map(decorate);
     },
 
     get(id: number) {
       const item = view().where(and(mine, eq(shoppingItems.id, id))).get();
       if (!item) throw new NotFoundError('Shopping item', id);
-      return item;
+      return decorate(item);
+    },
+
+    /** What the items still to buy should cost, from entered prices and last known product prices. */
+    estimate() {
+      const open = this.list().filter((i) => !i.checked);
+      return {
+        currency: budget.household().currency,
+        totalCents: open.reduce((sum, i) => sum + (i.estimatedCents ?? 0), 0),
+        pricedItems: open.filter((i) => i.estimatedCents !== null).length,
+        /** Items with no price information: the total is a lower bound while this is above 0. */
+        unpricedItems: open.filter((i) => i.estimatedCents === null).length,
+      };
     },
 
     add(input: z.infer<typeof shoppingAdd>) {
@@ -73,9 +103,13 @@ export function createShoppingService(
       return this.get(row.id);
     },
 
-    setChecked(id: number, checked: boolean) {
+    /** Checks or unchecks an item; `price` (major units, null to clear) is what the line cost. */
+    setChecked(id: number, checked: boolean, price?: number | null) {
       this.get(id);
-      db.update(shoppingItems).set({ checked }).where(and(mine, eq(shoppingItems.id, id))).run();
+      db.update(shoppingItems)
+        .set({ checked, ...(price !== undefined ? { priceCents: price === null ? null : toCents(price) } : {}) })
+        .where(and(mine, eq(shoppingItems.id, id)))
+        .run();
       return this.get(id);
     },
 
@@ -109,6 +143,12 @@ export function createShoppingService(
 
       const totals = stock.totals();
       db.transaction(() => {
+        // Keep prices already entered on generated lines across regenerations.
+        const prices = new Map(
+          this.list()
+            .filter((i) => i.source === 'plan' && !i.checked && i.priceCents !== null)
+            .map((i) => [stockKey(i.productId, i.unit), i.priceCents as number]),
+        );
         db.delete(shoppingItems)
           .where(and(mine, eq(shoppingItems.source, 'plan'), eq(shoppingItems.checked, false)))
           .run();
@@ -116,15 +156,18 @@ export function createShoppingService(
           const missing = round(n.quantity - (totals.get(k) ?? 0));
           if (missing > 0)
             db.insert(shoppingItems)
-              .values({ householdId: hid, productId: n.productId, quantity: missing, unit: n.unit, source: 'plan' })
+              .values({ householdId: hid, productId: n.productId, quantity: missing, unit: n.unit, source: 'plan', priceCents: prices.get(k) ?? null })
               .run();
         }
       });
       return this.list();
     },
 
-    /** Moves every checked item into stock and clears it from the list. */
-    completePurchase(location: Location = 'pantry') {
+    /**
+     * Moves every checked item into stock and clears it from the list. When prices were entered
+     * (or a total is given) the purchase is also recorded as an expense, which teaches product prices.
+     */
+    completePurchase(location: Location = 'pantry', opts: Omit<z.infer<typeof shoppingComplete>, 'location'> = {}) {
       const bought = this.list().filter((i) => i.checked);
       db.transaction(() => {
         for (const item of bought) {
@@ -132,7 +175,19 @@ export function createShoppingService(
           db.delete(shoppingItems).where(and(mine, eq(shoppingItems.id, item.id))).run();
         }
       });
-      return { movedToStock: bought.length, location };
+      const priced = bought.filter((i) => i.priceCents !== null);
+      const expense =
+        priced.length > 0 || (opts.total != null && bought.length > 0)
+          ? budget.recordExpense({
+              date: opts.date,
+              store: opts.store,
+              total: opts.total ?? undefined,
+              items: priced.map((i) => ({ name: i.name, quantity: i.quantity ?? undefined, unit: i.unit, price: (i.priceCents as number) / 100 })),
+              addToStock: false,
+              location,
+            })
+          : null;
+      return { movedToStock: bought.length, location, expenseId: expense?.id ?? null };
     },
   };
 }

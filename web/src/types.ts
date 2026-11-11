@@ -9,6 +9,8 @@ export interface User {
   role: 'owner' | 'member';
   householdId: number;
   householdName: string;
+  /** ISO 4217 code used to display money. */
+  currency: string;
 }
 
 export interface Me {
@@ -39,6 +41,9 @@ export interface Product {
   category: string | null;
   defaultUnit: string;
   minStock: number | null;
+  /** Cents per 1 priceUnit (g, ml, piece, ...), when a price is known. */
+  unitPrice: number | null;
+  priceUnit: string | null;
 }
 
 export interface StockItem {
@@ -107,4 +112,63 @@ export interface ShoppingItem {
   unit: string;
   checked: boolean;
   source: 'manual' | 'plan';
+  /** Price entered on the line, in cents. */
+  priceCents: number | null;
+  /** Entered price, else quantity x last known unit price, else null. */
+  estimatedCents: number | null;
+}
+
+export interface BudgetStatus {
+  currency: string;
+  month: string;
+  budgetCents: number | null;
+  spentCents: number;
+  remainingCents: number | null;
+  projectedCents: number;
+  daysInMonth: number;
+  day: number;
+}
+
+export interface SpendingSummary {
+  from: string;
+  to: string;
+  currency: string;
+  totalCents: number;
+  expenseCount: number;
+  byStore: { store: string | null; totalCents: number; count: number }[];
+  byMonth: { month: string; totalCents: number }[];
+  byCategory: { category: string | null; totalCents: number }[];
+  /** Purchases recorded with a total only, which cannot be split by category. */
+  notItemisedCents: number;
+}
+
+export interface ExpenseSummary {
+  id: number;
+  date: string;
+  store: string | null;
+  note: string | null;
+  totalCents: number;
+  itemCount: number;
+}
+
+export interface Expense extends Omit<ExpenseSummary, 'itemCount'> {
+  items: { id: number; name: string; quantity: number | null; unit: string | null; priceCents: number }[];
+}
+
+export interface RecipeCost {
+  servings: number;
+  totalCents: number;
+  perServingCents: number;
+  unpricedIngredients: string[];
+}
+
+export interface PlanCost {
+  totalCents: number;
+  incompleteMeals: number;
+}
+
+export interface ShoppingEstimate {
+  totalCents: number;
+  pricedItems: number;
+  unpricedItems: number;
 }

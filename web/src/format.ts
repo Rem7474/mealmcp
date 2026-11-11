@@ -45,3 +45,17 @@ export const formatDate = (iso: string) => fromIso(iso).toLocaleDateString(local
 export function daysUntil(iso: string): number {
   return Math.round((fromIso(iso).getTime() - fromIso(today()).getTime()) / 86_400_000);
 }
+
+/** Formats an amount in cents in the household currency, following the UI language. */
+export function formatMoney(cents: number, currency: string): string {
+  try {
+    return new Intl.NumberFormat(locale(), { style: 'currency', currency }).format(cents / 100);
+  } catch {
+    return `${(cents / 100).toFixed(2)} ${currency}`; // unknown currency code
+  }
+}
+
+export const isoMonth = (iso: string) => iso.slice(0, 7);
+export const monthStart = (iso: string) => `${isoMonth(iso)}-01`;
+export const formatMonth = (month: string) => fromIso(`${month}-01`).toLocaleDateString(locale(), { month: 'long', year: 'numeric' });
+

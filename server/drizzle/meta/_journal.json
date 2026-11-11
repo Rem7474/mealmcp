@@ -15,6 +15,13 @@
       "when": 1794409846023,
       "tag": "0001_unit_piece",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "6",
+      "when": 1794410437184,
+      "tag": "0002_budget",
+      "breakpoints": true
     }
   ]
 }

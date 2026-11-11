@@ -7,10 +7,11 @@ import type { Services } from '../services/index.js';
 const INSTRUCTIONS = `MealMCP manages one household's kitchen: stock (what is at home), recipes, a meal plan and a shopping list.
 Products are identified by name and created automatically the first time a name is used; reuse existing names (see list_stock / get_recipe) rather than inventing variants.
 Quantities are stored in base units: g for mass, ml for volume, "piece" for countable items. kg, l, cl are converted automatically.
+Money: amounts you send are decimal numbers in the household currency (2.49); amounts you receive are integers in cents (249). Record purchases with record_expense so prices feed the cost estimates.
 Typical flow: plan meals (plan_meal) -> generate_shopping_list for the planned period -> check items while shopping -> complete_shopping moves them into stock -> cook_planned_meal takes ingredients out of stock.`;
 
 /** MCP adapter: exposes the same services as the REST API, as tools for AI clients. */
-export function createMcpServer({ products, stock, recipes, planner, shopping }: Services) {
+export function createMcpServer({ products, stock, recipes, planner, budget, shopping }: Services, onChange?: () => void) {
   const server = new McpServer({ name: 'mealmcp', version: '0.1.0' }, { instructions: INSTRUCTIONS });
 
   function tool<Shape extends ZodRawShape>(
@@ -31,6 +32,8 @@ export function createMcpServer({ products, stock, recipes, planner, shopping }:
       (async (args: z.objectOutputType<Shape, z.ZodTypeAny>) => {
         try {
           const result = run(args) ?? { ok: true };
+          // Writes wake the open dashboards of the household so they refresh by themselves.
+          if (!opts.readOnly) onChange?.();
           return { content: [{ type: 'text', text: JSON.stringify(result, null, 2) }] };
         } catch (err) {
           const message =
@@ -80,7 +83,7 @@ export function createMcpServer({ products, stock, recipes, planner, shopping }:
   // --- Shopping list -------------------------------------------------------
   tool('list_shopping_list', 'List the shopping list (unchecked items first).', {}, ro, () => shopping.list());
   tool('add_shopping_item', 'Add an item to the shopping list; merges with the same unchecked item if present.', s.shoppingAdd.shape, rw, (a) => shopping.add(a));
-  tool('check_shopping_item', 'Check (bought) or uncheck a shopping list item.', s.shoppingCheck.shape, rw, (a) => shopping.setChecked(a.id, a.checked));
+  tool('check_shopping_item', 'Check (bought) or uncheck a shopping list item, optionally with what the line cost.', s.shoppingCheck.shape, rw, (a) => shopping.setChecked(a.id, a.checked, a.price));
   tool('remove_shopping_item', 'Remove an item from the shopping list.', s.idParam.shape, del, (a) => shopping.remove(a.id));
   tool(
     'generate_shopping_list',
@@ -89,7 +92,50 @@ export function createMcpServer({ products, stock, recipes, planner, shopping }:
     rw,
     (a) => shopping.generateFromPlan(a),
   );
-  tool('complete_shopping', 'Shopping done: move every checked item into stock and remove it from the list.', s.shoppingComplete.shape, rw, (a) => shopping.completePurchase(a.location));
+  tool('complete_shopping', 'Shopping done: move every checked item into stock and remove it from the list. If prices were entered on the lines (or a total is given) the purchase is also recorded as an expense.', s.shoppingComplete.shape, rw, (a) => shopping.completePurchase(a.location, { store: a.store, total: a.total, date: a.date }));
+
+  // --- Budget ----------------------------------------------------------------
+  tool(
+    'record_expense',
+    'Record a purchase (e.g. from a receipt): optional receipt lines with their line totals, plus the amount actually paid. Lines with a quantity teach the product prices used for cost estimates; addToStock also puts them in the stock.',
+    s.expenseRecord.shape,
+    rw,
+    (a) => budget.recordExpense(a),
+  );
+  tool('list_expenses', 'List recorded purchases (most recent first), optionally between two dates.', s.expenseList.shape, ro, (a) => budget.listExpenses(a));
+  tool('get_expense', 'Get one purchase with its receipt lines.', s.idParam.shape, ro, (a) => budget.getExpense(a.id));
+  tool('delete_expense', 'Delete a recorded purchase. Product prices learned from it are kept.', s.idParam.shape, del, (a) => budget.deleteExpense(a.id));
+  tool(
+    'get_spending_summary',
+    'Spending between two dates: total, and breakdowns by shop, by month and by product category. Amounts are integers in cents.',
+    s.spendingSummary.shape,
+    ro,
+    (a) => budget.summary(a),
+  );
+  tool(
+    'get_budget_status',
+    'This month: money spent, the monthly budget (if any), what is left, and a projection to the end of the month. Amounts are integers in cents.',
+    {},
+    ro,
+    () => budget.budgetStatus(),
+  );
+  tool('set_budget', 'Set or clear the monthly grocery budget, and/or the household currency (ISO code such as EUR or USD).', s.budgetSet.shape, rw, (a) => budget.setBudget(a));
+  tool(
+    'set_product_price',
+    'Tell the app what a product costs, e.g. 2.49 for 1 kg of flour. Used for recipe, meal plan and shopping list cost estimates.',
+    s.productPrice.shape,
+    rw,
+    (a) => budget.setProductPrice(a),
+  );
+  tool(
+    'estimate_recipe_cost',
+    'Estimated cost of a recipe (total and per serving, in cents) from the last known product prices. unpricedIngredients lists ingredients without a price, in which case the total is a lower bound.',
+    s.recipeAvailability.shape,
+    ro,
+    (a) => budget.recipeCost(a),
+  );
+  tool('estimate_meal_plan_cost', 'Estimated cost, in cents, of the meals planned between two dates.', s.planList.shape, ro, (a) => budget.planCost(a));
+  tool('estimate_shopping_list_cost', 'Estimated cost, in cents, of the items still to buy on the shopping list.', {}, ro, () => shopping.estimate());
 
   return server;
 }

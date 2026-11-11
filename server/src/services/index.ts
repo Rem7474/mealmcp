@@ -1,4 +1,5 @@
 import type { Db } from '../db/index.js';
+import { createBudgetService } from './budget.js';
 import { createPlannerService } from './planner.js';
 import { createProductService } from './products.js';
 import { createRecipeService } from './recipes.js';
@@ -18,8 +19,9 @@ export function createServices(db: Db, householdId: number) {
   const stock = createStockService(db, householdId, products);
   const recipes = createRecipeService(db, householdId, products, stock);
   const planner = createPlannerService(db, householdId, recipes, stock);
-  const shopping = createShoppingService(db, householdId, products, stock, recipes, planner);
-  return { products, stock, recipes, planner, shopping };
+  const budget = createBudgetService(db, householdId, products, stock, recipes, planner);
+  const shopping = createShoppingService(db, householdId, products, stock, recipes, planner, budget);
+  return { products, stock, recipes, planner, budget, shopping };
 }
 
 export type Services = ReturnType<typeof createServices>;

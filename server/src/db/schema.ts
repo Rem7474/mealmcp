@@ -14,6 +14,10 @@ export const households = sqliteTable('households', {
   id: integer('id').primaryKey({ autoIncrement: true }),
   name: text('name').notNull(),
   createdAt: integer('created_at').notNull(),
+  /** ISO 4217 code used to display money (amounts are stored in minor units, i.e. cents). */
+  currency: text('currency').notNull().default('EUR'),
+  /** Optional monthly grocery budget, in cents. */
+  monthlyBudgetCents: integer('monthly_budget_cents'),
 });
 
 export const users = sqliteTable('users', {
@@ -147,6 +151,9 @@ export const products = sqliteTable(
     defaultUnit: text('default_unit').notNull().default('pièce'),
     /** Alert threshold, expressed in defaultUnit. */
     minStock: real('min_stock'),
+    /** Last known price in cents per 1 `priceUnit` (g, ml, piece, ...). Null until a price is recorded. */
+    unitPrice: real('unit_price'),
+    priceUnit: text('price_unit'),
   },
   (t) => [uniqueIndex('products_household_name_idx').on(t.householdId, t.nameKey)],
 );
@@ -226,6 +233,38 @@ export const shoppingItems = sqliteTable(
     checked: integer('checked', { mode: 'boolean' }).notNull().default(false),
     /** 'manual' = added by a person/AI, 'plan' = generated from the meal plan. */
     source: text('source', { enum: ['manual', 'plan'] }).notNull().default('manual'),
+    /** What this line cost (or is expected to cost), in cents. Entered while shopping. */
+    priceCents: integer('price_cents'),
   },
   (t) => [index('shopping_household_idx').on(t.householdId)],
 );
+
+/** A purchase (a receipt or a manual entry). Totals are in cents. */
+export const expenses = sqliteTable(
+  'expenses',
+  {
+    id: integer('id').primaryKey({ autoIncrement: true }),
+    householdId: household(),
+    /** ISO date YYYY-MM-DD. */
+    date: text('date').notNull(),
+    store: text('store'),
+    note: text('note'),
+    totalCents: integer('total_cents').notNull(),
+    createdAt: integer('created_at').notNull(),
+  },
+  (t) => [index('expenses_household_date_idx').on(t.householdId, t.date)],
+);
+
+export const expenseItems = sqliteTable('expense_items', {
+  id: integer('id').primaryKey({ autoIncrement: true }),
+  expenseId: integer('expense_id')
+    .notNull()
+    .references(() => expenses.id, { onDelete: 'cascade' }),
+  /** Kept when the product is deleted, so history stays readable. */
+  productId: integer('product_id').references(() => products.id, { onDelete: 'set null' }),
+  name: text('name').notNull(),
+  quantity: real('quantity'),
+  unit: text('unit'),
+  /** Line total in cents. */
+  priceCents: integer('price_cents').notNull(),
+});

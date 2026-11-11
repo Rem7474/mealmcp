@@ -2,6 +2,7 @@ import { useQuery } from '@tanstack/react-query';
 import type { SelectHTMLAttributes } from 'react';
 import { api } from '../api';
 import { LOCATIONS } from '../format';
+import { fetchMe, meKey } from './AuthPage';
 import { useT } from '../i18n';
 import type { Product } from '../types';
 import { Select } from '../ui';
@@ -45,3 +46,9 @@ export function LocationSelect(props: SelectHTMLAttributes<HTMLSelectElement>) {
 
 /** "" -> undefined, otherwise a number (accepts a decimal comma). */
 export const parseQty = (value: string) => (value.trim() ? Number(value.replace(',', '.')) : undefined);
+
+/** Currency of the signed-in household (ISO 4217 code). */
+export function useCurrency(): string {
+  const { data } = useQuery({ queryKey: meKey, queryFn: fetchMe });
+  return data?.user?.currency ?? 'EUR';
+}

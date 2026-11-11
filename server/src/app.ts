@@ -11,6 +11,7 @@ import { OAuthProvider, SCOPES } from './auth/oauth.js';
 import type { Config } from './config.js';
 import type { Db } from './db/index.js';
 import { createMcpServer } from './mcp/server.js';
+import { createHub } from './realtime.js';
 import { createServices } from './services/index.js';
 
 const webDist = resolve(dirname(fileURLToPath(import.meta.url)), '../../web/dist');
@@ -18,6 +19,7 @@ const webDist = resolve(dirname(fileURLToPath(import.meta.url)), '../../web/dist
 export function createApp(db: Db, config: Config) {
   const accounts = createAccountService(db, config);
   const oauth = new OAuthProvider(db, config, accounts);
+  const hub = createHub();
   const mcpUrl = new URL('/mcp', config.publicUrl);
 
   const app = express();
@@ -49,13 +51,13 @@ export function createApp(db: Db, config: Config) {
     }),
   );
 
-  app.use('/api', createApiRouter({ db, config, accounts, oauth }));
+  app.use('/api', createApiRouter({ db, config, accounts, oauth, hub }));
 
   // MCP over stateless Streamable HTTP: a fresh server per request, bound to the caller's household.
   const bearer = requireBearerAuth({ verifier: oauth, resourceMetadataUrl: getOAuthProtectedResourceMetadataUrl(mcpUrl) });
   app.post('/mcp', bearer, async (req, res) => {
     const { householdId } = req.auth!.extra as { householdId: number };
-    const server = createMcpServer(createServices(db, householdId));
+    const server = createMcpServer(createServices(db, householdId), () => hub.publish(householdId));
     const transport = new StreamableHTTPServerTransport({ sessionIdGenerator: undefined });
     res.on('close', () => {
       void transport.close();

@@ -10,6 +10,8 @@ Meal planning, shopping and pantry stock for a household, with a built-in MCP se
 - **Recipes**: ingredients, servings, instructions, and availability against your stock.
 - **Shopping**: a list generated from the meal plan (needs − stock + products below their threshold), manual additions, and putting purchases away into stock.
 - **Stock**: by location (fridge, freezer, pantry), expiry dates, low-stock alerts.
+- **Budget**: record purchases (by hand, from a receipt via an AI, or when you finish shopping), a monthly budget with a projection, spending by category / shop / month, and cost estimates for recipes, the week's meals and the shopping list, from the prices of what you bought.
+- **Live dashboard**: the web UI refreshes by itself when something changes elsewhere, for example when an AI edits your stock through MCP.
 - **Bilingual**: English and French UI (language switcher at the top right, browser language by default). MCP tool descriptions are in English.
 
 ## Architecture
@@ -90,7 +92,9 @@ claude mcp add --transport http mealmcp http://localhost:3000/mcp --header "Auth
 
 The same token works on the REST API (`/api`). To try the OAuth flow locally, use the built app (`npm run build && npm start`) rather than `npm run dev`.
 
-Tools (24): stock (`list_stock`, `add_stock`, `update_stock_item`, `consume_stock`, `remove_stock_item`, `get_stock_alerts`), products (`list_products`, `update_product`), recipes (`list_recipes`, `get_recipe`, `create_recipe`, `update_recipe`, `delete_recipe`, `check_recipe_availability`), meal plan (`list_meal_plan`, `plan_meal`, `remove_planned_meal`, `cook_planned_meal`), shopping (`list_shopping_list`, `add_shopping_item`, `check_shopping_item`, `remove_shopping_item`, `generate_shopping_list`, `complete_shopping`).
+Money: amounts you send are decimals in the household currency (`2.49`), amounts you receive are integers in cents (`249`). Writes made through MCP (or the API) are pushed to open dashboards over Server-Sent Events (`GET /api/events`), so there is nothing to refresh.
+
+Tools (35): stock (`list_stock`, `add_stock`, `update_stock_item`, `consume_stock`, `remove_stock_item`, `get_stock_alerts`), products (`list_products`, `update_product`), recipes (`list_recipes`, `get_recipe`, `create_recipe`, `update_recipe`, `delete_recipe`, `check_recipe_availability`), meal plan (`list_meal_plan`, `plan_meal`, `remove_planned_meal`, `cook_planned_meal`), shopping (`list_shopping_list`, `add_shopping_item`, `check_shopping_item`, `remove_shopping_item`, `generate_shopping_list`, `complete_shopping`), budget (`record_expense`, `list_expenses`, `get_expense`, `delete_expense`, `get_spending_summary`, `get_budget_status`, `set_budget`, `set_product_price`, `estimate_recipe_cost`, `estimate_meal_plan_cost`, `estimate_shopping_list_cost`).
 
 ## License
 
