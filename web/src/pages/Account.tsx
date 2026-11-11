@@ -178,6 +178,12 @@ function SettingsCard() {
           className="mt-1 w-full"
         />
       </label>
+      <h3 className="mt-4 text-sm font-semibold">{t('settings.nutrition')}</h3>
+      <p className="text-sm text-muted">{t('settings.nutritionHelp')}</p>
+      <label className="mt-2 flex items-center gap-2 text-sm">
+        <input type="checkbox" className="size-4 accent-(--accent)" checked={!!current.nutrition?.enabled} onChange={(e) => change({ ...current, nutrition: { enabled: e.target.checked } })} />
+        {t('settings.nutritionOn')}
+      </label>
     </Card>
   );
 }

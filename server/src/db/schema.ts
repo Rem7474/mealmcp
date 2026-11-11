@@ -168,6 +168,8 @@ export const products = sqliteTable(
     openedShelfLifeDays: integer('opened_shelf_life_days'),
     /** JSON array of allergen keys that overrides the name-based guess (null = guess, [] = none). */
     allergens: text('allergens'),
+    /** JSON ProductNutrition (values per 100 g and where they come from); null until set. */
+    nutrition: text('nutrition'),
   },
   (t) => [uniqueIndex('products_household_name_idx').on(t.householdId, t.nameKey)],
 );

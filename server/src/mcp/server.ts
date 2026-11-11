@@ -15,13 +15,14 @@ Packs and jars: record "2 x 500 g" as packCount/packSize, open a pack with open_
 Seasonality: get_seasonal_produce lists the fruits, vegetables and herbs in season where the household lives (settings country and hemisphere); shopping lines out of season carry in-season alternatives. Prefer seasonal produce when proposing meals.
 Diet and allergies: the household settings hold diets, allergens and ingredients to avoid; recipes carry dietConflicts, suggest_recipes_to_use_up skips them and plan_meal warns. Matching is by ingredient name (a safety net, not a guarantee): set explicit allergens on a product with update_product when you know them.
 Variety: get_meal_history shows what was cooked lately and how often per recipe; do not repeat recipes made recently. get_meal_context returns everything useful to propose a menu in a single call: start there.
+Nutrition is an optional module (household setting nutrition.enabled, off by default): when on, tools search_nutrition and set_product_nutrition fill per-product values from Open Food Facts, and get_recipe_nutrition / get_meal_plan_nutrition report calories and macros with the share of ingredients covered. Say when totals are incomplete.
 Waste: discard_stock records food thrown away (with its estimated cost) and get_waste_summary reports it.
 Several items at once? Use the *_bulk tools instead of many single calls.
 Money: amounts you send are decimal numbers in the household currency (2.49); amounts you receive are integers in cents (249). Record purchases with record_expense so prices feed the cost estimates.
 Typical flow: plan meals (plan_meal) -> generate_shopping_list for the planned period -> check items while shopping -> complete_shopping moves them into stock -> cook_planned_meal takes ingredients out of stock.`;
 
 /** MCP adapter: exposes the same services as the REST API, as tools for AI clients. */
-export function createMcpServer({ settings, equipment, products, stock, recipes, planner, budget, shopping, seasons, context }: Services, onChange?: () => void) {
+export function createMcpServer({ settings, equipment, products, stock, recipes, planner, budget, shopping, seasons, context, nutrition }: Services, onChange?: () => void) {
   const server = new McpServer({ name: 'mealmcp', version: '0.1.0' }, { instructions: INSTRUCTIONS });
 
   function tool<Shape extends ZodRawShape>(
@@ -41,7 +42,7 @@ export function createMcpServer({ settings, equipment, products, stock, recipes,
       // Cast: the SDK's callback type depends on the schema shape in a way generics here can't express.
       (async (args: z.objectOutputType<Shape, z.ZodTypeAny>) => {
         try {
-          const result = run(args) ?? { ok: true };
+          const result = (await run(args)) ?? { ok: true };
           // Writes wake the open dashboards of the household so they refresh by themselves.
           if (!opts.readOnly) onChange?.();
           return { content: [{ type: 'text', text: JSON.stringify(result, null, 2) }] };
@@ -134,6 +135,14 @@ export function createMcpServer({ settings, equipment, products, stock, recipes,
   tool('get_meal_context', 'Everything needed to propose a menu in one call: today, household settings (diet, allergens, servings, country), in-season produce, stock about to expire and opened packs, open planning slots, upcoming and recent meals, favorite and never-made recipes, owned equipment and the budget status.', s.mealContext.shape, ro, (a) => context.get(a));
   tool('discard_stock', 'Throw food away: removes it from a stock line (all of it unless quantity is given) and logs it as waste with its estimated cost.', s.stockDiscard.shape, del, (a) => stock.discard(a));
   tool('get_waste_summary', 'Food thrown away between two dates (default: last 30 days): total value in cents, by product, by reason and by month.', s.wasteSummary.shape, ro, (a) => stock.wasteSummary(a));
+
+  // --- Nutrition (optional module) ---------------------------------------------
+  if (settings.get().nutrition?.enabled) {
+    tool('search_nutrition', 'Look a product up on Open Food Facts by name: returns candidates with their barcode and nutrition per 100 g. Pick one with set_product_nutrition (code). Only the search text is sent to Open Food Facts.', s.nutritionSearch.shape, ro, (a) => nutrition.search(a));
+    tool('set_product_nutrition', 'Keep nutrition values on a product: pass the barcode of an Open Food Facts product (from search_nutrition) or values per 100 g typed by hand. Pass neither to clear them.', s.productNutritionSet.shape, rw, (a) => nutrition.setProduct(a));
+    tool('get_recipe_nutrition', 'Calories and macros of a recipe, in total and per serving. coverage.missing lists ingredients without values: totals are then a lower bound.', s.idParam.shape, ro, (a) => nutrition.recipe(a.id));
+    tool('get_meal_plan_nutrition', 'What one person eats per day (calories, protein, carbs, fat, fiber...) from the planned recipes between two dates. Free-text meals are not counted.', s.nutritionPlan.shape, ro, (a) => nutrition.plan(a));
+  }
 
   // --- Budget ----------------------------------------------------------------
   tool(

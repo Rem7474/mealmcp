@@ -6,6 +6,7 @@ import { daysUntil, formatDate, formatMoney, formatQty, LOCATIONS } from '../for
 import { useT } from '../i18n';
 import type { Product, StockAlerts, StockItem, WasteSummary } from '../types';
 import { Badge, Button, Card, Empty, Input } from '../ui';
+import { ProductNutritionCard } from './Nutrition';
 import { LocationSelect, parseQty, ProductDatalist, useCurrency, useProducts } from './shared';
 
 const LOCATION_ICON = { fridge: <Thermometer size={16} className="text-accent" />, freezer: <Snowflake size={16} className="text-accent" />, pantry: <Package size={16} className="text-accent" /> };
@@ -71,6 +72,7 @@ export function Stock() {
       </div>
       <WasteCard />
       <Thresholds products={products.data ?? []} />
+      <ProductNutritionCard />
     </>
   );
 }

@@ -36,6 +36,10 @@ export const householdSettings = z.object({
     })
     .optional()
     .describe('Dietary restrictions, allergies and dislikes of the household. Replaces the whole object when given.'),
+  nutrition: z
+    .object({ enabled: z.boolean().describe('Turns the nutrition module on') })
+    .optional()
+    .describe('Optional nutrition module (off by default). When on, product values can be looked up on Open Food Facts (only a product name or barcode is sent) or typed by hand, and recipes and meals get calories and macros.'),
   shoppingGroupBy: z
     .enum(['none', 'aisle', 'meal'])
     .optional()

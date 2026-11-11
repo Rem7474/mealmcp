@@ -6,6 +6,7 @@ import { NotFoundError, ValidationError } from '../domain/errors.js';
 import type { aliasAdd, productUpdate } from '../domain/schemas.js';
 import { guessCategory } from '../domain/categories.js';
 import type { Allergen } from '../domain/diet.js';
+import type { ProductNutrition } from '../domain/nutrition.js';
 import { normalizeUnit } from '../domain/units.js';
 
 const key = (name: string) => name.trim().toLowerCase();
@@ -18,9 +19,17 @@ const parseAllergens = (json: string | null): Allergen[] | null => {
     return null;
   }
 };
-const shapeProduct = <T extends { allergens: string | null; name: string }>(p: T, aliases: string[]) => ({
+const parseNutrition = (json: string | null): ProductNutrition | null => {
+  try {
+    return json ? (JSON.parse(json) as ProductNutrition) : null;
+  } catch {
+    return null;
+  }
+};
+const shapeProduct = <T extends { allergens: string | null; nutrition: string | null; name: string }>(p: T, aliases: string[]) => ({
   ...p,
   allergens: parseAllergens(p.allergens),
+  nutrition: parseNutrition(p.nutrition),
   suggestedCategory: guessCategory(p.name),
   aliases,
 });

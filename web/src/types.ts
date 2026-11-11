@@ -55,6 +55,26 @@ export interface Product {
   /** Days an opened pack keeps. */
   openedShelfLifeDays: number | null;
   aliases: string[];
+  /** Calories and macros per 100 g, when the nutrition module has them. */
+  nutrition: { per100: NutrientValues; source: 'openfoodfacts' | 'manual'; code?: string; label?: string } | null;
+}
+
+export type NutrientValues = Partial<Record<'kcal' | 'protein' | 'carbs' | 'sugars' | 'fat' | 'saturatedFat' | 'fiber' | 'salt', number>>;
+
+export interface NutritionHit {
+  code: string;
+  name: string;
+  brands: string | null;
+  per100: NutrientValues;
+}
+
+export interface RecipeNutritionInfo {
+  recipeId: number;
+  name: string;
+  servings: number;
+  total: Record<string, number>;
+  perServing: Record<string, number>;
+  coverage: { ingredients: number; covered: number; missing: string[]; complete: boolean };
 }
 
 export interface StockItem {
@@ -246,6 +266,7 @@ export interface HouseholdSettings {
   country?: Country;
   hemisphere?: 'north' | 'south';
   diet?: { diets?: string[]; allergens?: string[]; avoid?: string[] };
+  nutrition?: { enabled: boolean };
 }
 
 export const COUNTRIES = ['FR', 'BE', 'CH', 'GB', 'CA', 'US'] as const;

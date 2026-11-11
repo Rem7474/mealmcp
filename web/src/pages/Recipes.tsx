@@ -6,6 +6,7 @@ import { formatDate, formatMoney, formatQty } from '../format';
 import { locale, type MessageKey, useI18n, useT } from '../i18n';
 import type { Availability, Produce, Recipe, RecipeCost, RecipeSummary, Seasonal } from '../types';
 import { Badge, Button, Card, Empty, Input, Select, Stars } from '../ui';
+import { RecipeNutrition } from './Nutrition';
 import { parseQty, ProductDatalist, useCurrency } from './shared';
 
 type View = { mode: 'list' } | { mode: 'detail'; id: number } | { mode: 'edit'; recipe?: Recipe };
@@ -236,6 +237,7 @@ function RecipeDetail({ id, onBack, onEdit }: { id: number; onBack: () => void; 
             )}
           </p>
         )}
+        <RecipeNutrition id={id} />
 
         <h3 className="mt-4 mb-2 flex items-center gap-2 font-semibold">
           {t('recipes.ingredients')}
