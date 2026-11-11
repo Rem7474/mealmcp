@@ -84,7 +84,7 @@ jobs:
           ## Docker
 
           \`\`\`bash
-          docker pull ${IMAGE}:${VERSION}
+          docker pull ${IMAGE,,}:${VERSION}
           \`\`\`
 
           Images amd64 et arm64. Voir le README pour la configuration (\`PUBLIC_URL\`, comptes, connexion MCP).
