@@ -53,6 +53,15 @@ html {
   scrollbar-width: thin;
   scrollbar-color: var(--line) transparent;
 }
+/* Phones and tablets: no scrollbar at all, like a native app (scrolling still works). */
+@media (pointer: coarse), (max-width: 639px) {
+  * {
+    scrollbar-width: none;
+  }
+  *::-webkit-scrollbar {
+    display: none;
+  }
+}
 
 body {
   background: var(--bg);
