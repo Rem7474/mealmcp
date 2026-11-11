@@ -2,11 +2,11 @@ import { useQuery } from '@tanstack/react-query';
 import { Package, Snowflake, Thermometer } from '@phosphor-icons/react';
 import { type FormEvent, useState } from 'react';
 import { api, useAction } from '../api';
-import { daysUntil, formatDate, formatQty, LOCATIONS } from '../format';
+import { daysUntil, formatDate, formatMoney, formatQty, LOCATIONS } from '../format';
 import { useT } from '../i18n';
-import type { Product, StockAlerts, StockItem } from '../types';
+import type { Product, StockAlerts, StockItem, WasteSummary } from '../types';
 import { Badge, Button, Card, Empty, Input } from '../ui';
-import { LocationSelect, parseQty, ProductDatalist, useProducts } from './shared';
+import { LocationSelect, parseQty, ProductDatalist, useCurrency, useProducts } from './shared';
 
 const LOCATION_ICON = { fridge: <Thermometer size={16} className="text-accent" />, freezer: <Snowflake size={16} className="text-accent" />, pantry: <Package size={16} className="text-accent" /> };
 
@@ -69,6 +69,7 @@ export function Stock() {
           );
         })}
       </div>
+      <WasteCard />
       <Thresholds products={products.data ?? []} />
     </>
   );
@@ -173,10 +174,42 @@ function StockRow({ item }: { item: StockItem }) {
           {t('stock.open')}
         </Button>
       )}
+      <Button variant="ghost" className="h-8 px-2 text-xs" aria-label={t('stock.discardAria', { name: item.name })} onClick={() => run(() => api.post(`/stock/${item.id}/discard`, { reason: days !== null && days < 0 ? 'expired' : 'spoiled' }))}>
+        {t('stock.discard')}
+      </Button>
       <Button variant="ghost" className="h-8 px-2" aria-label={t('stock.remove', { name: item.name })} onClick={() => run(() => api.del(`/stock/${item.id}`))}>
         ✕
       </Button>
     </li>
+  );
+}
+
+/** What was thrown away lately, with its estimated value: the cost of not using things in time. */
+function WasteCard() {
+  const t = useT();
+  const currency = useCurrency();
+  const { data } = useQuery({ queryKey: ['waste'], queryFn: () => api.get<WasteSummary>('/waste') });
+  if (!data) return null;
+  return (
+    <Card title={t('waste.title')}>
+      <p className="mb-2 text-sm text-muted">{t('waste.help')}</p>
+      {data.itemsThrownAway === 0 ? (
+        <Empty>{t('waste.empty')}</Empty>
+      ) : (
+        <>
+          <p className="text-sm font-medium">{t('waste.total', { n: data.itemsThrownAway, cost: formatMoney(data.totalCostCents, currency) })}</p>
+          <ul className="mt-2 flex flex-wrap gap-2 text-sm">
+            {data.byProduct.slice(0, 8).map((p) => (
+              <li key={p.name + p.unit}>
+                <Badge tone="warn">
+                  {p.name}: {formatQty(p.quantity, p.unit)}
+                </Badge>
+              </li>
+            ))}
+          </ul>
+        </>
+      )}
+    </Card>
   );
 }
 

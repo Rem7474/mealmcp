@@ -5,9 +5,25 @@ import { productAliases, products } from '../db/schema.js';
 import { NotFoundError, ValidationError } from '../domain/errors.js';
 import type { aliasAdd, productUpdate } from '../domain/schemas.js';
 import { guessCategory } from '../domain/categories.js';
+import type { Allergen } from '../domain/diet.js';
 import { normalizeUnit } from '../domain/units.js';
 
 const key = (name: string) => name.trim().toLowerCase();
+
+/** The stored JSON list of allergens, or null when the product has none recorded (the name-based guess applies). */
+const parseAllergens = (json: string | null): Allergen[] | null => {
+  try {
+    return json ? (JSON.parse(json) as Allergen[]) : null;
+  } catch {
+    return null;
+  }
+};
+const shapeProduct = <T extends { allergens: string | null; name: string }>(p: T, aliases: string[]) => ({
+  ...p,
+  allergens: parseAllergens(p.allergens),
+  suggestedCategory: guessCategory(p.name),
+  aliases,
+});
 
 export function createProductService(db: Db, hid: number) {
   const mine = eq(products.householdId, hid);
@@ -18,14 +34,22 @@ export function createProductService(db: Db, hid: number) {
     list() {
       const rows = db.select().from(products).where(mine).orderBy(products.name).all();
       const aliases = db.select().from(productAliases).where(myAliases).orderBy(productAliases.alias).all();
-      return rows.map((p) => ({ ...p, suggestedCategory: guessCategory(p.name), aliases: aliases.filter((a) => a.productId === p.id).map((a) => a.alias) }));
+      return rows.map((p) =>
+        shapeProduct(
+          p,
+          aliases.filter((a) => a.productId === p.id).map((a) => a.alias),
+        ),
+      );
     },
 
     get(id: number) {
       const p = db.select().from(products).where(and(mine, eq(products.id, id))).get();
       if (!p) throw new NotFoundError('Product', id);
       const aliases = db.select({ alias: productAliases.alias }).from(productAliases).where(and(myAliases, eq(productAliases.productId, id))).all();
-      return { ...p, suggestedCategory: guessCategory(p.name), aliases: aliases.map((a) => a.alias) };
+      return shapeProduct(
+        p,
+        aliases.map((a) => a.alias),
+      );
     },
 
     /** Looks a product up by its name or by one of its aliases (case-insensitive). */
@@ -52,7 +76,7 @@ export function createProductService(db: Db, hid: number) {
         .get();
     },
 
-    update({ id, name, staple, drained, ...rest }: z.infer<typeof productUpdate>) {
+    update({ id, name, staple, drained, allergens, ...rest }: z.infer<typeof productUpdate>) {
       if (drained && drained.drainedGrams > drained.netGrams) throw new ValidationError('Drained weight cannot exceed the net weight');
       svc.get(id);
       if (name !== undefined) {
@@ -63,6 +87,7 @@ export function createProductService(db: Db, hid: number) {
         .set({
           ...rest,
           ...(staple !== undefined ? { isStaple: staple } : {}),
+          ...(allergens !== undefined ? { allergens: allergens === null ? null : JSON.stringify(allergens) } : {}),
           ...(drained !== undefined ? { drainedRatio: drained ? drained.drainedGrams / drained.netGrams : null } : {}),
           ...(name !== undefined ? { name: name.trim(), nameKey: key(name) } : {}),
         })

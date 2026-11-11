@@ -94,6 +94,11 @@ export interface RecipeSummary {
   ingredientCount: number;
   rating: number | null;
   favorite: boolean;
+  /** Last time it was on the plan (up to today), and how often. */
+  lastMadeOn: string | null;
+  timesMade: number;
+  /** Ingredients that break the household diet, allergens or dislikes. */
+  dietConflicts: { ingredient: string; reasons: string[] }[];
 }
 
 export interface Ingredient {
@@ -162,6 +167,9 @@ export interface ShoppingItem {
   estimatedCents: number | null;
   /** Planned meals this generated line is for, earliest first. */
   meals: { id: number; date: string; mealType: MealType; title: string; recipeId: number | null }[];
+  /** Fruit and vegetables only: in season where the household lives, or not. */
+  season: 'in' | 'out' | null;
+  seasonAlternatives: { id: string; en: string; fr: string }[];
 }
 
 export interface BudgetStatus {
@@ -235,6 +243,39 @@ export interface HouseholdSettings {
   shoppingGroupBy?: 'none' | 'aisle' | 'meal';
   /** Weekdays (0 = Sunday ... 6 = Saturday) on which each meal is expected. */
   plannedMeals?: Partial<Record<MealTypeKey, number[]>>;
+  country?: Country;
+  hemisphere?: 'north' | 'south';
+  diet?: { diets?: string[]; allergens?: string[]; avoid?: string[] };
+}
+
+export const COUNTRIES = ['FR', 'BE', 'CH', 'GB', 'CA', 'US'] as const;
+export type Country = (typeof COUNTRIES)[number];
+export const DIETS = ['vegetarian', 'vegan', 'pescatarian', 'gluten_free', 'lactose_free', 'no_pork', 'no_alcohol'] as const;
+export const ALLERGENS = ['gluten', 'crustaceans', 'molluscs', 'eggs', 'fish', 'peanuts', 'soy', 'milk', 'nuts', 'celery', 'mustard', 'sesame', 'sulphites', 'lupin'] as const;
+
+export interface Produce {
+  id: string;
+  en: string;
+  fr: string;
+  kind: 'fruit' | 'vegetable' | 'herb';
+}
+
+export interface Seasonal {
+  country: Country;
+  hemisphere: 'north' | 'south';
+  month: number;
+  inSeason: Produce[];
+  lastMonth: Produce[];
+  startingNextMonth: Produce[];
+}
+
+export interface WasteSummary {
+  from: string;
+  to: string;
+  totalCostCents: number;
+  itemsThrownAway: number;
+  unpricedItems: number;
+  byProduct: { name: string; unit: string; quantity: number; costCents: number; times: number }[];
 }
 
 export interface PlanSlot {

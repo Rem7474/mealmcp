@@ -1,19 +1,22 @@
-import { and, asc, eq, gte, like, or, sql } from 'drizzle-orm';
+import { and, asc, eq, gte, like, lte, or, sql } from 'drizzle-orm';
 import type { z } from 'zod';
 import type { Db } from '../db/index.js';
-import { equipment as equipmentTable, products, recipeEquipment, recipeIngredients, recipeSteps, recipeTags, recipes } from '../db/schema.js';
+import { equipment as equipmentTable, mealPlan, products, recipeEquipment, recipeIngredients, recipeSteps, recipeTags, recipes } from '../db/schema.js';
+import { today } from '../domain/dates.js';
+import { type Allergen, conflictsOf } from '../domain/diet.js';
 import { NotFoundError, ValidationError } from '../domain/errors.js';
 import type { recipeAvailability, recipeCreate, recipeList, recipeUpdate, suggestRecipes } from '../domain/schemas.js';
 import { round, toBase } from '../domain/units.js';
 import type { EquipmentService } from './equipment.js';
 import type { ProductService } from './products.js';
+import type { SeasonService } from './seasons.js';
 import type { SettingsService } from './settings.js';
 import type { StockService } from './stock.js';
 
 type Ingredients = NonNullable<z.input<typeof recipeUpdate>['ingredients']>;
 type Steps = NonNullable<z.input<typeof recipeUpdate>['steps']>;
 
-export function createRecipeService(db: Db, hid: number, productService: ProductService, stock: StockService, settings: SettingsService, equipmentService: EquipmentService) {
+export function createRecipeService(db: Db, hid: number, productService: ProductService, stock: StockService, settings: SettingsService, equipmentService: EquipmentService, seasons: SeasonService) {
   const mine = eq(recipes.householdId, hid);
 
   const insertIngredients = (recipeId: number, ingredients: Ingredients) => {
@@ -55,6 +58,34 @@ export function createRecipeService(db: Db, hid: number, productService: Product
       .orderBy(equipmentTable.name)
       .all();
 
+  /** Ingredients that break the household's diet, allergens or dislikes, per recipe (all recipes, or the given one). */
+  const dietConflicts = (recipeId?: number) => {
+    const diet = settings.get().diet;
+    const out = new Map<number, { ingredient: string; reasons: string[] }[]>();
+    if (!diet || (!diet.diets?.length && !diet.allergens?.length && !diet.avoid?.length)) return out;
+    const rows = db
+      .select({ recipeId: recipeIngredients.recipeId, name: products.name, allergens: products.allergens })
+      .from(recipeIngredients)
+      .innerJoin(recipes, eq(recipes.id, recipeIngredients.recipeId))
+      .innerJoin(products, eq(products.id, recipeIngredients.productId))
+      .where(and(mine, recipeId !== undefined ? eq(recipes.id, recipeId) : undefined))
+      .all();
+    for (const r of rows) {
+      let explicit: Allergen[] | null = null;
+      try {
+        explicit = r.allergens ? (JSON.parse(r.allergens) as Allergen[]) : null;
+      } catch {
+        /* unreadable: fall back to the guess */
+      }
+      const reasons = conflictsOf(r.name, diet, explicit);
+      if (reasons.length) out.set(r.recipeId, [...(out.get(r.recipeId) ?? []), { ingredient: r.name, reasons }]);
+    }
+    return out;
+  };
+  /** When a recipe was last on the plan (up to today) and how many times, to avoid cooking the same things over and over. */
+  const madeOn = sql<string | null>`(select max(date) from meal_plan mp where mp.recipe_id = recipes.id and mp.date <= ${today()})`;
+  const madeCount = sql<number>`(select count(*) from meal_plan mp where mp.recipe_id = recipes.id and mp.date <= ${today()})`;
+
   const svc = {
     list({ search, tag, favorite, minRating }: z.input<typeof recipeList> = {}) {
       const pattern = `%${search?.trim() ?? ''}%`;
@@ -68,6 +99,8 @@ export function createRecipeService(db: Db, hid: number, productService: Product
           cookMinutes: recipes.cookMinutes,
           rating: recipes.rating,
           favorite: recipes.favorite,
+          lastMadeOn: madeOn,
+          timesMade: madeCount,
           // Table names are written out: drizzle leaves columns unqualified in single-table selects.
           ingredientCount: sql<number>`(select count(*) from recipe_ingredients ri where ri.recipe_id = recipes.id)`,
         })
@@ -90,7 +123,8 @@ export function createRecipeService(db: Db, hid: number, productService: Product
         .orderBy(recipes.name)
         .all();
       const tags = db.select().from(recipeTags).all();
-      return rows.map((r) => ({ ...r, tags: tags.filter((t) => t.recipeId === r.id).map((t) => t.tag) }));
+      const conflicts = dietConflicts();
+      return rows.map((r) => ({ ...r, tags: tags.filter((t) => t.recipeId === r.id).map((t) => t.tag), dietConflicts: conflicts.get(r.id) ?? [] }));
     },
 
     get(id: number) {
@@ -124,7 +158,21 @@ export function createRecipeService(db: Db, hid: number, productService: Product
         .orderBy(asc(recipeSteps.position))
         .all();
       const tags = db.select({ tag: recipeTags.tag }).from(recipeTags).where(eq(recipeTags.recipeId, id)).orderBy(recipeTags.tag).all();
-      return { ...recipe, ingredients, steps, tags: tags.map((t) => t.tag), equipment: equipmentOf(id) };
+      const made = db
+        .select({ lastMadeOn: sql<string | null>`max(${mealPlan.date})`, timesMade: sql<number>`count(*)` })
+        .from(mealPlan)
+        .where(and(eq(mealPlan.recipeId, id), lte(mealPlan.date, today())))
+        .get();
+      return {
+        ...recipe,
+        ingredients,
+        steps,
+        tags: tags.map((t) => t.tag),
+        equipment: equipmentOf(id),
+        lastMadeOn: made?.lastMadeOn ?? null,
+        timesMade: made?.timesMade ?? 0,
+        dietConflicts: dietConflicts(id).get(id) ?? [],
+      };
     },
 
     create({ ingredients, steps, tags, equipment, ...data }: z.input<typeof recipeCreate>) {
@@ -213,7 +261,7 @@ export function createRecipeService(db: Db, hid: number, productService: Product
      * "What can I cook that uses up what is about to expire?" Ranks recipes by how many of the
      * expiring (or explicitly requested) products they use, then by how little needs buying.
      */
-    suggest({ withinDays, products: wanted, tag, servings, limit }: z.input<typeof suggestRecipes>) {
+    suggest({ withinDays, products: wanted, tag, servings, limit, ignoreDiet }: z.input<typeof suggestRecipes>) {
       const targets = new Map<number, { name: string; expiresOn: string | null }>();
       for (const item of stock.list({ expiringWithinDays: withinDays ?? 5 }))
         if (!targets.has(item.productId)) targets.set(item.productId, { name: item.name, expiresOn: item.expiresOn });
@@ -226,6 +274,7 @@ export function createRecipeService(db: Db, hid: number, productService: Product
         .list({ tag })
         .map((summary) => {
           const recipe = svc.get(summary.id);
+          const inSeason = recipe.ingredients.filter((i) => !i.toTaste && seasons.statusOf(i.name)?.inSeason);
           const uses = recipe.ingredients.filter((i) => !i.toTaste && targets.has(i.productId)).map((i) => targets.get(i.productId)!);
           const availability = svc.availability({ id: recipe.id, servings: servingsToUse });
           const missing = availability.ingredients.filter((i) => i.missing > 0).map((i) => ({ name: i.name, unit: i.unit, missing: i.missing }));
@@ -238,6 +287,10 @@ export function createRecipeService(db: Db, hid: number, productService: Product
             rating: recipe.rating,
             favorite: recipe.favorite,
             usesExpiring: uses,
+            lastMadeOn: recipe.lastMadeOn,
+            timesMade: recipe.timesMade,
+            inSeason: inSeason.map((i) => i.name),
+            dietConflicts: recipe.dietConflicts,
             canCook: availability.canCook,
             missingEquipment: availability.missingEquipment,
             missing,
@@ -248,10 +301,12 @@ export function createRecipeService(db: Db, hid: number, productService: Product
               availability.missingEquipment.length * 4 +
               // Taste counts too: a loved recipe beats an equally practical one, a disliked one drops.
               (recipe.favorite ? 3 : 0) +
-              (recipe.rating ? (recipe.rating - 3) * 2 : 0),
+              (recipe.rating ? (recipe.rating - 3) * 2 : 0) +
+              // In-season produce is cheaper and tastier.
+              Math.min(inSeason.length, 3),
           };
         })
-        .filter((s) => s.usesExpiring.length > 0)
+        .filter((s) => s.usesExpiring.length > 0 && (ignoreDiet || s.dietConflicts.length === 0))
         .sort((a, b) => b.score - a.score || a.name.localeCompare(b.name))
         .slice(0, limit ?? 5);
       return { expiring: [...targets.values()], suggestions };

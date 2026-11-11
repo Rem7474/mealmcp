@@ -12,6 +12,7 @@ import type { BudgetService } from './budget.js';
 import type { PlannerService } from './planner.js';
 import type { ProductService } from './products.js';
 import type { RecipeService } from './recipes.js';
+import type { SeasonService } from './seasons.js';
 import { stockKey, type StockService } from './stock.js';
 
 export function createShoppingService(
@@ -22,6 +23,7 @@ export function createShoppingService(
   recipeService: RecipeService,
   planner: PlannerService,
   budget: BudgetService,
+  seasons: SeasonService,
 ) {
   const mine = eq(shoppingItems.householdId, hid);
   const view = () =>
@@ -49,7 +51,15 @@ export function createShoppingService(
   const decorate = ({ unitPrice, priceUnit, gramsPerPiece, gramsPerMl, ...row }: Row) => {
     const cost = row.quantity != null ? costCents({ unitPrice, priceUnit, gramsPerPiece, gramsPerMl }, row.quantity, row.unit) : null;
     const estimatedCents = row.priceCents ?? (cost !== null ? Math.round(cost) : null);
-    return { ...row, category: row.category ?? guessCategory(row.name), estimatedCents };
+    // Fruit and vegetables out of season come with in-season alternatives of the same kind.
+    const season = seasons.statusOf(row.name);
+    return {
+      ...row,
+      category: row.category ?? guessCategory(row.name),
+      estimatedCents,
+      season: season ? (season.inSeason ? ('in' as const) : ('out' as const)) : null,
+      seasonAlternatives: season && !season.inSeason ? seasons.alternativesTo(season.produce) : [],
+    };
   };
 
   type Meal = { id: number; date: string; mealType: string; title: string; recipeId: number | null };

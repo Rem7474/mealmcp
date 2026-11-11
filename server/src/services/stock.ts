@@ -1,11 +1,12 @@
-import { and, eq, isNull, lte, sql } from 'drizzle-orm';
+import { and, eq, gte, isNull, lte, sql } from 'drizzle-orm';
 import type { z } from 'zod';
 import type { Db } from '../db/index.js';
-import { products, stockItems } from '../db/schema.js';
+import { products, stockItems, wasteLog } from '../db/schema.js';
 import { type Conversions, convertQuantity, type Drainable, toDrainedFrame, toNetFrame } from '../domain/convert.js';
 import { addDays, today } from '../domain/dates.js';
 import { NotFoundError, ValidationError } from '../domain/errors.js';
-import type { stockAdd, stockConsume, stockList, stockOpen, stockUpdate } from '../domain/schemas.js';
+import { costCents } from '../domain/pricing.js';
+import type { stockAdd, stockConsume, stockDiscard, stockList, stockOpen, stockUpdate, wasteSummary } from '../domain/schemas.js';
 import { round, toBase } from '../domain/units.js';
 import type { ProductService } from './products.js';
 
@@ -232,6 +233,67 @@ export function createStockService(db: Db, hid: number, productService: ProductS
     remove(id: number) {
       svc.get(id);
       db.delete(stockItems).where(and(mine, eq(stockItems.id, id))).run();
+    },
+
+    /**
+     * Throws food away: takes it out of the line (all of it unless `quantity` is given) and logs it,
+     * with its estimated value from the product's last known price, for the waste summary.
+     */
+    discard({ id, quantity, reason }: z.infer<typeof stockDiscard>) {
+      const line = svc.get(id);
+      const product = productService.get(line.productId);
+      const thrown = line.approximate ? 0 : Math.min(quantity ?? line.quantity, line.quantity);
+      if (!line.approximate && thrown <= 0) throw new ValidationError('Nothing to throw away');
+      const cost = thrown > 0 ? costCents(product, thrown, line.unit) : null;
+      db.transaction(() => {
+        db.insert(wasteLog)
+          .values({ householdId: hid, productId: line.productId, quantity: round(thrown), unit: line.unit, costCents: cost === null ? null : Math.round(cost), reason, date: today() })
+          .run();
+        if (line.approximate || thrown >= line.quantity - 1e-9) svc.remove(id);
+        else db.update(stockItems).set({ quantity: round(line.quantity - thrown) }).where(and(mine, eq(stockItems.id, id))).run();
+      });
+      return { name: line.name, unit: line.unit, discarded: round(thrown), costCents: cost === null ? null : Math.round(cost), reason, removed: line.approximate || thrown >= line.quantity - 1e-9 };
+    },
+
+    /** What was thrown away between two dates (default: the last 30 days): totals, and by product, reason and month. Amounts in cents. */
+    wasteSummary({ from, to }: z.infer<typeof wasteSummary> = {}) {
+      const end = to ?? today();
+      const start = from ?? addDays(end, -30);
+      const rows = db
+        .select({ name: products.name, quantity: wasteLog.quantity, unit: wasteLog.unit, costCents: wasteLog.costCents, reason: wasteLog.reason, date: wasteLog.date })
+        .from(wasteLog)
+        .innerJoin(products, eq(products.id, wasteLog.productId))
+        .where(and(eq(wasteLog.householdId, hid), gte(wasteLog.date, start), lte(wasteLog.date, end)))
+        .all();
+      const group = <K extends string>(key: (r: (typeof rows)[number]) => K) => {
+        const m = new Map<K, { count: number; costCents: number }>();
+        for (const r of rows) {
+          const g = m.get(key(r)) ?? { count: 0, costCents: 0 };
+          g.count += 1;
+          g.costCents += r.costCents ?? 0;
+          m.set(key(r), g);
+        }
+        return m;
+      };
+      const byProduct = new Map<string, { name: string; unit: string; quantity: number; costCents: number; times: number }>();
+      for (const r of rows) {
+        const k = `${r.name}|${r.unit}`;
+        const g = byProduct.get(k) ?? { name: r.name, unit: r.unit, quantity: 0, costCents: 0, times: 0 };
+        g.quantity = round(g.quantity + r.quantity);
+        g.costCents += r.costCents ?? 0;
+        g.times += 1;
+        byProduct.set(k, g);
+      }
+      return {
+        from: start,
+        to: end,
+        totalCostCents: rows.reduce((n, r) => n + (r.costCents ?? 0), 0),
+        itemsThrownAway: rows.length,
+        unpricedItems: rows.filter((r) => r.costCents === null).length,
+        byProduct: [...byProduct.values()].sort((a, b) => b.costCents - a.costCents || b.times - a.times),
+        byReason: [...group((r) => r.reason)].map(([reason, g]) => ({ reason, ...g })),
+        byMonth: [...group((r) => r.date.slice(0, 7))].map(([month, g]) => ({ month, ...g })).sort((a, b) => a.month.localeCompare(b.month)),
+      };
     },
 
     /**

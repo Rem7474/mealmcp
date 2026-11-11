@@ -3,7 +3,7 @@ import { ArrowsClockwise, Basket, Package, Plus, X } from '@phosphor-icons/react
 import { type FormEvent, useState } from 'react';
 import { api, useAction } from '../api';
 import { addDays, formatDay, formatMoney, formatQty, MEALS, today } from '../format';
-import { type MessageKey, useT } from '../i18n';
+import { type MessageKey, useI18n, useT } from '../i18n';
 import type { BudgetStatus, HouseholdSettings, ShoppingItem } from '../types';
 import { Badge, Button, Card, Empty, Input, Select } from '../ui';
 import { LocationSelect, parseQty, ProductDatalist, useCurrency } from './shared';
@@ -17,6 +17,7 @@ const sum = (items: ShoppingItem[]) => items.reduce((total, i) => total + (i.pri
 /** One priced list: tick while shopping, enter what each line cost, then put the basket away in one go. */
 export function Shopping() {
   const t = useT();
+  const { lang } = useI18n();
   const mealOrder = (m: ShoppingItem['meals'][number]) => `${m.date}-${MEALS.indexOf(m.mealType)}`;
   /** Splits the list into sections: by store aisle, or by the first planned meal that needs each item. */
   const group = (list: ShoppingItem[], by: GroupBy): Group[] => {
@@ -159,6 +160,11 @@ export function Shopping() {
                   </Select>
                 )}
                 {item.source === 'plan' && groupBy !== 'meal' && <Badge tone="accent">{t('shopping.list.fromPlan')}</Badge>}
+                {item.season === 'out' && !item.checked && (
+                  <span title={item.seasonAlternatives.length ? t('season.instead', { list: item.seasonAlternatives.map((p) => p[lang]).join(', ') }) : undefined}>
+                    <Badge tone="warn">{t('season.out')}</Badge>
+                  </span>
+                )}
                 <Input
                   key={`${item.priceCents}-${item.estimatedCents}`}
                   defaultValue={item.priceCents !== null ? item.priceCents / 100 : ''}

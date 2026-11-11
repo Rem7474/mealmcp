@@ -12,12 +12,16 @@ Equipment: list_equipment shows the appliances and utensils the household owns; 
 Recipes carry a rating (1-5 stars) and a favorite flag set by the household (update_recipe); suggest_recipes ranks loved recipes higher, so respect them when proposing a menu.
 Products can be filed under a store aisle (update_product category: produce, dairy, meat_fish, bakery, pantry, frozen, drinks, household, other); the shopping list can be shown by aisle or by meal, and generated lines say which planned meals they are for.
 Packs and jars: record "2 x 500 g" as packCount/packSize, open a pack with open_stock_item (opened packs are used first and expire on their own clock), and read get_stock_alerts for what is opened. Products bought by net weight but cooked by drained weight (beans, tuna) carry a drained ratio (update_product drained): stock stays in label grams and recipe grams are read as drained.
+Seasonality: get_seasonal_produce lists the fruits, vegetables and herbs in season where the household lives (settings country and hemisphere); shopping lines out of season carry in-season alternatives. Prefer seasonal produce when proposing meals.
+Diet and allergies: the household settings hold diets, allergens and ingredients to avoid; recipes carry dietConflicts, suggest_recipes_to_use_up skips them and plan_meal warns. Matching is by ingredient name (a safety net, not a guarantee): set explicit allergens on a product with update_product when you know them.
+Variety: get_meal_history shows what was cooked lately and how often per recipe; do not repeat recipes made recently. get_meal_context returns everything useful to propose a menu in a single call: start there.
+Waste: discard_stock records food thrown away (with its estimated cost) and get_waste_summary reports it.
 Several items at once? Use the *_bulk tools instead of many single calls.
 Money: amounts you send are decimal numbers in the household currency (2.49); amounts you receive are integers in cents (249). Record purchases with record_expense so prices feed the cost estimates.
 Typical flow: plan meals (plan_meal) -> generate_shopping_list for the planned period -> check items while shopping -> complete_shopping moves them into stock -> cook_planned_meal takes ingredients out of stock.`;
 
 /** MCP adapter: exposes the same services as the REST API, as tools for AI clients. */
-export function createMcpServer({ settings, equipment, products, stock, recipes, planner, budget, shopping }: Services, onChange?: () => void) {
+export function createMcpServer({ settings, equipment, products, stock, recipes, planner, budget, shopping, seasons, context }: Services, onChange?: () => void) {
   const server = new McpServer({ name: 'mealmcp', version: '0.1.0' }, { instructions: INSTRUCTIONS });
 
   function tool<Shape extends ZodRawShape>(
@@ -71,7 +75,7 @@ export function createMcpServer({ settings, equipment, products, stock, recipes,
 
   // --- Products ------------------------------------------------------------
   tool('list_products', 'List all known products with their category, default unit and minimum stock threshold.', {}, ro, () => products.list());
-  tool('update_product', 'Rename a product, set its category (aisle: produce, dairy, meat_fish, bakery, pantry, frozen, drinks, household, other), low-stock threshold, staple flag, conversions (gramsPerPiece, gramsPerMl), drained weight (beans: net 200 g, drained 125 g) or the days it keeps once opened (openedShelfLifeDays).', s.productUpdate.shape, rw, (a) => products.update(a));
+  tool('update_product', 'Rename a product, set its category (aisle: produce, dairy, meat_fish, bakery, pantry, frozen, drinks, household, other), low-stock threshold, staple flag, conversions (gramsPerPiece, gramsPerMl), allergens it contains (explicit list, overrides the name-based guess), drained weight (beans: net 200 g, drained 125 g) or the days it keeps once opened (openedShelfLifeDays).', s.productUpdate.shape, rw, (a) => products.update(a));
 
   // --- Recipes -------------------------------------------------------------
   tool('list_recipes', 'List recipes (summary). Optionally search by recipe or ingredient name.', s.recipeList.shape, ro, (a) => recipes.list(a));
@@ -112,8 +116,8 @@ export function createMcpServer({ settings, equipment, products, stock, recipes,
   tool('add_equipment', 'Record an appliance or utensil the household has (owned=true, default) or a missing one. Idempotent by name.', s.equipmentAdd.shape, rw, (a) => equipment.add(a));
   tool('update_equipment', 'Rename an item, change its kind, or mark it owned/not owned.', s.equipmentUpdate.shape, rw, (a) => equipment.update(a));
   tool('remove_equipment', 'Delete an appliance or utensil (also removes it from recipes that required it).', s.idParam.shape, del, (a) => equipment.remove(a.id));
-  tool('get_household_settings', 'Household preferences: default servings and which meals are planned on which weekdays.', {}, ro, () => settings.get());
-  tool('set_household_settings', 'Set the default number of servings and/or the weekly meal pattern (e.g. dinners from Sunday to Thursday). plannedMeals replaces the whole pattern when given.', s.settingsSet.shape, rw, (a) => settings.set(a));
+  tool('get_household_settings', 'Household preferences: default servings, planned meals by weekday, country and hemisphere (seasonal calendar), diets, allergens and ingredients to avoid.', {}, ro, () => settings.get());
+  tool('set_household_settings', 'Set the default number of servings, the weekly meal pattern (plannedMeals replaces the whole pattern), the country and hemisphere (seasonal calendar) and the diet object (diets, allergens, avoid; replaces the whole object).', s.settingsSet.shape, rw, (a) => settings.set(a));
   tool('list_planning_slots', 'Meals the household expects to plan (from its settings) that have nothing planned yet between two dates: the empty slots to fill with plan_meal / plan_meals_bulk.', s.planSlots.shape, ro, (a) => ({ today: today(), slots: planner.slots(a) }));
   tool(
     'suggest_recipes_to_use_up',
@@ -122,6 +126,13 @@ export function createMcpServer({ settings, equipment, products, stock, recipes,
     ro,
     (a) => recipes.suggest(a),
   );
+
+  // --- Seasons, history, context, waste ----------------------------------------
+  tool('get_seasonal_produce', 'Fruits, vegetables and herbs in season where the household lives (country and hemisphere settings), for a month (default: this month), with what is ending this month and what starts next month.', s.seasonList.shape, ro, (a) => seasons.list(a));
+  tool('get_meal_history', 'Meals planned in the last days (default 60) with whether they were cooked, and per recipe how often and when it was last made. Use it to avoid repeating recipes.', s.mealHistory.shape, ro, (a) => planner.history(a));
+  tool('get_meal_context', 'Everything needed to propose a menu in one call: today, household settings (diet, allergens, servings, country), in-season produce, stock about to expire and opened packs, open planning slots, upcoming and recent meals, favorite and never-made recipes, owned equipment and the budget status.', s.mealContext.shape, ro, (a) => context.get(a));
+  tool('discard_stock', 'Throw food away: removes it from a stock line (all of it unless quantity is given) and logs it as waste with its estimated cost.', s.stockDiscard.shape, del, (a) => stock.discard(a));
+  tool('get_waste_summary', 'Food thrown away between two dates (default: last 30 days): total value in cents, by product, by reason and by month.', s.wasteSummary.shape, ro, (a) => stock.wasteSummary(a));
 
   // --- Budget ----------------------------------------------------------------
   tool(

@@ -2,9 +2,9 @@ import { and, eq, gte, lte, sql } from 'drizzle-orm';
 import type { z } from 'zod';
 import type { Db } from '../db/index.js';
 import { MEAL_TYPES, mealPlan, recipes } from '../db/schema.js';
-import { addDays } from '../domain/dates.js';
+import { addDays, today } from '../domain/dates.js';
 import { NotFoundError, ValidationError } from '../domain/errors.js';
-import type { planAdd, planList } from '../domain/schemas.js';
+import type { mealHistory, planAdd, planList } from '../domain/schemas.js';
 import { round } from '../domain/units.js';
 import type { RecipeService } from './recipes.js';
 import type { SettingsService } from './settings.js';
@@ -67,7 +67,8 @@ export function createPlannerService(db: Db, hid: number, recipeService: RecipeS
         })
         .returning()
         .get();
-      return svc.get(row.id);
+      // Not blocking: the household may know better, but the assistant should say so.
+      return { ...svc.get(row.id), dietConflicts: recipe?.dietConflicts ?? [] };
     },
 
     /** Plans several meals in one go (all or nothing). */
@@ -94,6 +95,27 @@ export function createPlannerService(db: Db, hid: number, recipeService: RecipeS
           if (pattern[mealType]?.includes(weekday) && !planned.has(`${date}|${mealType}`)) open.push({ date, weekday, mealType });
       }
       return open;
+    },
+
+    /**
+     * What was on the table recently (planned meals up to today, with whether they were cooked), and per recipe
+     * how often and when it was last made, so a new menu does not repeat itself.
+     */
+    history({ days, recipeId }: z.infer<typeof mealHistory>) {
+      const end = today();
+      const meals = view()
+        .where(and(mine, gte(mealPlan.date, addDays(end, -days)), lte(mealPlan.date, end), recipeId ? eq(mealPlan.recipeId, recipeId) : undefined))
+        .orderBy(sql`${mealPlan.date} desc`, mealPlan.id)
+        .all();
+      const byRecipe = new Map<number, { recipeId: number; name: string; times: number; lastMadeOn: string }>();
+      for (const m of meals) {
+        if (!m.recipeId) continue;
+        const r = byRecipe.get(m.recipeId) ?? { recipeId: m.recipeId, name: m.recipeName ?? '', times: 0, lastMadeOn: m.date };
+        r.times += 1;
+        if (m.date > r.lastMadeOn) r.lastMadeOn = m.date;
+        byRecipe.set(m.recipeId, r);
+      }
+      return { from: addDays(end, -days), to: end, meals, recipes: [...byRecipe.values()].sort((a, b) => b.times - a.times || b.lastMadeOn.localeCompare(a.lastMadeOn)) };
     },
 
     /** Marks a meal as cooked and takes its recipe's ingredients out of stock. */

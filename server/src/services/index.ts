@@ -1,9 +1,11 @@
 import type { Db } from '../db/index.js';
 import { createBudgetService } from './budget.js';
+import { createContextService } from './context.js';
 import { createEquipmentService } from './equipment.js';
 import { createPlannerService } from './planner.js';
 import { createProductService } from './products.js';
 import { createRecipeService } from './recipes.js';
+import { createSeasonService } from './seasons.js';
 import { createSettingsService } from './settings.js';
 import { createShoppingService } from './shopping.js';
 import { createStockService } from './stock.js';
@@ -21,11 +23,13 @@ export function createServices(db: Db, householdId: number) {
   const products = createProductService(db, householdId);
   const stock = createStockService(db, householdId, products);
   const equipment = createEquipmentService(db, householdId);
-  const recipes = createRecipeService(db, householdId, products, stock, settings, equipment);
+  const seasons = createSeasonService(settings);
+  const recipes = createRecipeService(db, householdId, products, stock, settings, equipment, seasons);
   const planner = createPlannerService(db, householdId, recipes, stock, settings);
   const budget = createBudgetService(db, householdId, products, stock, recipes, planner);
-  const shopping = createShoppingService(db, householdId, products, stock, recipes, planner, budget);
-  return { settings, equipment, products, stock, recipes, planner, budget, shopping };
+  const shopping = createShoppingService(db, householdId, products, stock, recipes, planner, budget, seasons);
+  const context = createContextService(settings, stock, recipes, planner, seasons, equipment, budget);
+  return { context, settings, seasons, equipment, products, stock, recipes, planner, budget, shopping };
 }
 
 export type Services = ReturnType<typeof createServices>;

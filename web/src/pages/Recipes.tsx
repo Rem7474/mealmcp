@@ -2,9 +2,9 @@ import { Heart } from '@phosphor-icons/react';
 import { useQuery } from '@tanstack/react-query';
 import { type FormEvent, useState } from 'react';
 import { api, useAction } from '../api';
-import { formatMoney, formatQty } from '../format';
-import { useT } from '../i18n';
-import type { Availability, Recipe, RecipeCost, RecipeSummary } from '../types';
+import { formatDate, formatMoney, formatQty } from '../format';
+import { locale, type MessageKey, useI18n, useT } from '../i18n';
+import type { Availability, Produce, Recipe, RecipeCost, RecipeSummary, Seasonal } from '../types';
 import { Badge, Button, Card, Empty, Input, Select, Stars } from '../ui';
 import { parseQty, ProductDatalist, useCurrency } from './shared';
 
@@ -37,6 +37,7 @@ export function Recipes() {
 
   const list = (
     <div className="min-w-0 space-y-3">
+      <SeasonCard />
       <div className="flex gap-2">
         <Input type="search" placeholder={t('recipes.search')} aria-label={t('recipes.searchAria')} value={search} onChange={(e) => setSearch(e.target.value)} className="flex-1" />
         <Button variant="primary" onClick={() => setView({ mode: 'edit' })}>
@@ -83,13 +84,13 @@ export function Recipes() {
                   {r.cookMinutes ? ` · ${t('recipes.cooking', { time: t('common.minutes', { n: r.cookMinutes }) })}` : ''}
                 </div>
                 {r.description && <p className="mt-2 line-clamp-2 text-sm">{r.description}</p>}
-                {r.tags.length > 0 && (
-                  <div className="mt-2 flex flex-wrap gap-1">
-                    {r.tags.map((x) => (
-                      <Badge key={x}>{x}</Badge>
-                    ))}
-                  </div>
-                )}
+                <div className="mt-2 flex flex-wrap gap-1">
+                  {r.tags.map((x) => (
+                    <Badge key={x}>{x}</Badge>
+                  ))}
+                  <Badge>{r.lastMadeOn ? t('recipes.lastMade', { date: formatDate(r.lastMadeOn) }) : t('recipes.neverMade')}</Badge>
+                  {r.dietConflicts.length > 0 && <Badge tone="danger">{t('recipes.dietConflict', { items: r.dietConflicts.map((c) => c.ingredient).join(', ') })}</Badge>}
+                </div>
               </button>
             </li>
           ))}
@@ -110,6 +111,51 @@ export function Recipes() {
         )}
       </div>
     </div>
+  );
+}
+
+/** Fruit, vegetables and herbs in season where the household lives (see the country setting), for any month. */
+function SeasonCard() {
+  const t = useT();
+  const { lang } = useI18n();
+  const [month, setMonth] = useState(new Date().getMonth() + 1);
+  const { data } = useQuery({ queryKey: ['seasons', month], queryFn: () => api.get<Seasonal>(`/seasons?month=${month}`) });
+  const name = (p: Produce) => p[lang];
+  const monthName = (m: number) => new Intl.DateTimeFormat(locale(), { month: 'long' }).format(new Date(2024, m - 1, 1));
+  return (
+    <details className="rounded-xl bg-surface p-3.5 shadow-[0_0_0_1px_var(--line)]">
+      <summary className="cursor-pointer text-sm font-semibold">{t('season.title')}</summary>
+      <div className="mt-3 space-y-3 text-sm">
+        <label className="flex flex-wrap items-center gap-2 text-muted">
+          {t('season.help', { month: monthName(month) })}
+          <Select aria-label={t('season.title')} value={month} onChange={(e) => setMonth(Number(e.target.value))} className="h-8 text-xs">
+            {Array.from({ length: 12 }, (_, i) => (
+              <option key={i} value={i + 1}>
+                {monthName(i + 1)}
+              </option>
+            ))}
+          </Select>
+        </label>
+        {data &&
+          (['fruit', 'vegetable', 'herb'] as const).map((kind) => {
+            const list = data.inSeason.filter((p) => p.kind === kind);
+            return list.length === 0 ? null : (
+              <div key={kind}>
+                <div className="mb-1 text-xs font-medium text-muted">{t(`season.${kind}` as MessageKey)}</div>
+                <div className="flex flex-wrap gap-1">
+                  {list.map((p) => (
+                    <Badge key={p.id} tone="accent">
+                      {name(p)}
+                    </Badge>
+                  ))}
+                </div>
+              </div>
+            );
+          })}
+        {data && data.lastMonth.length > 0 && <p className="text-muted">{t('season.ending', { list: data.lastMonth.map(name).join(', ') })}</p>}
+        {data && data.startingNextMonth.length > 0 && <p className="text-muted">{t('season.next', { list: data.startingNextMonth.map(name).join(', ') })}</p>}
+      </div>
+    </details>
   );
 }
 

@@ -166,6 +166,8 @@ export const products = sqliteTable(
     drainedRatio: real('drained_ratio'),
     /** Days an opened pack keeps (sauce 3, coconut milk 4): sets the expiry when a pack is opened. */
     openedShelfLifeDays: integer('opened_shelf_life_days'),
+    /** JSON array of allergen keys that overrides the name-based guess (null = guess, [] = none). */
+    allergens: text('allergens'),
   },
   (t) => [uniqueIndex('products_household_name_idx').on(t.householdId, t.nameKey)],
 );
@@ -298,6 +300,25 @@ export const recipeIngredients = sqliteTable('recipe_ingredients', {
   /** "To taste" (pepper, thyme): listed in the recipe but not counted, bought or priced. */
   toTaste: integer('to_taste', { mode: 'boolean' }).notNull().default(false),
 });
+
+/** Food thrown away (expired, spoiled...), with what it cost when a price is known. */
+export const wasteLog = sqliteTable(
+  'waste_log',
+  {
+    id: integer('id').primaryKey({ autoIncrement: true }),
+    householdId: household(),
+    productId: integer('product_id')
+      .notNull()
+      .references(() => products.id, { onDelete: 'cascade' }),
+    quantity: real('quantity').notNull(),
+    unit: text('unit').notNull(),
+    /** Estimated value in cents from the last known product price; null when unpriced. */
+    costCents: integer('cost_cents'),
+    reason: text('reason', { enum: ['expired', 'spoiled', 'leftover', 'other'] }).notNull().default('expired'),
+    date: text('date').notNull(),
+  },
+  (t) => [index('waste_log_household_date_idx').on(t.householdId, t.date)],
+);
 
 export const mealPlan = sqliteTable(
   'meal_plan',

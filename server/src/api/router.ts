@@ -174,6 +174,11 @@ export function createApiRouter({ db, config, accounts, oauth, hub }: Deps) {
   });
 
   r.get('/plan', (req, res) => void res.json(kitchen(req).planner.list(s.planList.parse(req.query))));
+  r.get('/seasons', (req, res) => void res.json(kitchen(req).seasons.list(s.seasonList.parse(req.query))));
+  r.get('/plan/history', (req, res) => void res.json(kitchen(req).planner.history(s.mealHistory.parse(req.query))));
+  r.get('/context', (req, res) => void res.json(kitchen(req).context.get(s.mealContext.parse(req.query))));
+  r.get('/waste', (req, res) => void res.json(kitchen(req).stock.wasteSummary(s.wasteSummary.parse(req.query))));
+  r.post('/stock/:id/discard', (req, res) => void res.json(kitchen(req).stock.discard(s.stockDiscard.parse({ ...req.body, id: id(req.params) }))));
   r.get('/plan/slots', (req, res) => void res.json(kitchen(req).planner.slots(s.planSlots.parse(req.query))));
   r.post('/plan/bulk', (req, res) => void res.status(201).json(kitchen(req).planner.addMany(s.planAddMany.parse(req.body).meals)));
   r.post('/plan', (req, res) => void res.status(201).json(kitchen(req).planner.add(s.planAdd.parse(req.body))));

@@ -395,3 +395,80 @@ describe('packs, opened jars and drained weight', () => {
     expect(svc.stock.update({ id: salt.id, quantity: 250 })).toMatchObject({ quantity: 250, approximate: false });
   });
 });
+
+describe('seasons', () => {
+  it('lists produce by month and shifts it for the southern hemisphere', () => {
+    const july = svc.seasons.list({ month: 7 });
+    const january = svc.seasons.list({ month: 1 });
+    const names = (l: typeof july) => l.inSeason.map((p) => p.en);
+    expect(names(july)).toContain('Tomato');
+    expect(names(january)).not.toContain('Tomato');
+    svc.settings.set({ hemisphere: 'south' });
+    expect(names(svc.seasons.list({ month: 1 }))).toContain('Tomato');
+  });
+
+  it('flags out-of-season produce on the shopping list with alternatives', () => {
+    svc.settings.set({ country: 'FR' });
+    const month = Number(today().slice(5, 7));
+    const tomato = svc.seasons.statusOf('Tomates', month);
+    const line = svc.shopping.add({ name: 'Tomates' });
+    expect(line.season).toBe(tomato?.inSeason ? 'in' : 'out');
+    expect(svc.shopping.add({ name: 'Lessive' }).season).toBeNull();
+  });
+});
+
+describe('diets and allergens', () => {
+  it('flags recipes that break the household diet and skips them in suggestions', () => {
+    svc.settings.set({ diet: { diets: ['vegetarian'], allergens: ['milk'], avoid: ['olives'] } });
+    const stew = svc.recipes.create({ name: 'Stew', ingredients: [{ name: 'Boeuf', quantity: 300, unit: 'g' }] });
+    const gratin = svc.recipes.create({ name: 'Gratin', ingredients: [{ name: 'Crème fraîche', quantity: 20, unit: 'cl' }, { name: 'Olives', quantity: 50, unit: 'g' }] });
+    const salad = svc.recipes.create({ name: 'Salad', ingredients: [{ name: 'Lettuce', quantity: 1, unit: 'piece' }] });
+    const reasons = (id: number) => svc.recipes.get(id).dietConflicts.flatMap((c) => c.reasons);
+    expect(reasons(stew.id)).toContain('diet:vegetarian');
+    expect(reasons(gratin.id)).toEqual(expect.arrayContaining(['allergen:milk', 'avoid:olives']));
+    expect(svc.recipes.get(salad.id).dietConflicts).toEqual([]);
+    expect(svc.planner.add({ date: '2030-01-01', mealType: 'dinner', recipeId: stew.id }).dietConflicts.length).toBeGreaterThan(0);
+  });
+
+  it('does not take coconut milk for dairy, and honours an explicit allergen list', () => {
+    svc.settings.set({ diet: { allergens: ['milk'] } });
+    const curry = svc.recipes.create({ name: 'Curry', ingredients: [{ name: 'Lait de coco', quantity: 40, unit: 'cl' }] });
+    expect(svc.recipes.get(curry.id).dietConflicts).toEqual([]);
+    const product = svc.products.list().find((p) => p.name === 'Lait de coco')!;
+    svc.products.update({ id: product.id, allergens: ['milk'] });
+    expect(svc.recipes.get(curry.id).dietConflicts.flatMap((c) => c.reasons)).toContain('allergen:milk');
+  });
+});
+
+describe('meal history', () => {
+  it('reports what was made recently and how often', () => {
+    const soup = svc.recipes.create({ name: 'Soup', ingredients: [{ name: 'Leek', quantity: 2, unit: 'piece' }] });
+    svc.planner.add({ date: addDays(today(), -3), mealType: 'dinner', recipeId: soup.id });
+    svc.planner.add({ date: addDays(today(), -10), mealType: 'dinner', recipeId: soup.id });
+    svc.planner.add({ date: addDays(today(), 2), mealType: 'dinner', recipeId: soup.id });
+    const history = svc.planner.history({ days: 30 });
+    expect(history.meals).toHaveLength(2);
+    expect(history.recipes[0]).toMatchObject({ name: 'Soup', times: 2, lastMadeOn: addDays(today(), -3) });
+    expect(svc.recipes.list().find((r) => r.id === soup.id)).toMatchObject({ lastMadeOn: addDays(today(), -3), timesMade: 2 });
+    expect(svc.context.get().recentRecipeFrequency).toHaveLength(1);
+  });
+});
+
+describe('waste tracking', () => {
+  it('logs what is thrown away with its estimated cost', () => {
+    svc.budget.setProductPrice({ name: 'Milk', quantity: 1, unit: 'l', price: 1.2 });
+    const milk = svc.stock.add({ name: 'Milk', quantity: 1, unit: 'l' });
+    const part = svc.stock.discard({ id: milk.id, quantity: 500, reason: 'expired' });
+    expect(part).toMatchObject({ discarded: 500, costCents: 60, removed: false });
+    expect(svc.stock.get(milk.id).quantity).toBe(500);
+    svc.stock.discard({ id: milk.id, reason: 'spoiled' });
+    expect(svc.stock.list()).toEqual([]);
+    const bread = svc.stock.add({ name: 'Bread', quantity: 1, unit: 'piece' });
+    svc.stock.discard({ id: bread.id, reason: 'expired' });
+    const summary = svc.stock.wasteSummary({});
+    expect(summary.itemsThrownAway).toBe(3);
+    expect(summary.totalCostCents).toBe(120);
+    expect(summary.unpricedItems).toBe(1);
+    expect(summary.byProduct[0]).toMatchObject({ name: 'Milk', quantity: 1000 });
+  });
+});

@@ -4,7 +4,7 @@ import { type FormEvent, useState } from 'react';
 import { api, useAction } from '../api';
 import { formatDate, MEALS, weekdayName } from '../format';
 import { type MessageKey, useI18n, useT } from '../i18n';
-import type { Equipment, Household, HouseholdSettings, MealTypeKey, Product, TokenInfo, User } from '../types';
+import { ALLERGENS, COUNTRIES, type Country, DIETS, type Equipment, type Household, type HouseholdSettings, type MealTypeKey, type Product, type TokenInfo, type User } from '../types';
 import { Badge, Button, Card, Empty, Input, Select } from '../ui';
 import { resetSession } from './AuthPage';
 import { useProducts } from './shared';
@@ -146,7 +146,58 @@ function SettingsCard() {
           </tbody>
         </table>
       </div>
+      <h3 className="mt-4 text-sm font-semibold">{t('settings.location')}</h3>
+      <p className="text-sm text-muted">{t('settings.locationHelp')}</p>
+      <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-2 text-sm">
+        <label className="flex items-center gap-2">
+          {t('settings.country')}
+          <Select value={current.country ?? 'FR'} onChange={(e) => change({ ...current, country: e.target.value as Country })}>
+            {COUNTRIES.map((c) => (
+              <option key={c} value={c}>
+                {t(`country.${c}` as MessageKey)}
+              </option>
+            ))}
+          </Select>
+        </label>
+        <label className="flex items-center gap-2">
+          <input type="checkbox" className="size-4 accent-(--accent)" checked={current.hemisphere === 'south'} onChange={(e) => change({ ...current, hemisphere: e.target.checked ? 'south' : 'north' })} />
+          {t('settings.southern')}
+        </label>
+      </div>
+      <h3 className="mt-4 text-sm font-semibold">{t('settings.diet')}</h3>
+      <p className="text-sm text-muted">{t('settings.dietHelp')}</p>
+      <ChipPicker label={t('settings.diets')} options={DIETS.map((d) => ({ value: d, label: t(`diet.${d}` as MessageKey) }))} value={current.diet?.diets ?? []} onChange={(diets) => change({ ...current, diet: { ...current.diet, diets } })} />
+      <ChipPicker label={t('settings.allergens')} options={ALLERGENS.map((a) => ({ value: a, label: t(`allergen.${a}` as MessageKey) }))} value={current.diet?.allergens ?? []} onChange={(allergens) => change({ ...current, diet: { ...current.diet, allergens } })} />
+      <label className="mt-3 block text-sm">
+        {t('settings.avoid')}
+        <Input
+          key={(current.diet?.avoid ?? []).join(',')}
+          defaultValue={(current.diet?.avoid ?? []).join(', ')}
+          placeholder={t('settings.avoidHelp')}
+          onBlur={(e) => change({ ...current, diet: { ...current.diet, avoid: e.target.value.split(',').map((x) => x.trim()).filter(Boolean) } })}
+          className="mt-1 w-full"
+        />
+      </label>
     </Card>
+  );
+}
+
+/** A group of toggle chips: several options can be on at once. */
+function ChipPicker({ label, options, value, onChange }: { label: string; options: { value: string; label: string }[]; value: string[]; onChange: (next: string[]) => void }) {
+  return (
+    <fieldset className="mt-3 min-w-0">
+      <legend className="mb-1 text-sm">{label}</legend>
+      <div className="flex flex-wrap gap-1.5">
+        {options.map((o) => {
+          const on = value.includes(o.value);
+          return (
+            <Button key={o.value} type="button" variant={on ? 'primary' : 'secondary'} className="h-8 px-3" aria-pressed={on} onClick={() => onChange(on ? value.filter((v) => v !== o.value) : [...value, o.value])}>
+              {o.label}
+            </Button>
+          );
+        })}
+      </div>
+    </fieldset>
   );
 }
 

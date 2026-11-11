@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { LOCATIONS, MEAL_TYPES } from '../db/schema.js';
+import { ALLERGENS } from './diet.js';
 import { householdSettings } from './settings.js';
 
 /**
@@ -50,6 +51,11 @@ export const productUpdate = z.object({
     .nullable()
     .optional()
     .describe('Days a pack keeps once opened (tomato sauce 3, coconut milk 4). Used to set the expiry when a pack is opened.'),
+  allergens: z
+    .array(z.enum(ALLERGENS))
+    .nullable()
+    .optional()
+    .describe('Allergens this product contains (EU list), replacing the guess made from its name. [] = none, null = back to the guess.'),
 });
 
 export const stockList = z.object({
@@ -295,9 +301,36 @@ export const suggestRecipes = z.object({
   tag: z.string().trim().optional().describe('Only consider recipes with this tag'),
   servings: z.coerce.number().int().positive().optional().describe('Servings to check availability for; defaults to the household default'),
   limit: z.coerce.number().int().positive().max(20).default(5),
+  ignoreDiet: z.coerce.boolean().optional().describe('Also return recipes that break the household diet, allergens or dislikes (they are left out by default)'),
 });
 
 export const stockAddMany = z.object({ items: z.array(stockAdd).min(1).max(200) });
 export const recipeCreateMany = z.object({ recipes: z.array(recipeCreate).min(1).max(50) });
 export const planAddMany = z.object({ meals: z.array(planAdd).min(1).max(100) });
 export const shoppingAddMany = z.object({ items: z.array(shoppingAdd).min(1).max(200) });
+
+export const seasonList = z.object({
+  month: z.coerce.number().int().min(1).max(12).optional().describe('Month number 1-12; defaults to the current month'),
+  kind: z.enum(['fruit', 'vegetable', 'herb']).optional().describe('Only fruits, vegetables or herbs'),
+});
+
+export const mealHistory = z.object({
+  days: z.coerce.number().int().positive().max(365).default(60).describe('How many days back to look'),
+  recipeId: id.optional().describe('Only the times this recipe was made'),
+});
+
+export const stockDiscard = z.object({
+  id,
+  quantity: z.number().positive().optional().describe('How much was thrown away, in the line unit; omit to throw away the whole line'),
+  reason: z.enum(['expired', 'spoiled', 'leftover', 'other']).default('expired'),
+});
+
+export const wasteSummary = z.object({
+  from: isoDate.optional().describe('First day, inclusive; defaults to 30 days ago'),
+  to: isoDate.optional().describe('Last day, inclusive; defaults to today'),
+});
+
+export const mealContext = z.object({
+  days: z.coerce.number().int().positive().max(60).default(14).describe('How many days ahead to look for open slots and planned meals'),
+  historyDays: z.coerce.number().int().positive().max(365).default(30).describe('How many days back to look for recent meals'),
+});
