@@ -47,8 +47,8 @@
 </div>
 
 <section id="features"><div class="wrap">
-  <h2>Everything a kitchen needs</h2>
-  <p class="lead">Use it by hand, or let your AI do it: every action in the app is also a tool it can call.</p>
+  <h2>From “what do we eat?” to the receipt</h2>
+  <p class="lead">Do it by hand, or ask your AI: everything you can do in the app, it can do too.</p>
   <div class="grid">
       <div class="card"><div class="ico" aria-hidden="true">📅</div><h3>Plan the week in minutes</h3><p>Drop a recipe or a quick note on each day. Empty slots stand out, so nothing is left to “we will see”.</p></div>
       <div class="card"><div class="ico" aria-hidden="true">🛒</div><h3>Shopping lists that write themselves</h3><p>One tap turns the week’s meals into a list: what you need, minus what is already at home. Sort it by aisle and tick as you walk the shop.</p></div>
@@ -68,9 +68,9 @@
   <div class="split">
     <div>
       <div class="eyebrow">MCP</div>
-      <h2>Built for AI assistants</h2>
-      <p class="lead">The same business logic backs the web UI and an MCP endpoint. Connect Claude (or any MCP client) and just talk: it can read your stock, plan the week, build the list and log the receipt.</p>
-      <ul><li><strong>OAuth 2.1 built in</strong>: discovery, dynamic client registration, PKCE. Paste the address, sign in, allow. Revoke any time.</li><li><strong>Personal tokens</strong> for scripts and clients without OAuth. The same token opens the REST API.</li><li><strong>Over 40 tools</strong>: stock, recipes, plan, shopping, budget, equipment, bulk variants.</li><li><strong>Household-scoped</strong>: every request acts on the signed-in person’s household only.</li></ul>
+      <h2>Say it, your AI does it</h2>
+      <p class="lead">Ask Claude what to cook tonight, to plan the week or to build the list. It sees your real stock and budget, so its answers fit your kitchen, not a generic one.</p>
+      <ul><li><strong>One-step connection</strong>: paste the address, sign in, allow. You can revoke the access at any time.</li><li><strong>Scripts and other tools</strong> can use a personal token, the same one opens the REST API.</li><li><strong>Everything you can do</strong>: plan, shop, log receipts, adjust the stock, check a recipe’s cost.</li><li><strong>Your household only</strong>: the assistant never sees another household’s data.</li></ul>
     </div>
     <div class="chat" aria-label="Example conversation">
         <div class="msg me">What can I cook tonight with what is about to expire?</div>
@@ -79,7 +79,7 @@
         <div class="msg ai">Done: pasta planned for Thursday dinner. 8 items to buy, about €23 estimated.<small>plan_meal · generate_shopping_list</small></div>
     </div>
   </div>
-  <h2 style="margin-top:56px;font-size:1.3rem">Some of the tools your AI gets</h2>
+  <h2 style="margin-top:56px;font-size:1.3rem">What your AI can do</h2>
   <div class="tools">
       <div><h3>Stock</h3><code>list_stock</code> <code>add_stock</code> <code>update_stock_item</code> <code>open_stock_item</code> <code>consume_stock</code> <code>remove_stock_item</code> <code>get_stock_alerts</code></div>
       <div><h3>Recipes</h3><code>list_recipes</code> <code>get_recipe</code> <code>create_recipe</code> <code>update_recipe</code> <code>check_recipe_availability</code> <code>suggest_recipes_to_use_up</code></div>
@@ -93,7 +93,7 @@
 
 <section id="tour"><div class="wrap">
   <h2>A quick tour</h2>
-  <p class="lead">Screens from the web app. Click one to enlarge it.</p>
+  <p class="lead">Real screens with demo data. Click one to see it full size.</p>
   <div class="gallery">
       <figure><div class="shot"><a class="zoom" href="screens/planning-en.jpg" aria-label="Enlarge the screenshot"><img src="screens/planning-en.jpg" alt="Planning: see the week’s meals and what is still missing for each." loading="lazy" width="1280" height="800"></a></div><figcaption>Planning: see the week’s meals and what is still missing for each.</figcaption></figure>
       <figure><div class="shot"><a class="zoom" href="screens/recipes-en.jpg" aria-label="Enlarge the screenshot"><img src="screens/recipes-en.jpg" alt="Recipes: find what to cook, what you made lately and what is in season." loading="lazy" width="1280" height="800"></a></div><figcaption>Recipes: find what to cook, what you made lately and what is in season.</figcaption></figure>
@@ -106,7 +106,7 @@
 
 <section id="mobile"><div class="wrap">
   <h2>In your pocket</h2>
-  <p class="lead">The same app on a phone: bottom tab bar, one-handed use, install it on your home screen.</p>
+  <p class="lead">Open the list in the shop and tick as you go. Check what is left at home before you buy it twice.</p>
   <div class="phones">
       <figure><a class="zoom phone" href="screens/m-planning-en.jpg" aria-label="Enlarge the screenshot"><img src="screens/m-planning-en.jpg" alt="Planning: see the week at a glance." loading="lazy" width="780" height="1688"></a><figcaption>Planning: see the week at a glance.</figcaption></figure>
       <figure><a class="zoom phone" href="screens/m-shopping-en.jpg" aria-label="Enlarge the screenshot"><img src="screens/m-shopping-en.jpg" alt="Shopping: tick items off as you walk the aisles." loading="lazy" width="780" height="1688"></a><figcaption>Shopping: tick items off as you walk the aisles.</figcaption></figure>
@@ -117,7 +117,7 @@
 
 <section id="deploy"><div class="wrap">
   <h2>Self-host in two minutes</h2>
-  <p class="lead">One container, one SQLite file. Multi-arch image (amd64 and arm64) published on GitHub Container Registry.</p>
+  <p class="lead">One container, one file for your data. Runs on a Raspberry Pi, a NAS or a small server.</p>
   <div class="steps">
       <div class="step"><div><p><strong>Get the files</strong></p><p>Grab <code>docker-compose.yml</code> and <code>.env.example</code> from the repository and copy the example to <code>.env</code>. Set <code>PUBLIC_URL</code> to the real address of the app.</p></div></div>
       <div class="step"><div><p><strong>Start it</strong></p><pre><code>cp .env.example .env   # then edit PUBLIC_URL
@@ -125,12 +125,12 @@ docker compose up -d</code></pre></div></div>
       <div class="step"><div><p><strong>Create the first account</strong></p><p>Open the app: <strong>the first account becomes the household owner</strong>. Invite others from the Account tab with a single-use code.</p></div></div>
       <div class="step"><div><p><strong>Connect your AI</strong></p><p>Add <code>PUBLIC_URL/mcp</code> as an MCP server in Claude. Remote clients need HTTPS: put the app behind a reverse proxy.</p></div></div>
   </div>
-  <p class="lead" style="margin-top:24px">Passwords are hashed with scrypt, sessions are HttpOnly/SameSite cookies, tokens are stored hashed and logins are rate-limited. Data stays on your server.</p>
+  <p class="lead" style="margin-top:24px">Your data never leaves your server. Passwords are hashed, sessions are protected and sign-in attempts are rate-limited.</p>
 </div></section>
 
 <section id="arch"><div class="wrap">
   <h2>Under the hood</h2>
-  <p class="lead">Express 5, TypeScript, Drizzle with SQLite, the official MCP SDK and Zod on the server; React 19, Vite and Tailwind 4 on the web. The REST API and the MCP server are two thin adapters over the same services, so a business rule is written once.</p>
+  <p class="lead">Express 5, TypeScript, SQLite, the official MCP SDK on the server; React 19, Vite and Tailwind 4 on the web. The web app and the AI endpoint run the same code, so they never disagree.</p>
 <pre style="margin-top:20px"><code>server/src
   db/        Drizzle schema + SQLite, migrations at startup
   domain/    Zod schemas, units, dates, errors
