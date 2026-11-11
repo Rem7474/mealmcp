@@ -4,7 +4,7 @@ import { type FormEvent, useState } from 'react';
 import { api, useAction } from '../api';
 import { addDays, formatDate, formatDay, formatMoney, fromIso, MEALS, monthStart, today, weekStart } from '../format';
 import { locale, useT } from '../i18n';
-import type { BudgetStatus, MealType, PlanCost, PlanSlot, PlannedMeal, RecipeSummary, Suggestions } from '../types';
+import type { BudgetStatus, HouseholdSettings, MealType, PlanCost, PlanSlot, PlannedMeal, RecipeSummary, Suggestions } from '../types';
 import { Button, Card, Input, Select } from '../ui';
 import { useCurrency } from './shared';
 
@@ -166,8 +166,11 @@ function WeekMatrix({
   onAdd: (date: string, mealType: MealType) => void;
 }) {
   const t = useT();
-  // Breakfast and snack rows only appear when something is planned (or expected) in them.
-  const rows = MEALS.filter((m) => ['lunch', 'dinner'].includes(m) || meals.some((x) => x.mealType === m) || slots.some((x) => x.mealType === m));
+  const { data: settings } = useQuery({ queryKey: ['settings'], queryFn: () => api.get<HouseholdSettings>('/settings') });
+  // Rows follow the household settings (the meals it plans each week), plus any meal already planned.
+  // Without settings, lunch and dinner are shown.
+  const expected = MEALS.filter((m) => (settings?.plannedMeals?.[m]?.length ?? 0) > 0);
+  const rows = MEALS.filter((m) => (expected.length > 0 ? expected.includes(m) : ['lunch', 'dinner'].includes(m)) || meals.some((x) => x.mealType === m));
   const hidden = MEALS.filter((m) => !rows.includes(m));
   const columns = 'grid grid-cols-[5.5rem_repeat(7,minmax(0,1fr))] gap-1.5';
 
