@@ -13,10 +13,14 @@ export function Recipes() {
   const t = useT();
   const [view, setView] = useState<View>({ mode: 'list' });
   const [search, setSearch] = useState('');
+  const [tag, setTag] = useState('');
   const { data: recipes = [] } = useQuery({
-    queryKey: ['recipes', search],
-    queryFn: () => api.get<RecipeSummary[]>(`/recipes?search=${encodeURIComponent(search)}`),
+    queryKey: ['recipes', search, tag],
+    queryFn: () => api.get<RecipeSummary[]>(`/recipes?search=${encodeURIComponent(search)}&tag=${encodeURIComponent(tag)}`),
   });
+  // Unfiltered list, only to know which tags exist.
+  const { data: all = [] } = useQuery({ queryKey: ['recipes', '', ''], queryFn: () => api.get<RecipeSummary[]>('/recipes?search=&tag=') });
+  const tags = [...new Set(all.flatMap((r) => r.tags))].sort();
 
   if (view.mode === 'edit')
     return <RecipeForm recipe={view.recipe} onDone={(id) => setView(id ? { mode: 'detail', id } : { mode: 'list' })} />;
@@ -31,8 +35,17 @@ export function Recipes() {
           {t('recipes.new')}
         </Button>
       </div>
+      {tags.length > 0 && (
+        <div className="flex flex-wrap gap-1.5">
+          {['', ...tags].map((value) => (
+            <Button key={value} variant={tag === value ? 'primary' : 'secondary'} className="h-8 px-3" aria-pressed={tag === value} onClick={() => setTag(value)}>
+              {value || t('recipes.filter.all')}
+            </Button>
+          ))}
+        </div>
+      )}
       {recipes.length === 0 ? (
-        <Empty>{search ? t('recipes.noMatch') : t('recipes.none')}</Empty>
+        <Empty>{search || tag ? t('recipes.noMatch') : t('recipes.none')}</Empty>
       ) : (
         <ul className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
           {recipes.map((r) => (
@@ -44,9 +57,17 @@ export function Recipes() {
                 <div className="font-semibold">{r.name}</div>
                 <div className="mt-1 text-sm text-muted">
                   {t('common.servings', { n: r.servings })} · {t('recipes.ingredientCount', { n: r.ingredientCount })}
-                  {r.prepMinutes ? ` · ${t('common.minutes', { n: r.prepMinutes })}` : ''}
+                  {r.prepMinutes ? ` · ${t('recipes.prep', { time: t('common.minutes', { n: r.prepMinutes }) })}` : ''}
+                  {r.cookMinutes ? ` · ${t('recipes.cooking', { time: t('common.minutes', { n: r.cookMinutes }) })}` : ''}
                 </div>
                 {r.description && <p className="mt-2 line-clamp-2 text-sm">{r.description}</p>}
+                {r.tags.length > 0 && (
+                  <div className="mt-2 flex flex-wrap gap-1">
+                    {r.tags.map((x) => (
+                      <Badge key={x}>{x}</Badge>
+                    ))}
+                  </div>
+                )}
               </button>
             </li>
           ))}
@@ -74,6 +95,12 @@ function RecipeDetail({ id, onBack, onEdit }: { id: number; onBack: () => void; 
     onBack();
   };
 
+  const times = [
+    t('common.servings', { n: recipe.servings }),
+    recipe.prepMinutes ? t('recipes.prep', { time: t('common.minutes', { n: recipe.prepMinutes }) }) : null,
+    recipe.cookMinutes ? t('recipes.cooking', { time: t('common.minutes', { n: recipe.cookMinutes }) }) : null,
+  ].filter(Boolean);
+
   return (
     <>
       <Button variant="ghost" className="px-0" onClick={onBack}>
@@ -90,10 +117,14 @@ function RecipeDetail({ id, onBack, onEdit }: { id: number; onBack: () => void; 
           </div>
         }
       >
-        <p className="text-sm text-muted">
-          {t('common.servings', { n: recipe.servings })}
-          {recipe.prepMinutes ? ` · ${t('common.minutes', { n: recipe.prepMinutes })}` : ''}
-        </p>
+        <p className="text-sm text-muted">{times.join(' · ')}</p>
+        {recipe.tags.length > 0 && (
+          <div className="mt-2 flex flex-wrap gap-1">
+            {recipe.tags.map((x) => (
+              <Badge key={x}>{x}</Badge>
+            ))}
+          </div>
+        )}
         {recipe.description && <p className="mt-2">{recipe.description}</p>}
         {cost && (
           <p className="mt-2 text-sm">
@@ -112,17 +143,41 @@ function RecipeDetail({ id, onBack, onEdit }: { id: number; onBack: () => void; 
         </h3>
         <ul className="divide-y divide-line text-sm">
           {recipe.ingredients.map((ing, i) => {
-            const missing = availability?.ingredients[i]?.missing ?? 0;
+            const status = availability?.ingredients[i];
+            const missing = status?.missing ?? 0;
             return (
               <li key={ing.id} className="flex flex-wrap items-baseline gap-x-2 py-1.5">
-                <span className="w-20 text-right text-muted">{formatQty(ing.quantity, ing.unit)}</span>
+                <span className="w-20 text-right text-muted">{ing.toTaste ? t('recipes.toTaste') : formatQty(ing.quantity, ing.unit)}</span>
                 <span className="font-medium">{ing.name}</span>
                 {ing.note && <span className="text-muted">({ing.note})</span>}
+                {status?.staple && <span className="text-muted">· {t('recipes.staple')}</span>}
+                {status?.approximate && <span className="text-muted">· {t('recipes.approximate')}</span>}
                 {missing > 0 && <span className="text-warn">{t('recipes.missing', { qty: formatQty(missing, ing.unit) })}</span>}
               </li>
             );
           })}
         </ul>
+
+        {recipe.steps.length > 0 && (
+          <>
+            <h3 className="mt-4 mb-2 font-semibold">{t('recipes.steps')}</h3>
+            <ol className="space-y-2 text-sm">
+              {recipe.steps.map((step) => (
+                <li key={step.position} className="flex gap-3">
+                  <span className="w-5 shrink-0 text-right text-muted">{step.position}.</span>
+                  <div className="flex-1">
+                    <span>{step.text}</span>
+                    <span className="ml-2 inline-flex flex-wrap gap-1 align-middle">
+                      {step.appliance && <Badge>{step.appliance}</Badge>}
+                      {step.temperatureC !== null && <Badge>{step.temperatureC} °C</Badge>}
+                      {step.durationMinutes !== null && <Badge>{t('common.minutes', { n: step.durationMinutes })}</Badge>}
+                    </span>
+                  </div>
+                </li>
+              ))}
+            </ol>
+          </>
+        )}
 
         {recipe.instructions && (
           <>
@@ -140,8 +195,22 @@ interface Row {
   quantity: string;
   unit: string;
   note: string;
+  toTaste: boolean;
 }
-const emptyRow = (): Row => ({ name: '', quantity: '', unit: '', note: '' });
+const emptyRow = (): Row => ({ name: '', quantity: '', unit: '', note: '', toTaste: false });
+
+interface StepRow {
+  text: string;
+  minutes: string;
+  temperature: string;
+  appliance: string;
+}
+const emptyStep = (): StepRow => ({ text: '', minutes: '', temperature: '', appliance: '' });
+
+const positive = (value: string) => {
+  const n = parseQty(value);
+  return n !== undefined && Number.isFinite(n) && n > 0 ? Math.round(n) : undefined;
+};
 
 function RecipeForm({ recipe, onDone }: { recipe?: Recipe; onDone: (id?: number) => void }) {
   const t = useT();
@@ -151,14 +220,29 @@ function RecipeForm({ recipe, onDone }: { recipe?: Recipe; onDone: (id?: number)
     description: recipe?.description ?? '',
     servings: String(recipe?.servings ?? 4),
     prepMinutes: recipe?.prepMinutes != null ? String(recipe.prepMinutes) : '',
+    cookMinutes: recipe?.cookMinutes != null ? String(recipe.cookMinutes) : '',
+    tags: recipe?.tags.join(', ') ?? '',
     instructions: recipe?.instructions ?? '',
   });
   const [rows, setRows] = useState<Row[]>(
-    recipe?.ingredients.map((i) => ({ name: i.name, quantity: String(i.quantity), unit: i.unit === 'piece' ? '' : i.unit, note: i.note ?? '' })) ?? [
-      emptyRow(),
-    ],
+    recipe?.ingredients.map((i) => ({
+      name: i.name,
+      quantity: i.toTaste ? '' : String(i.quantity),
+      unit: i.unit === 'piece' ? '' : i.unit,
+      note: i.note ?? '',
+      toTaste: i.toTaste,
+    })) ?? [emptyRow()],
+  );
+  const [steps, setSteps] = useState<StepRow[]>(
+    recipe?.steps.map((s) => ({
+      text: s.text,
+      minutes: s.durationMinutes != null ? String(s.durationMinutes) : '',
+      temperature: s.temperatureC != null ? String(s.temperatureC) : '',
+      appliance: s.appliance ?? '',
+    })) ?? [],
   );
   const setRow = (index: number, patch: Partial<Row>) => setRows((rs) => rs.map((r, i) => (i === index ? { ...r, ...patch } : r)));
+  const setStep = (index: number, patch: Partial<StepRow>) => setSteps((ss) => ss.map((s, i) => (i === index ? { ...s, ...patch } : s)));
 
   const submit = async (e: FormEvent) => {
     e.preventDefault();
@@ -167,10 +251,26 @@ function RecipeForm({ recipe, onDone }: { recipe?: Recipe; onDone: (id?: number)
       description: form.description || null,
       servings: Number(form.servings),
       prepMinutes: form.prepMinutes ? Number(form.prepMinutes) : null,
+      cookMinutes: form.cookMinutes ? Number(form.cookMinutes) : null,
+      tags: form.tags.split(',').map((x) => x.trim()).filter(Boolean),
       instructions: form.instructions || null,
+      steps: steps
+        .filter((s) => s.text.trim())
+        .map((s) => ({
+          text: s.text.trim(),
+          durationMinutes: positive(s.minutes),
+          temperatureC: positive(s.temperature),
+          appliance: s.appliance.trim() || undefined,
+        })),
       ingredients: rows
         .filter((r) => r.name.trim())
-        .map((r) => ({ name: r.name, quantity: parseQty(r.quantity) ?? 1, unit: r.unit || undefined, note: r.note || null })),
+        .map((r) => ({
+          name: r.name,
+          toTaste: r.toTaste,
+          quantity: r.toTaste ? undefined : (parseQty(r.quantity) ?? 1),
+          unit: r.unit || undefined,
+          note: r.note || null,
+        })),
     };
     const saved = (await run(() => (recipe ? api.patch<Recipe>(`/recipes/${recipe.id}`, body) : api.post<Recipe>('/recipes', body)))) as Recipe;
     onDone(saved.id);
@@ -191,16 +291,25 @@ function RecipeForm({ recipe, onDone }: { recipe?: Recipe; onDone: (id?: number)
             {t('recipes.form.time')}
             <Input type="number" min={0} value={form.prepMinutes} onChange={(e) => setForm({ ...form, prepMinutes: e.target.value })} className="w-20" />
           </label>
+          <label className="flex items-center gap-2">
+            {t('recipes.form.cookTime')}
+            <Input type="number" min={0} value={form.cookMinutes} onChange={(e) => setForm({ ...form, cookMinutes: e.target.value })} className="w-20" />
+          </label>
         </div>
+        <Input placeholder={t('recipes.form.tags')} aria-label={t('recipes.form.tags')} value={form.tags} onChange={(e) => setForm({ ...form, tags: e.target.value })} className="w-full" />
 
         <fieldset className="space-y-2">
           <legend className="mb-1 font-semibold">{t('recipes.ingredients')}</legend>
           {rows.map((row, i) => (
-            <div key={i} className="flex flex-wrap gap-2">
-              <Input inputMode="decimal" placeholder={t('common.qty')} aria-label={t('common.quantity')} value={row.quantity} onChange={(e) => setRow(i, { quantity: e.target.value })} className="w-20" />
-              <Input list="unit-names" placeholder={t('common.unit')} aria-label={t('common.unit')} value={row.unit} onChange={(e) => setRow(i, { unit: e.target.value })} className="w-24" />
+            <div key={i} className="flex flex-wrap items-center gap-2">
+              <Input disabled={row.toTaste} inputMode="decimal" placeholder={t('common.qty')} aria-label={t('common.quantity')} value={row.quantity} onChange={(e) => setRow(i, { quantity: e.target.value })} className="w-20" />
+              <Input disabled={row.toTaste} list="unit-names" placeholder={t('common.unit')} aria-label={t('common.unit')} value={row.unit} onChange={(e) => setRow(i, { unit: e.target.value })} className="w-24" />
               <Input list="product-names" placeholder={t('recipes.form.ingredient')} aria-label={t('recipes.form.ingredient')} value={row.name} onChange={(e) => setRow(i, { name: e.target.value })} className="flex-1 basis-32" />
               <Input placeholder={t('recipes.form.note')} aria-label={t('recipes.form.note')} value={row.note} onChange={(e) => setRow(i, { note: e.target.value })} className="flex-1 basis-24" />
+              <label className="flex items-center gap-1 text-sm">
+                <input type="checkbox" className="size-4 accent-(--accent)" checked={row.toTaste} onChange={(e) => setRow(i, { toTaste: e.target.checked })} />
+                {t('recipes.form.toTaste')}
+              </label>
               <Button variant="ghost" className="px-2" aria-label={t('recipes.form.removeIngredient')} onClick={() => setRows(rows.filter((_, j) => j !== i))}>
                 ✕
               </Button>
@@ -209,10 +318,27 @@ function RecipeForm({ recipe, onDone }: { recipe?: Recipe; onDone: (id?: number)
           <Button onClick={() => setRows([...rows, emptyRow()])}>{t('recipes.form.addIngredient')}</Button>
         </fieldset>
 
+        <fieldset className="space-y-2">
+          <legend className="mb-1 font-semibold">{t('recipes.form.steps')}</legend>
+          {steps.map((step, i) => (
+            <div key={i} className="flex flex-wrap items-center gap-2">
+              <span className="w-5 text-right text-sm text-muted">{i + 1}.</span>
+              <Input placeholder={t('recipes.form.step')} aria-label={t('recipes.form.step')} value={step.text} onChange={(e) => setStep(i, { text: e.target.value })} className="flex-1 basis-56" />
+              <Input inputMode="numeric" placeholder={t('recipes.form.stepMinutes')} aria-label={t('recipes.form.stepMinutes')} value={step.minutes} onChange={(e) => setStep(i, { minutes: e.target.value })} className="w-16" />
+              <Input inputMode="numeric" placeholder={t('recipes.form.stepTemperature')} aria-label={t('recipes.form.stepTemperature')} value={step.temperature} onChange={(e) => setStep(i, { temperature: e.target.value })} className="w-16" />
+              <Input placeholder={t('recipes.form.stepAppliance')} aria-label={t('recipes.form.stepAppliance')} value={step.appliance} onChange={(e) => setStep(i, { appliance: e.target.value })} className="w-32" />
+              <Button variant="ghost" className="px-2" aria-label={t('recipes.form.removeStep')} onClick={() => setSteps(steps.filter((_, j) => j !== i))}>
+                ✕
+              </Button>
+            </div>
+          ))}
+          <Button onClick={() => setSteps([...steps, emptyStep()])}>{t('recipes.form.addStep')}</Button>
+        </fieldset>
+
         <textarea
           placeholder={t('recipes.instructions')}
           aria-label={t('recipes.instructions')}
-          rows={8}
+          rows={5}
           value={form.instructions}
           onChange={(e) => setForm({ ...form, instructions: e.target.value })}
           className="w-full rounded-lg border border-line bg-surface p-3 text-sm focus:outline-2 focus:outline-accent"

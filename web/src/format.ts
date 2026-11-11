@@ -59,3 +59,6 @@ export const isoMonth = (iso: string) => iso.slice(0, 7);
 export const monthStart = (iso: string) => `${isoMonth(iso)}-01`;
 export const formatMonth = (month: string) => fromIso(`${month}-01`).toLocaleDateString(locale(), { month: 'long', year: 'numeric' });
 
+
+/** Short weekday name for a JavaScript weekday number (0 = Sunday), in the UI language. */
+export const weekdayName = (weekday: number) => new Date(2023, 0, 1 + weekday).toLocaleDateString(locale(), { weekday: 'short' });

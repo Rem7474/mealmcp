@@ -44,6 +44,11 @@ export interface Product {
   /** Cents per 1 priceUnit (g, ml, piece, ...), when a price is known. */
   unitPrice: number | null;
   priceUnit: string | null;
+  /** Always at home: kept in recipes but never bought, missing or used up. */
+  isStaple: boolean;
+  gramsPerPiece: number | null;
+  gramsPerMl: number | null;
+  aliases: string[];
 }
 
 export interface StockItem {
@@ -56,6 +61,8 @@ export interface StockItem {
   location: Location;
   expiresOn: string | null;
   addedOn: string;
+  /** "Plenty of it, amount unknown". */
+  approximate: boolean;
 }
 
 export interface StockAlerts {
@@ -69,6 +76,8 @@ export interface RecipeSummary {
   description: string | null;
   servings: number;
   prepMinutes: number | null;
+  cookMinutes: number | null;
+  tags: string[];
   ingredientCount: number;
 }
 
@@ -79,17 +88,28 @@ export interface Ingredient {
   quantity: number;
   unit: string;
   note: string | null;
+  toTaste: boolean;
+}
+
+export interface RecipeStep {
+  position: number;
+  text: string;
+  durationMinutes: number | null;
+  temperatureC: number | null;
+  appliance: string | null;
 }
 
 export interface Recipe extends Omit<RecipeSummary, 'ingredientCount'> {
   instructions: string | null;
   ingredients: Ingredient[];
+  steps: RecipeStep[];
+  tags: string[];
 }
 
 export interface Availability {
   canCook: boolean;
   servings: number;
-  ingredients: { name: string; unit: string; needed: number; inStock: number; missing: number }[];
+  ingredients: { name: string; unit: string; needed: number; inStock: number; missing: number; staple?: true; toTaste?: true; approximate?: true }[];
 }
 
 export interface PlannedMeal {
@@ -171,4 +191,34 @@ export interface ShoppingEstimate {
   totalCents: number;
   pricedItems: number;
   unpricedItems: number;
+}
+
+export type MealTypeKey = 'breakfast' | 'lunch' | 'snack' | 'dinner';
+
+export interface HouseholdSettings {
+  defaultServings?: number;
+  /** Weekdays (0 = Sunday ... 6 = Saturday) on which each meal is expected. */
+  plannedMeals?: Partial<Record<MealTypeKey, number[]>>;
+}
+
+export interface PlanSlot {
+  date: string;
+  weekday: number;
+  mealType: MealTypeKey;
+}
+
+export interface Suggestion {
+  recipeId: number;
+  name: string;
+  tags: string[];
+  prepMinutes: number | null;
+  cookMinutes: number | null;
+  usesExpiring: { name: string; expiresOn: string | null }[];
+  canCook: boolean;
+  missing: { name: string; unit: string; missing: number }[];
+}
+
+export interface Suggestions {
+  expiring: { name: string; expiresOn: string | null }[];
+  suggestions: Suggestion[];
 }

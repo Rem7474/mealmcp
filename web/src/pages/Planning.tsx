@@ -3,7 +3,7 @@ import { type FormEvent, useState } from 'react';
 import { api, useAction } from '../api';
 import { addDays, formatDate, formatDay, formatMoney, MEALS, today, weekStart } from '../format';
 import { useT } from '../i18n';
-import type { MealType, PlanCost, PlannedMeal, RecipeSummary } from '../types';
+import type { MealType, PlanCost, PlanSlot, PlannedMeal, RecipeSummary, Suggestions } from '../types';
 import { Badge, Button, Card, Input, Select } from '../ui';
 import { useCurrency } from './shared';
 
@@ -17,6 +17,7 @@ export function Planning() {
     queryFn: () => api.get<PlannedMeal[]>(`/plan?from=${start}&to=${end}`),
   });
   const currency = useCurrency();
+  const { data: slots = [] } = useQuery({ queryKey: ['plan', start, 'slots'], queryFn: () => api.get<PlanSlot[]>(`/plan/slots?from=${start}&to=${end}`) });
   const { data: cost } = useQuery({ queryKey: ['plan', start, 'cost'], queryFn: () => api.get<PlanCost>(`/budget/plan-cost?from=${start}&to=${end}`) });
   const { run, pending } = useAction();
   const [generated, setGenerated] = useState(false);
@@ -55,20 +56,28 @@ export function Planning() {
         </p>
       )}
 
+      <UseItUp />
+
       <AddMeal defaultDate={days.includes(today()) ? today() : start} />
 
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
         {days.map((day) => {
           const dayMeals = meals.filter((m) => m.date === day);
+          const daySlots = slots.filter((slot) => slot.date === day);
           return (
             <section key={day} className={`rounded-xl border bg-surface p-3 ${day === today() ? 'border-accent' : 'border-line'}`}>
               <h2 className="mb-2 text-sm font-semibold first-letter:uppercase">{formatDay(day)}</h2>
-              {dayMeals.length === 0 ? (
+              {dayMeals.length === 0 && daySlots.length === 0 ? (
                 <p className="text-sm text-muted">{t('plan.nothing')}</p>
               ) : (
                 <ul className="space-y-2">
                   {dayMeals.map((meal) => (
                     <MealRow key={meal.id} meal={meal} />
+                  ))}
+                  {daySlots.map((slot) => (
+                    <li key={slot.mealType} className="rounded-lg border border-dashed border-line px-2 py-1 text-sm text-muted">
+                      {t('plan.slot', { meal: t(`meal.${slot.mealType}`) })}
+                    </li>
                   ))}
                 </ul>
               )}
@@ -159,5 +168,36 @@ function AddMeal({ defaultDate }: { defaultDate: string }) {
         </Button>
       </form>
     </Card>
+  );
+}
+
+/** Recipes that would use up what is about to expire, so nothing gets thrown away. */
+function UseItUp() {
+  const t = useT();
+  const { data } = useQuery({ queryKey: ['recipes', 'suggest'], queryFn: () => api.get<Suggestions>('/recipes/suggest?withinDays=5&limit=3') });
+  if (!data || data.expiring.length === 0) return null;
+
+  return (
+    <details className="rounded-xl border border-line bg-surface p-4">
+      <summary className="cursor-pointer font-semibold">
+        {t('plan.useUp.title')} <span className="font-normal text-muted">({data.expiring.map((e) => e.name).join(', ')})</span>
+      </summary>
+      {data.suggestions.length === 0 ? (
+        <p className="mt-2 text-sm text-muted">{t('plan.useUp.none')}</p>
+      ) : (
+        <ul className="mt-3 space-y-2 text-sm">
+          {data.suggestions.map((s) => (
+            <li key={s.recipeId}>
+              <span className="font-medium">{s.name}</span>
+              <span className="text-muted">
+                {' '}
+                · {t('plan.useUp.uses', { names: s.usesExpiring.map((u) => u.name).join(', ') })} ·{' '}
+                {s.canCook ? t('plan.useUp.ready') : t('plan.useUp.missing', { names: s.missing.map((m) => m.name).join(', ') })}
+              </span>
+            </li>
+          ))}
+        </ul>
+      )}
+    </details>
   );
 }
