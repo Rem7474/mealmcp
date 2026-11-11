@@ -105,7 +105,7 @@ function AddForm() {
       <form onSubmit={submit} className="flex flex-wrap gap-2">
         <Input required list="product-names" placeholder={t('common.product')} aria-label={t('common.product')} value={form.name} onChange={(e) => set({ name: e.target.value })} className="flex-1 basis-40" />
         <Input required={!form.approximate} disabled={form.approximate} inputMode="decimal" placeholder={t('common.qty')} aria-label={t('common.quantity')} value={form.approximate ? '' : form.quantity} onChange={(e) => set({ quantity: e.target.value })} className="w-20" />
-        <Input inputMode="decimal" placeholder={t('stock.packSize')} aria-label={t('stock.packSize')} value={form.packSize} onChange={(e) => set({ packSize: e.target.value })} className="w-28" />
+        <Input inputMode="decimal" placeholder={t('stock.packSize')} aria-label={t('stock.packSize')} value={form.packSize} onChange={(e) => set({ packSize: e.target.value })} className="w-40" />
         <Input list="unit-names" placeholder={t('common.unit')} aria-label={t('common.unit')} value={form.unit} onChange={(e) => set({ unit: e.target.value })} className="w-24" />
         <LocationSelect value={form.location} onChange={(e) => set({ location: e.target.value })} />
         <Input type="date" aria-label={t('stock.expiry')} value={form.expiresOn} onChange={(e) => set({ expiresOn: e.target.value })} />
@@ -117,7 +117,7 @@ function AddForm() {
           <input type="checkbox" className="size-4 accent-(--accent)" checked={form.opened} onChange={(e) => set({ opened: e.target.checked })} />
           {t('stock.alreadyOpened')}
         </label>
-        <Button type="submit" variant="primary" disabled={pending}>
+        <Button type="submit" variant="primary" disabled={pending} className="w-full sm:w-auto">
           {t('common.add')}
         </Button>
       </form>
@@ -137,9 +137,9 @@ function StockRow({ item }: { item: StockItem }) {
   };
 
   return (
-    <li className="flex items-center gap-2 py-2 text-sm">
-      <div className="min-w-0 flex-1">
-        <div className="truncate font-medium">{item.name}</div>
+    <li className="flex flex-wrap items-center gap-x-2 gap-y-1 py-2 text-sm">
+      <div className="min-w-40 flex-1">
+        <div className="font-medium wrap-break-word">{item.name}</div>
         {item.opened && item.openedOn && <div className="text-xs text-accent">{t('stock.openedBadge', { date: formatDate(item.openedOn) })}</div>}
         {item.packCount !== null && item.packSize !== null && (
           <div className="text-xs text-muted">
