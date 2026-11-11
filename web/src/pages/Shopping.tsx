@@ -2,7 +2,7 @@ import { useQuery } from '@tanstack/react-query';
 import { ArrowsClockwise, Basket, Package, Plus, X } from '@phosphor-icons/react';
 import { type FormEvent, useState } from 'react';
 import { api, useAction } from '../api';
-import { addDays, formatDay, formatMoney, formatQty, MEALS, today } from '../format';
+import { addDays, currencySymbol, formatDay, formatMoney, formatQty, MEALS, today } from '../format';
 import { type MessageKey, useI18n, useT } from '../i18n';
 import type { BudgetStatus, HouseholdSettings, ShoppingItem } from '../types';
 import { Badge, Button, Card, Empty, Input, Select } from '../ui';
@@ -181,7 +181,7 @@ export function Shopping() {
                 <Input
                   key={`${item.priceCents}-${item.estimatedCents}`}
                   defaultValue={item.priceCents !== null ? item.priceCents / 100 : ''}
-                  placeholder={item.estimatedCents !== null ? `≈ ${(item.estimatedCents / 100).toFixed(2)}` : currency}
+                  placeholder={item.estimatedCents !== null ? `≈ ${(item.estimatedCents / 100).toFixed(2)}` : currencySymbol(currency)}
                   inputMode="decimal"
                   aria-label={t('shopping.price', { name: item.name })}
                   onBlur={(e) => savePrice(item, e.target.value)}

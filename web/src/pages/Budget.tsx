@@ -1,10 +1,10 @@
 import { useQuery } from '@tanstack/react-query';
 import { type FormEvent, useState } from 'react';
 import { api, useAction } from '../api';
-import { addDays, formatDate, formatMoney, formatMonth, formatQty, monthStart, today } from '../format';
+import { addDays, CURRENCIES, currencyLabel, currencySymbol, formatDate, formatMoney, formatMonth, formatQty, monthStart, today } from '../format';
 import { useT } from '../i18n';
 import type { BudgetStatus, Expense, ExpenseSummary, Product, SpendingSummary, User } from '../types';
-import { Button, Card, Empty, Input } from '../ui';
+import { Button, Card, Empty, Input, Select } from '../ui';
 import { parseQty, useProducts } from './shared';
 
 export function Budget({ user }: { user: User }) {
@@ -111,12 +111,13 @@ function MonthCard({ currency }: { currency: string }) {
           aria-label={t('budget.set.label')}
           className="w-36"
         />
-        <Input key={currency} name="currency" list="currency-codes" defaultValue={currency} maxLength={3} aria-label={t('budget.set.currency')} className="w-20 uppercase" />
-        <datalist id="currency-codes">
-          {['EUR', 'USD', 'GBP', 'CHF', 'CAD', 'AUD', 'JPY', 'SEK', 'NOK', 'DKK'].map((c) => (
-            <option key={c} value={c} />
+        <Select key={currency} name="currency" defaultValue={currency} aria-label={t('budget.set.currency')} className="max-w-full min-w-0">
+          {(CURRENCIES.includes(currency) ? CURRENCIES : [currency, ...CURRENCIES]).map((c) => (
+            <option key={c} value={c}>
+              {currencyLabel(c)}
+            </option>
           ))}
-        </datalist>
+        </Select>
         <Button type="submit" disabled={pending}>
           {t('budget.set.save')}
         </Button>
@@ -318,7 +319,7 @@ function PricesCard({ currency }: { currency: string }) {
                   className="h-8 w-20 px-2 text-right"
                 />
                 <span className="w-16 text-muted">
-                  {currency}/{shown.unit === 'piece' ? '1' : shown.unit}
+                  {currencySymbol(currency)}/{shown.unit === 'piece' ? '1' : shown.unit}
                 </span>
               </li>
             );

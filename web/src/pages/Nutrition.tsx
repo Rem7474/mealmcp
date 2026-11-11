@@ -54,7 +54,7 @@ export function ProductNutritionCard() {
     <details className="rounded-xl border border-line bg-surface p-4">
       <summary className="cursor-pointer font-semibold">{t('nutrition.products.title')}</summary>
       <p className="mt-2 text-sm text-muted">{t('nutrition.products.help')}</p>
-      <ul className="mt-3 divide-y divide-line text-sm">
+      <ul className="mt-3 max-h-[28rem] divide-y divide-line overflow-y-auto overscroll-contain text-sm">
         {products.data.map((p) => (
           <li key={p.id} className="py-2">
             <div className="flex flex-wrap items-center gap-x-3 gap-y-1">

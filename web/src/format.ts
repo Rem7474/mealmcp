@@ -55,7 +55,33 @@ export function formatMoney(cents: number, currency: string): string {
   }
 }
 
-export const isoMonth = (iso: string) => iso.slice(0, 7);
+/** "€" for EUR, "$" for USD, "CHF" where there is no short symbol, following the UI language. */
+export function currencySymbol(currency: string): string {
+  try {
+    return new Intl.NumberFormat(locale(), { style: 'currency', currency, currencyDisplay: 'narrowSymbol' }).formatToParts(0).find((p) => p.type === 'currency')?.value ?? currency;
+  } catch {
+    return currency;
+  }
+}
+
+/** Currencies offered in the budget settings (any other ISO 4217 code a household already uses is kept). */
+export const CURRENCIES = [
+  'EUR', 'USD', 'GBP', 'CHF', 'CAD', 'AUD', 'NZD', 'JPY', 'CNY', 'KRW', 'INR', 'SEK', 'NOK', 'DKK', 'PLN', 'CZK', 'HUF', 'RON', 'BGN', 'TRY', 'BRL', 'MXN', 'ARS', 'CLP', 'ZAR', 'MAD', 'TND', 'XOF', 'XAF', 'AED', 'SAR', 'ILS', 'SGD', 'HKD', 'THB', 'IDR', 'MYR', 'PHP', 'VND',
+];
+
+/** "Euro (€)", "US Dollar ($)": the currency's name in the UI language with its symbol. */
+export function currencyLabel(currency: string): string {
+  let name = '';
+  try {
+    name = new Intl.DisplayNames(locale(), { type: 'currency' }).of(currency) ?? '';
+  } catch {
+    /* unknown code */
+  }
+  const symbol = currencySymbol(currency);
+  return `${currency} · ${name ? `${name} ` : ''}${symbol !== currency ? `(${symbol})` : ''}`.trim();
+}
+
+export const isoMonth =(iso: string) => iso.slice(0, 7);
 export const monthStart = (iso: string) => `${isoMonth(iso)}-01`;
 export const formatMonth = (month: string) => fromIso(`${month}-01`).toLocaleDateString(locale(), { month: 'long', year: 'numeric' });
 

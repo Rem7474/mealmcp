@@ -311,7 +311,7 @@ function TokensCard() {
 }
 
 const AISLES = ['produce', 'dairy', 'meat_fish', 'bakery', 'pantry', 'frozen', 'drinks', 'household', 'other'];
-const PRODUCT_LIMIT = 20;
+const PRODUCT_LIMIT = 100;
 
 /** Every known product: file it under a store aisle and teach it other names (receipt wording, brands). */
 function ProductsCard() {
@@ -331,7 +331,7 @@ function ProductsCard() {
       {matches.length === 0 ? (
         <Empty>{t('products.none')}</Empty>
       ) : (
-        <ul className="divide-y divide-line text-sm">
+        <ul className="max-h-[28rem] divide-y divide-line overflow-y-auto overscroll-contain text-sm">
           {matches.slice(0, PRODUCT_LIMIT).map((p) => (
             <ProductRow key={p.id} product={p} run={run} />
           ))}
