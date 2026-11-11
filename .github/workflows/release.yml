@@ -62,3 +62,36 @@ jobs:
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
+
+  github-release:
+    name: GitHub Release
+    # Only for version tags, and only once the image is published.
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: publish
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - name: Create release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG: ${{ github.ref_name }}
+          IMAGE: ghcr.io/${{ github.repository }}
+        run: |
+          VERSION="${TAG#v}"
+          cat > notes.md <<EOF
+          ## Docker
+
+          \`\`\`bash
+          docker pull ${IMAGE}:${VERSION}
+          \`\`\`
+
+          Images amd64 et arm64. Voir le README pour la configuration (\`PUBLIC_URL\`, comptes, connexion MCP).
+
+          ## Changements
+          EOF
+          # Pre-release for 0.x or tags with a suffix such as v1.0.0-rc.1.
+          FLAGS=""
+          case "$VERSION" in *-*) FLAGS="--prerelease" ;; esac
+          gh release create "$TAG" --title "$TAG" --generate-notes --notes-file notes.md $FLAGS
