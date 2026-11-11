@@ -86,3 +86,7 @@ claude mcp add --transport http mealmcp http://localhost:3000/mcp --header "Auth
 Le même jeton fonctionne sur l'API REST (`/api`). Pour tester le flux OAuth en local, utilisez l'app construite (`npm run build && npm start`) plutôt que `npm run dev`.
 
 Outils exposés (24) : stock (`list_stock`, `add_stock`, `update_stock_item`, `consume_stock`, `remove_stock_item`, `get_stock_alerts`), produits (`list_products`, `update_product`), recettes (`list_recipes`, `get_recipe`, `create_recipe`, `update_recipe`, `delete_recipe`, `check_recipe_availability`), planning (`list_meal_plan`, `plan_meal`, `remove_planned_meal`, `cook_planned_meal`), courses (`list_shopping_list`, `add_shopping_item`, `check_shopping_item`, `remove_shopping_item`, `generate_shopping_list`, `complete_shopping`).
+
+## Licence
+
+[MIT](LICENSE)
