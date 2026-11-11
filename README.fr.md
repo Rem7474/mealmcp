@@ -4,22 +4,21 @@
 
 [![CI](https://github.com/Rem7474/mealmcp/actions/workflows/ci.yml/badge.svg)](https://github.com/Rem7474/mealmcp/actions/workflows/ci.yml)
 
-Gestion des repas, des courses et du stock d'un foyer, avec un serveur MCP intégré pour le piloter depuis une IA.
+Décidez quoi manger, n'achetez que le nécessaire, utilisez ce qu'il y a déjà dans le frigo et gardez le budget courses sous contrôle. Une application que vous hébergez, et que Claude ou tout assistant IA peut piloter pour vous grâce à son serveur MCP intégré.
 
-- **Planning** : repas par jour, à partir d'une recette ou en texte libre. Les réglages du foyer (nombre de personnes, repas attendus par jour de semaine) font ressortir les créneaux vides à remplir.
-- **Recettes** : ingrédients (les produits de base et les ingrédients « à votre goût » ne sont jamais achetés), portions, temps de préparation et de cuisson, étiquettes (air fryer, rapide, sans courses), étapes structurées (appareil, température, durée), matériel nécessaire et disponibilité par rapport au stock. Notes (1 à 5 étoiles) et favoris : les suggestions privilégient ce que vous aimez.
-- **Matériel** : les appareils et ustensiles que vous possédez. Les recettes qui demandent quelque chose qui vous manque sont signalées.
-- **Courses** : liste générée depuis le planning (besoins − stock + produits sous leur seuil), ajouts manuels, rangement des achats dans le stock. Affichage en liste, par rayon ou par repas.
-- **Stock** : par emplacement (frigo, congélateur, placard), dates de péremption, seuils d'alerte, quantités « beaucoup », conversions par produit (1 patate douce = 300 g, 1 c. à soupe = 15 ml) et alias (libellés de tickets). Les conditionnements se saisissent tels quels (« 3 × 200 ml »), les unités ouvertes ont une date d'ouverture, une durée de conservation et une alerte, et les poids égouttés (haricots, thon) se comparent correctement aux recettes. Des recettes peuvent être suggérées pour utiliser ce qui expire bientôt.
-- **De saison** : un calendrier hors ligne des fruits, légumes et herbes selon votre pays (FR, BE, CH, GB, CA, US, hémisphère sud pris en charge). Les articles hors saison de la liste de courses reçoivent des alternatives de saison, et l'onglet Recettes affiche le calendrier mois par mois.
-- **Régimes et allergies** : définissez régimes (végétarien, sans gluten...), les 14 allergènes de l'UE et les ingrédients à éviter ; les recettes qui ne conviennent pas sont signalées et exclues des suggestions (détection par nom d'ingrédient : un garde-fou, vérifiez les étiquettes).
-- **Historique et gaspillage** : voyez quand chaque recette a été faite pour ne pas se répéter, et notez ce que vous jetez pour en mesurer le coût.
-- **Nutrition (optionnelle, désactivée par défaut)** : activez-la dans les réglages du foyer pour voir calories et macros par recette. Les valeurs viennent d'[Open Food Facts](https://fr.openfoodfacts.org) quand vous cherchez un produit (seul le nom ou le code-barres est envoyé ; données sous licence ODbL) ou de ce que vous saisissez. Les totaux indiquent quels ingrédients n'avaient pas de valeurs.
+- **La semaine planifiée en quelques minutes** : posez une recette ou une simple note sur chaque jour. Dites qui mange et quand : les créneaux vides ressortent.
+- **Des courses qui se préparent seules** : les repas de la semaine deviennent une liste (ce qu'il faut, moins ce qu'il y a à la maison, plus ce qui commence à manquer). Affichage par rayon ou par repas, et rangement des achats en un geste.
+- **Savoir ce qu'il y a dans le frigo** : frigo, congélateur et placard avec dates de péremption, alertes sur les pots ouverts, conditionnements « 3 × 200 ml », poids égouttés pour les haricots et le thon, conversions par produit (1 patate douce = 300 g). Des recettes sont suggérées pour finir ce qui expire en premier.
+- **Des recettes adaptées à votre cuisine** : ingrédients (les produits de base et les ingrédients « à votre goût » ne sont jamais achetés), étapes avec appareil et température, étiquettes, notes de 1 à 5 étoiles et favoris. Voyez ce que vous pouvez cuisiner tout de suite, et ce qui demande un appareil que vous n'avez pas.
+- **Un budget courses maîtrisé** : enregistrez vos achats (à la main, depuis un ticket via une IA, ou en terminant les courses), fixez un budget mensuel avec projection, suivez les dépenses par catégorie, magasin et mois, et estimez le coût des recettes, de la semaine et de la liste d'après ce que vous avez réellement payé. Dans la devise de votre choix.
+- **Calories et macros, seulement si vous voulez** (désactivé par défaut) : activez-le dans les réglages du foyer pour voir calories, protéines, glucides et lipides de chaque recette. Les valeurs viennent d'[Open Food Facts](https://fr.openfoodfacts.org) quand vous cherchez un produit (seul le nom ou le code-barres est envoyé ; données sous licence ODbL) ou de vos propres chiffres, et les totaux indiquent quels ingrédients n'en avaient pas.
+- **Manger de saison** : un calendrier hors ligne des fruits, légumes et herbes selon votre pays (FR, BE, CH, GB, CA, US, hémisphère sud pris en charge). Les articles hors saison de la liste viennent avec des alternatives de saison.
+- **Régimes et allergies pris en compte** : végétarien, sans gluten, les 14 allergènes de l'UE, ce que quelqu'un n'aime pas. Les recettes qui ne conviennent pas sont signalées et jamais suggérées (détection par nom d'ingrédient : un garde-fou, vérifiez les étiquettes).
+- **Moins de gaspillage, moins de répétitions** : voyez quand chaque recette a été faite pour varier les menus, et notez ce que vous jetez pour en mesurer le coût.
 - **Pensé pour la planification par IA** : `get_meal_context` donne à un assistant tout ce qu'il faut pour proposer un menu en un appel (contraintes, stock qui expire, saison, repas récents, créneaux libres, budget).
-- **Budget** : enregistrement des achats (à la main, depuis un ticket via une IA, ou en terminant les courses), budget mensuel avec projection, dépenses par catégorie / magasin / mois, et estimation du coût des recettes, des repas de la semaine et de la liste de courses à partir des prix de ce que vous avez acheté.
-- **Tableau de bord en direct** : l'interface web se met à jour toute seule quand quelque chose change ailleurs, par exemple quand une IA modifie votre stock via MCP.
-- **Installable (PWA)** : ajoutez-la à l'écran d'accueil de votre téléphone pour l'utiliser en plein écran (nécessite HTTPS, voir plus bas).
-- **Bilingue** : interface en anglais et en français (sélecteur de langue en haut à droite, langue du navigateur par défaut). Les descriptions des outils MCP sont en anglais.
+- **Un foyer, tout le monde synchronisé** : invitez la famille, et chaque écran se met à jour tout seul quand quelque chose change ailleurs, y compris quand votre IA modifie le stock.
+- **Dans votre poche** : installez-la depuis le navigateur et utilisez-la d'une main en magasin (nécessite HTTPS, voir plus bas).
+- **Bilingue** : français et anglais (sélecteur de langue en haut à droite, langue du navigateur par défaut). Les descriptions des outils MCP sont en anglais.
 
 ## Architecture
 

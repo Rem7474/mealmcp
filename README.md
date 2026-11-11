@@ -4,22 +4,21 @@
 
 [![CI](https://github.com/Rem7474/mealmcp/actions/workflows/ci.yml/badge.svg)](https://github.com/Rem7474/mealmcp/actions/workflows/ci.yml)
 
-Meal planning, shopping and pantry stock for a household, with a built-in MCP server so an AI assistant can drive it.
+Decide what to eat, buy only what you need, use what is already in the fridge and keep the grocery budget in check. One app you host yourself, that Claude or any AI assistant can run for you through its built-in MCP server.
 
-- **Planning**: meals per day, from a recipe or free text. Household settings (people eating, which meals on which weekdays) highlight the empty slots to fill.
-- **Recipes**: ingredients (staples and "to taste" items are never bought), servings, prep and cook time, tags (air fryer, quick, no shopping), structured steps (appliance, temperature, duration), the equipment they need, and availability against your stock. Rate them (1–5 stars) and mark favorites: suggestions favour what you love.
-- **Equipment**: the appliances and utensils you own. Recipes needing something you do not have are flagged.
-- **Shopping**: a list generated from the meal plan (needs − stock + products below their threshold), manual additions, and putting purchases away into stock. View it as a flat list, by store aisle, or by the meal each item is for.
-- **Stock**: by location (fridge, freezer, pantry), expiry dates, low-stock alerts, "plenty of it" quantities, per-product conversions (1 sweet potato = 300 g, 1 tbsp = 15 ml) and aliases (receipt wording). Packs are kept as `3 × 200 ml`, opened packs get an opening date, a shelf life and an alert, and drained weights (beans, tuna) are compared to recipes correctly. Recipes can be suggested to use up what expires soon.
-- **In season**: a bundled offline calendar of fruit, vegetables and herbs for your country (FR, BE, CH, GB, CA, US, southern hemisphere supported). Out-of-season items on the shopping list get in-season alternatives, and the Recipes tab shows the calendar month by month.
-- **Diet and allergies**: set diets (vegetarian, gluten-free...), the 14 EU allergens and ingredients to avoid; recipes that break them are flagged and left out of suggestions (matching is by ingredient name: a safety net, check labels).
-- **History and waste**: see when each recipe was last made so menus do not repeat, and log what you throw away to see what it costs.
-- **Nutrition (optional, off by default)**: turn it on in the household settings to see calories and macros per recipe. Values come from [Open Food Facts](https://world.openfoodfacts.org) when you look a product up (only the product name or barcode is sent; data under ODbL) or from values you type. Totals say which ingredients had no values.
-- **Made for AI planning**: `get_meal_context` returns everything an assistant needs to propose a menu in one call (constraints, expiring stock, season, recent meals, open slots, budget).
-- **Budget**: record purchases (by hand, from a receipt via an AI, or when you finish shopping), a monthly budget with a projection, spending by category / shop / month, and cost estimates for recipes, the week's meals and the shopping list, from the prices of what you bought.
-- **Live dashboard**: the web UI refreshes by itself when something changes elsewhere, for example when an AI edits your stock through MCP.
-- **Installable (PWA)**: add it to your phone's home screen for a full-screen app (needs HTTPS, see below).
-- **Bilingual**: English and French UI (language switcher at the top right, browser language by default). MCP tool descriptions are in English.
+- **Plan the week in minutes**: put a recipe or a quick note on each day. Say who eats and when, and empty slots stand out.
+- **Shopping lists that write themselves**: the week's meals become a list (what you need, minus what is at home, plus what is running low). View it by aisle, or by the meal each item is for, and put the purchases away in one go.
+- **Know what is in the fridge**: fridge, freezer and pantry with expiry dates, alerts on opened jars, packs kept as `3 × 200 ml`, drained weights for beans and tuna, and per-product conversions (1 sweet potato = 300 g). It suggests recipes that use up what expires first.
+- **Recipes that fit your kitchen**: ingredients (staples and "to taste" items are never bought), steps with appliance and temperature, tags, 1–5 star ratings and favorites. See which ones you can cook right now, and which need an appliance you do not own.
+- **Grocery budget under control**: log purchases (by hand, from a receipt via an AI, or when you finish shopping), set a monthly budget with a projection, see spending by category, shop and month, and get cost estimates for recipes, the week and the list from what you really paid. Any currency.
+- **Calories and macros, only if you want them** (off by default): turn it on in the household settings to see calories, protein, carbs and fat for every recipe. Values come from [Open Food Facts](https://world.openfoodfacts.org) when you look a product up (only the product name or barcode is sent; data under ODbL) or from numbers you type, and the totals tell you which ingredients had none.
+- **Eat in season**: a bundled offline calendar of fruit, vegetables and herbs for your country (FR, BE, CH, GB, CA, US, southern hemisphere supported). Out-of-season items on your list come with in-season alternatives.
+- **Diets and allergies, handled**: vegetarian, gluten-free, the 14 EU allergens, foods someone dislikes. Recipes that do not fit are flagged and never suggested (matching is by ingredient name: a safety net, check labels).
+- **Less waste, less repetition**: see when each recipe was last made so menus stay fresh, and log what you throw away to see what it costs.
+- **Made for AI planning**: `get_meal_context` gives an assistant everything it needs to propose a menu in one call (constraints, expiring stock, season, recent meals, open slots, budget).
+- **One household, everyone in sync**: invite the family, and every screen refreshes by itself when something changes elsewhere, including when your AI edits the stock.
+- **On your phone**: install it from the browser and use it one-handed in the shop (needs HTTPS, see below).
+- **Bilingual**: English and French (language switcher at the top right, browser language by default). MCP tool descriptions are in English.
 
 ## Architecture
 
