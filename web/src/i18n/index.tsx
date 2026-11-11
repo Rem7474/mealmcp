@@ -111,17 +111,19 @@ export function localizeError(t: I18n['t'], message: string): string {
 export function LanguageSwitch({ className = '' }: { className?: string }) {
   const { lang, setLang, t } = useI18n();
   return (
-    <select
-      aria-label={t('lang.label')}
-      value={lang}
-      onChange={(e) => setLang(e.target.value as Lang)}
-      className={`h-8 cursor-pointer rounded-lg border border-line bg-surface px-2 text-sm text-ink ${className}`}
-    >
+    <div role="group" aria-label={t('lang.label')} className={`flex rounded-lg border border-line p-0.5 text-xs ${className}`}>
       {LANGS.map((l) => (
-        <option key={l.code} value={l.code}>
-          {l.label}
-        </option>
+        <button
+          key={l.code}
+          type="button"
+          aria-pressed={lang === l.code}
+          title={l.label}
+          onClick={() => setLang(l.code)}
+          className={`cursor-pointer rounded-md px-2 py-1 uppercase ${lang === l.code ? 'bg-accent/20 text-ink' : 'text-muted hover:text-ink'}`}
+        >
+          {l.code}
+        </button>
       ))}
-    </select>
+    </div>
   );
 }

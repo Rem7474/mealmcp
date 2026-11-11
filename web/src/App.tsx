@@ -11,10 +11,27 @@ import { Planning } from './pages/Planning';
 import { Recipes } from './pages/Recipes';
 import { Shopping } from './pages/Shopping';
 import { Stock } from './pages/Stock';
+import { BookOpen, CalendarBlank, CookingPot, Package, ShoppingCart, Wallet } from '@phosphor-icons/react';
+import type { ComponentType } from 'react';
 import type { User } from './types';
 
 const TABS = ['planning', 'recipes', 'shopping', 'stock', 'budget', 'account'] as const;
 type TabId = (typeof TABS)[number];
+// The account has no tab of its own: it sits behind the avatar.
+const NAV: { id: Exclude<TabId, 'account'>; Icon: ComponentType<{ size?: number; className?: string }> }[] = [
+  { id: 'planning', Icon: CalendarBlank },
+  { id: 'recipes', Icon: BookOpen },
+  { id: 'shopping', Icon: ShoppingCart },
+  { id: 'stock', Icon: Package },
+  { id: 'budget', Icon: Wallet },
+];
+const initials = (name: string) =>
+  name
+    .split(/\s+/)
+    .map((w) => w[0])
+    .join('')
+    .slice(0, 2)
+    .toUpperCase();
 
 const initialTab = (): TabId => TABS.find((id) => id === location.hash.slice(1).split('/')[0]) ?? 'planning';
 
@@ -74,20 +91,23 @@ function Shell({ user }: { user: User }) {
 
   return (
     <ErrorContext.Provider value={report}>
-      <header className="sticky top-0 z-10 border-b border-line bg-surface">
-        <div className="mx-auto flex max-w-6xl flex-wrap items-center gap-x-6 px-4">
-          <h1 className="py-3 text-lg font-bold text-accent">MealMCP</h1>
-          <nav className="flex flex-1 gap-1 overflow-x-auto">
-            {TABS.map((id) => (
+      <header className="sticky top-0 z-10 bg-linear-to-b from-surface to-bg">
+        <div className="mx-auto flex max-w-6xl flex-wrap items-center gap-x-5 px-4">
+          <h1 className="flex items-center gap-2 py-3 text-base font-medium">
+            <CookingPot size={20} className="text-accent" />
+            MealMCP
+          </h1>
+          <nav className="flex flex-1 gap-0.5 self-stretch overflow-x-auto">
+            {NAV.map(({ id, Icon }) => (
               <button
                 key={id}
                 onClick={() => select(id)}
                 aria-current={tab === id ? 'page' : undefined}
-                className={`cursor-pointer border-b-2 px-3 py-3 text-sm font-medium ${
-                  tab === id ? 'border-accent text-ink' : 'border-transparent text-muted hover:text-ink'
-                }`}
+                className={`relative flex cursor-pointer items-center gap-2 px-3 text-sm ${tab === id ? 'text-ink' : 'text-muted hover:text-ink'}`}
               >
+                <Icon size={16} className={tab === id ? 'text-accent' : ''} />
                 {t(`tab.${id}`)}
+                {tab === id && <span className="absolute inset-x-2.5 bottom-0 h-0.5 rounded-full bg-accent shadow-[0_0_12px_var(--accent)]" />}
               </button>
             ))}
           </nav>
@@ -95,10 +115,22 @@ function Shell({ user }: { user: User }) {
             role="status"
             title={live ? t('app.live') : t('app.liveOff')}
             aria-label={live ? t('app.live') : t('app.liveOff')}
-            className={`size-2 rounded-full ${live ? 'bg-accent' : 'bg-warn'}`}
+            className={`size-2 rounded-full ${live ? 'bg-accent shadow-[0_0_8px_var(--accent)]' : 'bg-warn'}`}
           />
           <LanguageSwitch />
+          <button
+            onClick={() => select('account')}
+            title={t('tab.account')}
+            aria-label={t('tab.account')}
+            aria-current={tab === 'account' ? 'page' : undefined}
+            className={`grid size-8 cursor-pointer place-items-center rounded-full text-xs ${
+              tab === 'account' ? 'bg-accent-deep text-accent-soft shadow-[0_0_0_1px_var(--accent),0_0_12px_var(--glow)]' : 'bg-line text-ink hover:bg-muted/40'
+            }`}
+          >
+            {initials(user.name)}
+          </button>
         </div>
+        <div className="fade-rule absolute inset-x-0 bottom-0" />
       </header>
       <main className="mx-auto max-w-6xl space-y-4 px-4 py-4">
         {error && (

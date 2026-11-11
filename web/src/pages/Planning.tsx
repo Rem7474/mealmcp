@@ -1,8 +1,8 @@
 import { useQuery } from '@tanstack/react-query';
 import { type FormEvent, useState } from 'react';
 import { api, useAction } from '../api';
-import { addDays, formatDate, formatDay, formatMoney, MEALS, today, weekStart } from '../format';
-import { useT } from '../i18n';
+import { addDays, formatDate, formatDay, formatMoney, fromIso, MEALS, today, weekStart } from '../format';
+import { locale, useT } from '../i18n';
 import type { MealType, PlanCost, PlanSlot, PlannedMeal, RecipeSummary, Suggestions } from '../types';
 import { Badge, Button, Card, Input, Select } from '../ui';
 import { useCurrency } from './shared';
@@ -60,7 +60,8 @@ export function Planning() {
 
       <AddMeal defaultDate={days.includes(today()) ? today() : start} />
 
-      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+      <WeekMatrix days={days} meals={meals} slots={slots} />
+      <div className="grid gap-3 sm:grid-cols-2 lg:hidden">
         {days.map((day) => {
           const dayMeals = meals.filter((m) => m.date === day);
           const daySlots = slots.filter((slot) => slot.date === day);
@@ -72,7 +73,9 @@ export function Planning() {
               ) : (
                 <ul className="space-y-2">
                   {dayMeals.map((meal) => (
-                    <MealRow key={meal.id} meal={meal} />
+                    <li key={meal.id}>
+                      <MealRow meal={meal} />
+                    </li>
                   ))}
                   {daySlots.map((slot) => (
                     <li key={slot.mealType} className="rounded-lg border border-dashed border-line px-2 py-1 text-sm text-muted">
@@ -89,13 +92,58 @@ export function Planning() {
   );
 }
 
-function MealRow({ meal }: { meal: PlannedMeal }) {
+/** Desktop week view: meals as rows, days as columns, today highlighted with the accent line. */
+function WeekMatrix({ days, meals, slots }: { days: string[]; meals: PlannedMeal[]; slots: PlanSlot[] }) {
+  const t = useT();
+  // Breakfast and snack rows only appear when something is planned (or expected) in them.
+  const rows = MEALS.filter((m) => ['lunch', 'dinner'].includes(m) || meals.some((x) => x.mealType === m) || slots.some((x) => x.mealType === m));
+  const columns = 'grid grid-cols-[5.5rem_repeat(7,minmax(0,1fr))] gap-1.5';
+
+  return (
+    <div className="hidden space-y-1.5 lg:block">
+      <div className={columns}>
+        <div />
+        {days.map((day) => {
+          const isToday = day === today();
+          return (
+            <div key={day} className={`relative rounded-t-lg px-2.5 pt-2 pb-1.5 ${isToday ? 'bg-accent/10' : ''}`}>
+              {isToday && <span className="absolute inset-x-2.5 top-0 h-0.5 rounded-full bg-accent shadow-[0_0_10px_var(--accent)]" />}
+              <div className={`text-xs first-letter:uppercase ${isToday ? 'text-accent-soft' : 'text-muted'}`}>{fromIso(day).toLocaleDateString(locale(), { weekday: 'short' })}</div>
+              <div className="text-xl leading-tight tabular-nums">{fromIso(day).getDate()}</div>
+            </div>
+          );
+        })}
+      </div>
+      {rows.map((mealType) => (
+        <div key={mealType} className={columns}>
+          <div className="pt-3 text-xs text-muted">{t(`meal.${mealType}`)}</div>
+          {days.map((day) => {
+            const here = meals.filter((m) => m.date === day && m.mealType === mealType);
+            const open = here.length === 0 && slots.some((x) => x.date === day && x.mealType === mealType);
+            return (
+              <div key={day} className={`min-h-24 space-y-1.5 rounded-lg p-1 ${day === today() ? 'bg-accent/10' : ''}`}>
+                {here.map((meal) => (
+                  <div key={meal.id} className="rounded-lg bg-surface px-2.5 py-2 shadow-[0_0_0_1px_var(--line)]">
+                    <MealRow meal={meal} compact />
+                  </div>
+                ))}
+                {open && <div className="rounded-lg border border-dashed border-line px-2.5 py-2 text-xs text-muted">{t('plan.slot', { meal: t(`meal.${mealType}`) })}</div>}
+              </div>
+            );
+          })}
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function MealRow({ meal, compact = false }: { meal: PlannedMeal; compact?: boolean }) {
   const t = useT();
   const { run, pending } = useAction();
   return (
-    <li className="text-sm">
+    <div className="text-sm">
       <div className="text-xs text-muted">
-        {t(`meal.${meal.mealType}`)} · {t('common.servings', { n: meal.servings })}
+        {compact ? t('common.servings', { n: meal.servings }) : `${t(`meal.${meal.mealType}`)} · ${t('common.servings', { n: meal.servings })}`}
       </div>
       <div className={`font-medium ${meal.cooked ? 'text-muted line-through' : ''}`}>
         {meal.recipeId ? (
@@ -123,7 +171,7 @@ function MealRow({ meal }: { meal: PlannedMeal }) {
           {t('plan.remove')}
         </button>
       </div>
-    </li>
+    </div>
   );
 }
 
