@@ -24,7 +24,7 @@ export const idParam = z.object({ id });
 export const productUpdate = z.object({
   id,
   name: productName.optional(),
-  category: z.string().max(60).nullable().optional().describe('Free category, e.g. "Dairy"'),
+  category: z.string().max(60).nullable().optional().describe('Store aisle: produce, dairy, meat_fish, bakery, pantry, frozen, drinks, household or other (free text is accepted)'),
   minStock: z
     .number()
     .nonnegative()
@@ -104,6 +104,7 @@ export const equipmentUpdate = z.object({
   owned: z.boolean().optional(),
 });
 
+const rating = z.number().int().min(1).max(5).nullable().optional().describe('How much the household likes it, 1 to 5 stars (null clears it)');
 const tags = z.array(z.string().trim().min(1).max(40)).describe('Labels such as "air fryer", "quick", "no shopping"');
 
 export const recipeCreate = z.object({
@@ -113,6 +114,8 @@ export const recipeCreate = z.object({
   prepMinutes: z.number().int().nonnegative().nullable().optional().describe('Preparation time (not cooking)'),
   cookMinutes: z.number().int().nonnegative().nullable().optional().describe('Cooking time, separate from preparation'),
   instructions: z.string().max(20000).nullable().optional().describe('Free-text instructions, plain text or markdown'),
+  rating: rating,
+  favorite: z.boolean().optional().describe('Mark as a household favorite: favorites are suggested first'),
   steps: z.array(step).default([]).describe('Structured steps with optional duration, temperature and appliance'),
   tags: tags.default([]),
   equipment: equipmentList.default([]),
@@ -127,6 +130,8 @@ export const recipeUpdate = z.object({
   prepMinutes: z.number().int().nonnegative().nullable().optional(),
   cookMinutes: z.number().int().nonnegative().nullable().optional(),
   instructions: z.string().max(20000).nullable().optional(),
+  rating: rating,
+  favorite: z.boolean().optional(),
   steps: z.array(step).optional().describe('If given, replaces all steps'),
   tags: tags.optional().describe('If given, replaces all tags'),
   equipment: equipmentList.optional().describe('If given, replaces the equipment list'),
@@ -136,6 +141,8 @@ export const recipeUpdate = z.object({
 export const recipeList = z.object({
   search: z.string().optional().describe('Filter on recipe name or ingredient name'),
   tag: z.string().trim().optional().describe('Only recipes carrying this tag'),
+  favorite: z.coerce.boolean().optional().describe('Only favorites'),
+  minRating: z.coerce.number().int().min(1).max(5).optional().describe('Only recipes rated at least this many stars'),
 });
 
 export const recipeAvailability = z.object({

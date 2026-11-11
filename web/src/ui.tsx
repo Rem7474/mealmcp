@@ -1,3 +1,4 @@
+import { Star } from '@phosphor-icons/react';
 import type { ButtonHTMLAttributes, InputHTMLAttributes, ReactNode, SelectHTMLAttributes } from 'react';
 
 const field =
@@ -60,4 +61,22 @@ export function Badge({ tone = 'muted', children }: { tone?: 'muted' | 'warn' | 
 
 export function Empty({ children }: { children: ReactNode }) {
   return <p className="py-6 text-center text-sm text-muted">{children}</p>;
+}
+
+/** Five stars: read-only when `onChange` is missing. Clicking the current rating clears it. */
+export function Stars({ value, onChange, label, size = 16 }: { value: number | null; onChange?: (value: number | null) => void; label?: (n: number) => string; size?: number }) {
+  return (
+    <span className="inline-flex items-center gap-0.5" role={onChange ? 'group' : 'img'} aria-label={onChange ? undefined : `${value ?? 0}/5`}>
+      {[1, 2, 3, 4, 5].map((n) => {
+        const star = <Star size={size} weight={n <= (value ?? 0) ? 'fill' : 'regular'} className={n <= (value ?? 0) ? 'text-warn' : 'text-muted'} />;
+        return onChange ? (
+          <button key={n} type="button" aria-label={label?.(n) ?? String(n)} aria-pressed={n === value} className="cursor-pointer rounded p-0.5 hover:bg-ink/5" onClick={() => onChange(n === value ? null : n)}>
+            {star}
+          </button>
+        ) : (
+          <span key={n}>{star}</span>
+        );
+      })}
+    </span>
+  );
 }

@@ -1,4 +1,4 @@
-import { and, asc, eq, like, or, sql } from 'drizzle-orm';
+import { and, asc, eq, gte, like, or, sql } from 'drizzle-orm';
 import type { z } from 'zod';
 import type { Db } from '../db/index.js';
 import { equipment as equipmentTable, products, recipeEquipment, recipeIngredients, recipeSteps, recipeTags, recipes } from '../db/schema.js';
@@ -56,7 +56,7 @@ export function createRecipeService(db: Db, hid: number, productService: Product
       .all();
 
   const svc = {
-    list({ search, tag }: z.input<typeof recipeList> = {}) {
+    list({ search, tag, favorite, minRating }: z.input<typeof recipeList> = {}) {
       const pattern = `%${search?.trim() ?? ''}%`;
       const rows = db
         .select({
@@ -66,6 +66,8 @@ export function createRecipeService(db: Db, hid: number, productService: Product
           servings: recipes.servings,
           prepMinutes: recipes.prepMinutes,
           cookMinutes: recipes.cookMinutes,
+          rating: recipes.rating,
+          favorite: recipes.favorite,
           // Table names are written out: drizzle leaves columns unqualified in single-table selects.
           ingredientCount: sql<number>`(select count(*) from recipe_ingredients ri where ri.recipe_id = recipes.id)`,
         })
@@ -73,6 +75,8 @@ export function createRecipeService(db: Db, hid: number, productService: Product
         .where(
           and(
             mine,
+            favorite ? eq(recipes.favorite, true) : undefined,
+            minRating ? gte(recipes.rating, minRating) : undefined,
             tag?.trim() ? sql`exists (select 1 from recipe_tags rt where rt.recipe_id = recipes.id and rt.tag = ${tag.trim().toLowerCase()})` : undefined,
             search?.trim()
               ? or(
@@ -231,11 +235,20 @@ export function createRecipeService(db: Db, hid: number, productService: Product
             tags: recipe.tags,
             prepMinutes: recipe.prepMinutes,
             cookMinutes: recipe.cookMinutes,
+            rating: recipe.rating,
+            favorite: recipe.favorite,
             usesExpiring: uses,
             canCook: availability.canCook,
             missingEquipment: availability.missingEquipment,
             missing,
-            score: uses.length * 10 - missing.length * 3 + (availability.canCook ? 5 : 0) - availability.missingEquipment.length * 4,
+            score:
+              uses.length * 10 -
+              missing.length * 3 +
+              (availability.canCook ? 5 : 0) -
+              availability.missingEquipment.length * 4 +
+              // Taste counts too: a loved recipe beats an equally practical one, a disliked one drops.
+              (recipe.favorite ? 3 : 0) +
+              (recipe.rating ? (recipe.rating - 3) * 2 : 0),
           };
         })
         .filter((s) => s.usesExpiring.length > 0)

@@ -7,9 +7,9 @@
 Gestion des repas, des courses et du stock d'un foyer, avec un serveur MCP intégré pour le piloter depuis une IA.
 
 - **Planning** : repas par jour, à partir d'une recette ou en texte libre. Les réglages du foyer (nombre de personnes, repas attendus par jour de semaine) font ressortir les créneaux vides à remplir.
-- **Recettes** : ingrédients (les produits de base et les ingrédients « à votre goût » ne sont jamais achetés), portions, temps de préparation et de cuisson, étiquettes (air fryer, rapide, sans courses), étapes structurées (appareil, température, durée), matériel nécessaire et disponibilité par rapport au stock.
+- **Recettes** : ingrédients (les produits de base et les ingrédients « à votre goût » ne sont jamais achetés), portions, temps de préparation et de cuisson, étiquettes (air fryer, rapide, sans courses), étapes structurées (appareil, température, durée), matériel nécessaire et disponibilité par rapport au stock. Notes (1 à 5 étoiles) et favoris : les suggestions privilégient ce que vous aimez.
 - **Matériel** : les appareils et ustensiles que vous possédez. Les recettes qui demandent quelque chose qui vous manque sont signalées.
-- **Courses** : liste générée depuis le planning (besoins − stock + produits sous leur seuil), ajouts manuels, rangement des achats dans le stock.
+- **Courses** : liste générée depuis le planning (besoins − stock + produits sous leur seuil), ajouts manuels, rangement des achats dans le stock. Affichage en liste, par rayon ou par repas.
 - **Stock** : par emplacement (frigo, congélateur, placard), dates de péremption, seuils d'alerte, quantités « beaucoup », conversions par produit (1 patate douce = 300 g, 1 c. à soupe = 15 ml) et alias (libellés de tickets). Des recettes peuvent être suggérées pour utiliser ce qui expire bientôt.
 - **Budget** : enregistrement des achats (à la main, depuis un ticket via une IA, ou en terminant les courses), budget mensuel avec projection, dépenses par catégorie / magasin / mois, et estimation du coût des recettes, des repas de la semaine et de la liste de courses à partir des prix de ce que vous avez acheté.
 - **Tableau de bord en direct** : l'interface web se met à jour toute seule quand quelque chose change ailleurs, par exemple quand une IA modifie votre stock via MCP.

@@ -2,20 +2,45 @@ import { useQuery } from '@tanstack/react-query';
 import { ArrowsClockwise, Basket, Package, Plus, X } from '@phosphor-icons/react';
 import { type FormEvent, useState } from 'react';
 import { api, useAction } from '../api';
-import { addDays, formatMoney, formatQty, today } from '../format';
-import { useT } from '../i18n';
-import type { BudgetStatus, ShoppingItem } from '../types';
-import { Badge, Button, Card, Empty, Input } from '../ui';
+import { addDays, formatDay, formatMoney, formatQty, MEALS, today } from '../format';
+import { type MessageKey, useT } from '../i18n';
+import type { BudgetStatus, HouseholdSettings, ShoppingItem } from '../types';
+import { Badge, Button, Card, Empty, Input, Select } from '../ui';
 import { LocationSelect, parseQty, ProductDatalist, useCurrency } from './shared';
+
+const AISLES = ['produce', 'dairy', 'meat_fish', 'bakery', 'pantry', 'frozen', 'drinks', 'household', 'other'];
+type GroupBy = NonNullable<HouseholdSettings['shoppingGroupBy']>;
+type Group = { key: string; title: string | null; items: ShoppingItem[] };
 
 const sum = (items: ShoppingItem[]) => items.reduce((total, i) => total + (i.priceCents ?? i.estimatedCents ?? 0), 0);
 
 /** One priced list: tick while shopping, enter what each line cost, then put the basket away in one go. */
 export function Shopping() {
   const t = useT();
+  const mealOrder = (m: ShoppingItem['meals'][number]) => `${m.date}-${MEALS.indexOf(m.mealType)}`;
+  /** Splits the list into sections: by store aisle, or by the first planned meal that needs each item. */
+  const group = (list: ShoppingItem[], by: GroupBy): Group[] => {
+    if (by === 'none') return [{ key: 'all', title: null, items: list }];
+    const buckets = new Map<string, Group>();
+    const put = (key: string, title: string, item: ShoppingItem) => (buckets.get(key) ?? buckets.set(key, { key, title, items: [] }).get(key)!).items.push(item);
+    for (const item of list) {
+      if (by === 'aisle') {
+        const c = item.category;
+        put(c ?? '~', c ? (AISLES.includes(c) ? t(`aisle.${c}` as MessageKey) : c) : t('aisle.none'), item);
+      } else {
+        const m = item.meals[0];
+        if (m) put(`a-${mealOrder(m)}-${m.id}`, `${formatDay(m.date)} · ${t(`meal.${m.mealType}`)} · ${m.title}`, item);
+        else put('~', item.source === 'plan' ? t('shopping.group.noMeal') : t('shopping.group.other'), item);
+      }
+    }
+    const rank = (g: Group) => (by === 'aisle' ? (AISLES.indexOf(g.key) >= 0 ? AISLES.indexOf(g.key) : g.key === '~' ? 99 : 50) : 0);
+    return [...buckets.values()].sort((a, b) => rank(a) - rank(b) || (a.key === '~' ? 1 : b.key === '~' ? -1 : a.key.localeCompare(b.key)));
+  };
   const currency = useCurrency();
   const { data: items = [] } = useQuery({ queryKey: ['shopping'], queryFn: () => api.get<ShoppingItem[]>('/shopping') });
   const { data: budget } = useQuery({ queryKey: ['budget', 'status'], queryFn: () => api.get<BudgetStatus>('/budget/status') });
+  const { data: settings } = useQuery({ queryKey: ['settings'], queryFn: () => api.get<HouseholdSettings>('/settings') });
+  const groupBy: GroupBy = settings?.shoppingGroupBy ?? 'none';
   const { run, pending } = useAction();
   const [form, setForm] = useState({ name: '', quantity: '', unit: '' });
   const [range, setRange] = useState({ from: today(), to: addDays(today(), 6) });
@@ -70,6 +95,15 @@ export function Shopping() {
         </div>
         <p className="max-w-2xl text-xs text-muted">{t('shopping.generate.help')}</p>
 
+        <div className="flex items-center gap-2 text-sm" role="group" aria-label={t('shopping.group')}>
+          <span className="text-muted">{t('shopping.group')}</span>
+          {(['none', 'aisle', 'meal'] as const).map((mode) => (
+            <Button key={mode} variant={groupBy === mode ? 'primary' : 'secondary'} className="h-8 px-3" aria-pressed={groupBy === mode} onClick={() => run(() => api.put('/settings', { shoppingGroupBy: mode }))}>
+              {t(`shopping.group.${mode}`)}
+            </Button>
+          ))}
+        </div>
+
         <form onSubmit={add} className="flex flex-wrap gap-2">
           <Input required list="product-names" placeholder={t('shopping.list.item')} aria-label={t('shopping.list.item')} value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} className="flex-1 basis-40" />
           <Input inputMode="decimal" placeholder={t('common.qty')} aria-label={t('common.quantity')} value={form.quantity} onChange={(e) => setForm({ ...form, quantity: e.target.value })} className="w-20" />
@@ -83,9 +117,18 @@ export function Shopping() {
         {items.length === 0 ? (
           <Empty>{t('shopping.list.empty')}</Empty>
         ) : (
-          <ul>
-            {items.map((item) => (
-              <li key={item.id} className="relative flex items-center gap-3 px-2 py-1 hover:bg-ink/5">
+          <div className="space-y-5">
+            {group(items, groupBy).map((g) => (
+              <section key={g.key}>
+                {g.title && (
+                  <h3 className="mb-1 flex items-center gap-2 px-2 text-[11px] font-normal tracking-wider text-muted uppercase">
+                    {g.title}
+                    <span className="tabular-nums">{g.items.length}</span>
+                  </h3>
+                )}
+                <ul>
+                  {g.items.map((item) => (
+                    <li key={item.id} className="relative flex items-center gap-3 px-2 py-1 hover:bg-ink/5">
                 <label className="flex min-h-11 min-w-0 flex-1 cursor-pointer items-center gap-3">
                   <input
                     type="checkbox"
@@ -96,7 +139,26 @@ export function Shopping() {
                   <span className={`truncate ${item.checked ? 'text-muted line-through' : ''}`}>{item.name}</span>
                   <span className="text-sm whitespace-nowrap text-muted tabular-nums">{formatQty(item.quantity, item.unit)}</span>
                 </label>
-                {item.source === 'plan' && <Badge tone="accent">{t('shopping.list.fromPlan')}</Badge>}
+                {groupBy === 'meal' && item.meals.length > 1 && (
+                  <span className="hidden text-xs text-muted sm:inline">{t('shopping.alsoFor', { meals: item.meals.slice(1).map((m) => m.title).join(', ') })}</span>
+                )}
+                {groupBy === 'aisle' && (
+                  <Select
+                    aria-label={t('products.aisle')}
+                    value={item.category ?? ''}
+                    onChange={(e) => run(() => api.patch(`/products/${item.productId}`, { category: e.target.value || null }))}
+                    className="h-8 w-36 px-2 text-xs"
+                  >
+                    <option value="">{t('aisle.none')}</option>
+                    {AISLES.map((c) => (
+                      <option key={c} value={c}>
+                        {t(`aisle.${c}` as MessageKey)}
+                      </option>
+                    ))}
+                    {item.category && !AISLES.includes(item.category) && <option value={item.category}>{item.category}</option>}
+                  </Select>
+                )}
+                {item.source === 'plan' && groupBy !== 'meal' && <Badge tone="accent">{t('shopping.list.fromPlan')}</Badge>}
                 <Input
                   key={`${item.priceCents}-${item.estimatedCents}`}
                   defaultValue={item.priceCents !== null ? item.priceCents / 100 : ''}
@@ -112,8 +174,11 @@ export function Shopping() {
                 </Button>
                 <span className="fade-rule absolute inset-x-0 bottom-0 opacity-50" />
               </li>
+                  ))}
+                </ul>
+              </section>
             ))}
-          </ul>
+          </div>
         )}
 
         {basket.length > 0 && (

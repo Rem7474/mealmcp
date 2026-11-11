@@ -1,10 +1,11 @@
+import { Heart } from '@phosphor-icons/react';
 import { useQuery } from '@tanstack/react-query';
 import { type FormEvent, useState } from 'react';
 import { api, useAction } from '../api';
 import { formatMoney, formatQty } from '../format';
 import { useT } from '../i18n';
 import type { Availability, Recipe, RecipeCost, RecipeSummary } from '../types';
-import { Badge, Button, Card, Empty, Input } from '../ui';
+import { Badge, Button, Card, Empty, Input, Select, Stars } from '../ui';
 import { parseQty, ProductDatalist, useCurrency } from './shared';
 
 type View = { mode: 'list' } | { mode: 'detail'; id: number } | { mode: 'edit'; recipe?: Recipe };
@@ -18,12 +19,16 @@ export function Recipes() {
   });
   const [search, setSearch] = useState('');
   const [tag, setTag] = useState('');
-  const { data: recipes = [] } = useQuery({
-    queryKey: ['recipes', search, tag],
-    queryFn: () => api.get<RecipeSummary[]>(`/recipes?search=${encodeURIComponent(search)}&tag=${encodeURIComponent(tag)}`),
+  const [favoritesOnly, setFavoritesOnly] = useState(false);
+  const [sort, setSort] = useState<'name' | 'rating'>('name');
+  const { data: found = [] } = useQuery({
+    queryKey: ['recipes', search, tag, favoritesOnly],
+    queryFn: () => api.get<RecipeSummary[]>(`/recipes?search=${encodeURIComponent(search)}&tag=${encodeURIComponent(tag)}${favoritesOnly ? '&favorite=true' : ''}`),
   });
+  // Best rated first: favorites, then stars, then name (the server already sorts by name).
+  const recipes = sort === 'rating' ? [...found].sort((a, b) => Number(b.favorite) - Number(a.favorite) || (b.rating ?? 0) - (a.rating ?? 0)) : found;
   // Unfiltered list, only to know which tags exist.
-  const { data: all = [] } = useQuery({ queryKey: ['recipes', '', ''], queryFn: () => api.get<RecipeSummary[]>('/recipes?search=&tag=') });
+  const { data: all = [] } = useQuery({ queryKey: ['recipes', '', '', false], queryFn: () => api.get<RecipeSummary[]>('/recipes?search=&tag=') });
   const tags = [...new Set(all.flatMap((r) => r.tags))].sort((a, b) => a.localeCompare(b));
 
   if (view.mode === 'edit')
@@ -37,6 +42,16 @@ export function Recipes() {
         <Button variant="primary" onClick={() => setView({ mode: 'edit' })}>
           {t('recipes.new')}
         </Button>
+      </div>
+      <div className="flex flex-wrap items-center gap-1.5">
+        <Button variant={favoritesOnly ? 'primary' : 'secondary'} className="h-8 px-3" aria-pressed={favoritesOnly} onClick={() => setFavoritesOnly(!favoritesOnly)}>
+          <Heart size={14} weight={favoritesOnly ? 'fill' : 'regular'} />
+          {t('recipes.filter.favorites')}
+        </Button>
+        <Select aria-label={t('recipes.sort.name')} value={sort} onChange={(e) => setSort(e.target.value as 'name' | 'rating')} className="h-8 text-xs">
+          <option value="name">{t('recipes.sort.name')}</option>
+          <option value="rating">{t('recipes.sort.rating')}</option>
+        </Select>
       </div>
       {tags.length > 0 && (
         <div className="flex flex-wrap gap-1.5">
@@ -57,7 +72,11 @@ export function Recipes() {
                 onClick={() => setView({ mode: 'detail', id: r.id })}
                 className={`h-full w-full cursor-pointer rounded-xl bg-surface p-3.5 text-left hover:shadow-[0_0_0_1px_var(--muted)] ${selected === r.id ? 'shadow-[0_0_0_1px_var(--accent)]' : 'shadow-[0_0_0_1px_var(--line)]'}`}
               >
-                <div className="font-medium">{r.name}</div>
+                <div className="flex items-center gap-2">
+                  <span className="min-w-0 flex-1 truncate font-medium">{r.name}</span>
+                  {r.favorite && <Heart size={14} weight="fill" className="shrink-0 text-accent" aria-label={t('recipes.favorite')} />}
+                </div>
+                {r.rating ? <Stars value={r.rating} size={13} /> : null}
                 <div className="mt-1 text-sm text-muted">
                   {t('common.servings', { n: r.servings })} · {t('recipes.ingredientCount', { n: r.ingredientCount })}
                   {r.prepMinutes ? ` · ${t('recipes.prep', { time: t('common.minutes', { n: r.prepMinutes }) })}` : ''}
@@ -134,7 +153,14 @@ function RecipeDetail({ id, onBack, onEdit }: { id: number; onBack: () => void; 
           </div>
         }
       >
-        <p className="text-sm text-muted">{times.join(' · ')}</p>
+        <div className="flex flex-wrap items-center gap-3">
+          <Stars value={recipe.rating} label={(n) => t('recipes.rate', { n })} onChange={(rating) => run(() => api.patch(`/recipes/${id}`, { rating }))} />
+          <Button variant="ghost" className="h-8 px-2" aria-pressed={recipe.favorite} onClick={() => run(() => api.patch(`/recipes/${id}`, { favorite: !recipe.favorite }))}>
+            <Heart size={16} weight={recipe.favorite ? 'fill' : 'regular'} className={recipe.favorite ? 'text-accent' : ''} />
+            {recipe.favorite ? t('recipes.unfavorite') : t('recipes.favorite')}
+          </Button>
+          <p className="text-sm text-muted">{times.join(' · ')}</p>
+        </div>
         {recipe.tags.length > 0 && (
           <div className="mt-2 flex flex-wrap gap-1">
             {recipe.tags.map((x) => (

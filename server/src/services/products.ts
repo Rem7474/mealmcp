@@ -4,6 +4,7 @@ import type { Db } from '../db/index.js';
 import { productAliases, products } from '../db/schema.js';
 import { NotFoundError, ValidationError } from '../domain/errors.js';
 import type { aliasAdd, productUpdate } from '../domain/schemas.js';
+import { guessCategory } from '../domain/categories.js';
 import { normalizeUnit } from '../domain/units.js';
 
 const key = (name: string) => name.trim().toLowerCase();
@@ -17,14 +18,14 @@ export function createProductService(db: Db, hid: number) {
     list() {
       const rows = db.select().from(products).where(mine).orderBy(products.name).all();
       const aliases = db.select().from(productAliases).where(myAliases).orderBy(productAliases.alias).all();
-      return rows.map((p) => ({ ...p, aliases: aliases.filter((a) => a.productId === p.id).map((a) => a.alias) }));
+      return rows.map((p) => ({ ...p, suggestedCategory: guessCategory(p.name), aliases: aliases.filter((a) => a.productId === p.id).map((a) => a.alias) }));
     },
 
     get(id: number) {
       const p = db.select().from(products).where(and(mine, eq(products.id, id))).get();
       if (!p) throw new NotFoundError('Product', id);
       const aliases = db.select({ alias: productAliases.alias }).from(productAliases).where(and(myAliases, eq(productAliases.productId, id))).all();
-      return { ...p, aliases: aliases.map((a) => a.alias) };
+      return { ...p, suggestedCategory: guessCategory(p.name), aliases: aliases.map((a) => a.alias) };
     },
 
     /** Looks a product up by its name or by one of its aliases (case-insensitive). */

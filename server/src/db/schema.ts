@@ -212,6 +212,9 @@ export const recipes = sqliteTable(
     prepMinutes: integer('prep_minutes'),
     cookMinutes: integer('cook_minutes'),
     instructions: text('instructions'),
+    /** Household's own verdict, 1 to 5 stars (null = not rated yet). */
+    rating: integer('rating'),
+    favorite: integer('favorite', { mode: 'boolean' }).notNull().default(false),
   },
   (t) => [index('recipes_household_idx').on(t.householdId)],
 );
@@ -304,6 +307,19 @@ export const mealPlan = sqliteTable(
   },
   (t) => [index('meal_plan_household_date_idx').on(t.householdId, t.date)],
 );
+
+/** Which planned meals a generated shopping line is for (a line can serve several meals). */
+export const shoppingItemMeals = sqliteTable('shopping_item_meals', {
+  id: integer('id').primaryKey({ autoIncrement: true }),
+  shoppingItemId: integer('shopping_item_id')
+    .notNull()
+    .references(() => shoppingItems.id, { onDelete: 'cascade' }),
+  mealId: integer('meal_id')
+    .notNull()
+    .references(() => mealPlan.id, { onDelete: 'cascade' }),
+  /** Share of the line attributed to this meal, in the line's unit. */
+  quantity: real('quantity'),
+});
 
 export const shoppingItems = sqliteTable(
   'shopping_items',

@@ -18,6 +18,10 @@ export const householdSettings = z.object({
     .record(z.enum(MEAL_TYPES), z.array(weekday))
     .optional()
     .describe('Which meals are expected on which weekdays, e.g. {"dinner": [0,1,2,3,4]} for dinners from Sunday to Thursday (0 = Sunday).'),
+  shoppingGroupBy: z
+    .enum(['none', 'aisle', 'meal'])
+    .optional()
+    .describe('How the shopping list is organised in the web UI: one flat list, by store aisle, or by the meal each item is for.'),
 });
 
 export type HouseholdSettings = z.infer<typeof householdSettings>;

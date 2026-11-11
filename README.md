@@ -7,9 +7,9 @@
 Meal planning, shopping and pantry stock for a household, with a built-in MCP server so an AI assistant can drive it.
 
 - **Planning**: meals per day, from a recipe or free text. Household settings (people eating, which meals on which weekdays) highlight the empty slots to fill.
-- **Recipes**: ingredients (staples and "to taste" items are never bought), servings, prep and cook time, tags (air fryer, quick, no shopping), structured steps (appliance, temperature, duration), the equipment they need, and availability against your stock.
+- **Recipes**: ingredients (staples and "to taste" items are never bought), servings, prep and cook time, tags (air fryer, quick, no shopping), structured steps (appliance, temperature, duration), the equipment they need, and availability against your stock. Rate them (1–5 stars) and mark favorites: suggestions favour what you love.
 - **Equipment**: the appliances and utensils you own. Recipes needing something you do not have are flagged.
-- **Shopping**: a list generated from the meal plan (needs − stock + products below their threshold), manual additions, and putting purchases away into stock.
+- **Shopping**: a list generated from the meal plan (needs − stock + products below their threshold), manual additions, and putting purchases away into stock. View it as a flat list, by store aisle, or by the meal each item is for.
 - **Stock**: by location (fridge, freezer, pantry), expiry dates, low-stock alerts, "plenty of it" quantities, per-product conversions (1 sweet potato = 300 g, 1 tbsp = 15 ml) and aliases (receipt wording). Recipes can be suggested to use up what expires soon.
 - **Budget**: record purchases (by hand, from a receipt via an AI, or when you finish shopping), a monthly budget with a projection, spending by category / shop / month, and cost estimates for recipes, the week's meals and the shopping list, from the prices of what you bought.
 - **Live dashboard**: the web UI refreshes by itself when something changes elsewhere, for example when an AI edits your stock through MCP.

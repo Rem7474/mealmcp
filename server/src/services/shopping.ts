@@ -1,7 +1,8 @@
-import { and, eq } from 'drizzle-orm';
+import { and, eq, inArray, sql } from 'drizzle-orm';
 import type { z } from 'zod';
 import type { Db } from '../db/index.js';
-import { type Location, products, shoppingItems } from '../db/schema.js';
+import { type Location, mealPlan, products, recipes, shoppingItemMeals, shoppingItems } from '../db/schema.js';
+import { guessCategory } from '../domain/categories.js';
 import { NotFoundError } from '../domain/errors.js';
 import { costCents, toCents } from '../domain/pricing.js';
 import type { shoppingAdd, shoppingComplete, shoppingGenerate } from '../domain/schemas.js';
@@ -47,22 +48,50 @@ export function createShoppingService(
   const decorate = ({ unitPrice, priceUnit, gramsPerPiece, gramsPerMl, ...row }: Row) => {
     const cost = row.quantity != null ? costCents({ unitPrice, priceUnit, gramsPerPiece, gramsPerMl }, row.quantity, row.unit) : null;
     const estimatedCents = row.priceCents ?? (cost !== null ? Math.round(cost) : null);
-    return { ...row, estimatedCents };
+    return { ...row, category: row.category ?? guessCategory(row.name), estimatedCents };
+  };
+
+  type Meal = { id: number; date: string; mealType: string; title: string; recipeId: number | null };
+  /** Adds `meals`: the planned meals a generated line is for, earliest first. */
+  const withMeals = <T extends { id: number }>(items: T[]) => {
+    const links =
+      items.length === 0
+        ? []
+        : db
+            .select({
+              itemId: shoppingItemMeals.shoppingItemId,
+              id: mealPlan.id,
+              date: mealPlan.date,
+              mealType: mealPlan.mealType,
+              title: sql<string>`coalesce(${recipes.name}, ${mealPlan.title}, '')`,
+              recipeId: mealPlan.recipeId,
+            })
+            .from(shoppingItemMeals)
+            .innerJoin(mealPlan, eq(mealPlan.id, shoppingItemMeals.mealId))
+            .leftJoin(recipes, eq(recipes.id, mealPlan.recipeId))
+            .where(
+              inArray(
+                shoppingItemMeals.shoppingItemId,
+                items.map((i) => i.id),
+              ),
+            )
+            .orderBy(mealPlan.date, mealPlan.id)
+            .all();
+    return items.map((i) => ({
+      ...i,
+      meals: links.filter((l) => l.itemId === i.id).map(({ itemId: _item, ...meal }): Meal => meal),
+    }));
   };
 
   return {
     list() {
-      return view()
-        .where(mine)
-        .orderBy(shoppingItems.checked, products.category, products.name)
-        .all()
-        .map(decorate);
+      return withMeals(view().where(mine).orderBy(shoppingItems.checked, products.name).all().map(decorate));
     },
 
     get(id: number) {
       const item = view().where(and(mine, eq(shoppingItems.id, id))).get();
       if (!item) throw new NotFoundError('Shopping item', id);
-      return decorate(item);
+      return withMeals([decorate(item)])[0]!;
     },
 
     /** What the items still to buy should cost, from entered prices and last known product prices. */
@@ -133,18 +162,19 @@ export function createShoppingService(
      * rounded up to whole pieces. Manually added items are left untouched.
      */
     generateFromPlan({ from, to, includeLowStock }: z.infer<typeof shoppingGenerate>) {
-      const needs = new Map<string, { productId: number; unit: string; quantity: number }>();
-      const need = (productId: number, unit: string, quantity: number) => {
+      const needs = new Map<string, { productId: number; unit: string; quantity: number; meals: Map<number, number> }>();
+      const need = (productId: number, unit: string, quantity: number, mealId?: number) => {
         const k = stockKey(productId, unit);
-        const entry = needs.get(k) ?? { productId, unit, quantity: 0 };
+        const entry = needs.get(k) ?? { productId, unit, quantity: 0, meals: new Map<number, number>() };
         entry.quantity += quantity;
+        if (mealId !== undefined) entry.meals.set(mealId, (entry.meals.get(mealId) ?? 0) + quantity);
         needs.set(k, entry);
       };
 
       for (const meal of planner.list({ from, to })) {
         if (!meal.recipeId || meal.cooked) continue;
         const recipe = recipeService.get(meal.recipeId);
-        for (const ing of recipe.ingredients) if (!ing.toTaste) need(ing.productId, ing.unit, (ing.quantity * meal.servings) / recipe.servings);
+        for (const ing of recipe.ingredients) if (!ing.toTaste) need(ing.productId, ing.unit, (ing.quantity * meal.servings) / recipe.servings, meal.id);
       }
       if (includeLowStock) {
         for (const p of productService.list()) if (p.minStock != null) need(p.id, p.defaultUnit, p.minStock);
@@ -168,10 +198,16 @@ export function createShoppingService(
           const short = round(n.quantity - snap.available(product, n.unit));
           // Nobody buys 0.25 of a lemon: round countable items up to whole pieces.
           const missing = n.unit === 'piece' ? Math.ceil(short - 1e-9) : short;
-          if (missing > 0)
-            db.insert(shoppingItems)
+          if (missing > 0) {
+            const line = db
+              .insert(shoppingItems)
               .values({ householdId: hid, productId: n.productId, quantity: missing, unit: n.unit, source: 'plan', priceCents: prices.get(k) ?? null })
-              .run();
+              .returning()
+              .get();
+            // What stock does not cover is shared between the meals in proportion to what each needs.
+            for (const [mealId, q] of n.meals)
+              db.insert(shoppingItemMeals).values({ shoppingItemId: line.id, mealId, quantity: round((q / n.quantity) * missing) }).run();
+          }
         }
       });
       return this.list();

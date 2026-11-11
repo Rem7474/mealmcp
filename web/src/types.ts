@@ -48,6 +48,8 @@ export interface Product {
   isStaple: boolean;
   gramsPerPiece: number | null;
   gramsPerMl: number | null;
+  /** Best guess at the aisle from the name, when none is set. */
+  suggestedCategory: string | null;
   aliases: string[];
 }
 
@@ -79,6 +81,8 @@ export interface RecipeSummary {
   cookMinutes: number | null;
   tags: string[];
   ingredientCount: number;
+  rating: number | null;
+  favorite: boolean;
 }
 
 export interface Ingredient {
@@ -145,6 +149,8 @@ export interface ShoppingItem {
   priceCents: number | null;
   /** Entered price, else quantity x last known unit price, else null. */
   estimatedCents: number | null;
+  /** Planned meals this generated line is for, earliest first. */
+  meals: { id: number; date: string; mealType: MealType; title: string; recipeId: number | null }[];
 }
 
 export interface BudgetStatus {
@@ -215,6 +221,7 @@ export type MealTypeKey = 'breakfast' | 'lunch' | 'snack' | 'dinner';
 
 export interface HouseholdSettings {
   defaultServings?: number;
+  shoppingGroupBy?: 'none' | 'aisle' | 'meal';
   /** Weekdays (0 = Sunday ... 6 = Saturday) on which each meal is expected. */
   plannedMeals?: Partial<Record<MealTypeKey, number[]>>;
 }

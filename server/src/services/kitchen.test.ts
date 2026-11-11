@@ -289,3 +289,37 @@ describe('equipment', () => {
     expect(svc.recipes.get(recipe.id).equipment).toEqual([]);
   });
 });
+
+describe('recipe preferences', () => {
+  it('stores a rating and a favorite flag, filters on them and ranks suggestions', () => {
+    const a = svc.recipes.create({ name: 'Plain', ingredients: [{ name: 'Rice', quantity: 100, unit: 'g' }] });
+    const b = svc.recipes.create({ name: 'Loved', ingredients: [{ name: 'Rice', quantity: 100, unit: 'g' }], rating: 5, favorite: true });
+    expect(svc.recipes.get(a.id)).toMatchObject({ rating: null, favorite: false });
+    expect(svc.recipes.list({ favorite: true }).map((r) => r.name)).toEqual(['Loved']);
+    expect(svc.recipes.list({ minRating: 4 }).map((r) => r.name)).toEqual(['Loved']);
+    svc.stock.add({ name: 'Rice', quantity: 500, unit: 'g', expiresOn: today() });
+    expect(svc.recipes.suggest({ withinDays: 5, limit: 5 }).suggestions.map((s) => s.name)).toEqual(['Loved', 'Plain']);
+    expect(svc.recipes.update({ id: b.id, rating: null, favorite: false })).toMatchObject({ rating: null, favorite: false });
+  });
+});
+
+describe('shopping list organisation', () => {
+  it('says which meals a generated line is for and files products under an aisle', () => {
+    const pasta = svc.recipes.create({ name: 'Pasta', ingredients: [{ name: 'Tomates', quantity: 2, unit: 'piece' }, { name: 'Savon', quantity: 1, unit: 'piece' }] });
+    const salad = svc.recipes.create({ name: 'Salad', ingredients: [{ name: 'Tomates', quantity: 3, unit: 'piece' }] });
+    const m1 = svc.planner.add({ date: '2030-01-02', mealType: 'dinner', recipeId: pasta.id });
+    const m2 = svc.planner.add({ date: '2030-01-01', mealType: 'lunch', recipeId: salad.id });
+    const list = svc.shopping.generateFromPlan({ from: '2030-01-01', to: '2030-01-31', includeLowStock: false });
+    const tomatoes = list.find((i) => i.name === 'Tomates')!;
+    expect(tomatoes.quantity).toBe(5);
+    // Earliest meal first, and the line is shared in proportion to what each meal needs.
+    expect(tomatoes.meals.map((m) => [m.id, m.title])).toEqual([[m2.id, 'Salad'], [m1.id, 'Pasta']]);
+    expect(tomatoes.category).toBe('produce');
+    expect(list.find((i) => i.name === 'Savon')!.category).toBe('household');
+    // An explicit category wins over the guess.
+    svc.products.update({ id: tomatoes.productId, category: 'pantry' });
+    expect(svc.shopping.get(tomatoes.id).category).toBe('pantry');
+    // Manual lines are not tied to a meal.
+    expect(svc.shopping.add({ name: 'Bread', quantity: 1 }).meals).toEqual([]);
+  });
+});

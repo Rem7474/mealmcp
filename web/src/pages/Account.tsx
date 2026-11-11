@@ -1,11 +1,13 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { X } from '@phosphor-icons/react';
 import { type FormEvent, useState } from 'react';
 import { api, useAction } from '../api';
 import { formatDate, MEALS, weekdayName } from '../format';
-import { useI18n, useT } from '../i18n';
-import type { Equipment, Household, HouseholdSettings, MealTypeKey, TokenInfo, User } from '../types';
+import { type MessageKey, useI18n, useT } from '../i18n';
+import type { Equipment, Household, HouseholdSettings, MealTypeKey, Product, TokenInfo, User } from '../types';
 import { Badge, Button, Card, Empty, Input, Select } from '../ui';
 import { resetSession } from './AuthPage';
+import { useProducts } from './shared';
 
 const day = (ms: number) => formatDate(new Date(ms).toISOString().slice(0, 10));
 
@@ -39,6 +41,7 @@ export function Account({ user }: { user: User }) {
         <p className="mt-2 text-sm text-muted">{rich('account.connect.help', { header: <code>Authorization: Bearer …</code> })}</p>
       </Card>
       <TokensCard />
+      <ProductsCard />
         </div>
       </div>
     </>
@@ -182,7 +185,7 @@ function EquipmentCard() {
               <span className="min-w-0 flex-1 truncate font-medium">{item.name}</span>
               <Badge>{t(`equipment.${item.kind}`)}</Badge>
               <label className="flex items-center gap-1">
-                <input type="checkbox" className="size-4 accent-(--accent)" checked={item.owned} onChange={(e) => run(() => api.patch(`/equipment/${item.id}`, { owned: e.target.checked }))} />
+                <input type="checkbox" className="size-4 accent-(--accent)" checked={item.owned} onChange={() => run(() => api.patch(`/equipment/${item.id}`, { owned: !item.owned }))} />
                 {t('equipment.owned')}
               </label>
               <Button variant="ghost" className="h-8 px-2" aria-label={t('equipment.remove', { name: item.name })} onClick={() => run(() => api.del(`/equipment/${item.id}`))}>
@@ -247,5 +250,81 @@ function TokensCard() {
         </ul>
       )}
     </Card>
+  );
+}
+
+const AISLES = ['produce', 'dairy', 'meat_fish', 'bakery', 'pantry', 'frozen', 'drinks', 'household', 'other'];
+const PRODUCT_LIMIT = 20;
+
+/** Every known product: file it under a store aisle and teach it other names (receipt wording, brands). */
+function ProductsCard() {
+  const t = useT();
+  const { data: products = [] } = useProducts();
+  const { run } = useAction();
+  const [search, setSearch] = useState('');
+  const matches = products.filter((p) => {
+    const q = search.trim().toLowerCase();
+    return !q || p.name.toLowerCase().includes(q) || p.aliases.some((a) => a.toLowerCase().includes(q));
+  });
+
+  return (
+    <Card title={t('products.title')}>
+      <p className="mb-3 text-sm text-muted">{t('products.help')}</p>
+      <Input type="search" placeholder={t('products.search')} aria-label={t('products.search')} value={search} onChange={(e) => setSearch(e.target.value)} className="mb-3 w-full" />
+      {matches.length === 0 ? (
+        <Empty>{t('products.none')}</Empty>
+      ) : (
+        <ul className="divide-y divide-line text-sm">
+          {matches.slice(0, PRODUCT_LIMIT).map((p) => (
+            <ProductRow key={p.id} product={p} run={run} />
+          ))}
+        </ul>
+      )}
+      {matches.length > PRODUCT_LIMIT && <p className="mt-2 text-xs text-muted">{t('products.more', { n: PRODUCT_LIMIT })}</p>}
+    </Card>
+  );
+}
+
+function ProductRow({ product: p, run }: { product: Product; run: (fn: () => Promise<unknown>) => Promise<unknown> }) {
+  const t = useT();
+  const [alias, setAlias] = useState('');
+  const aisle = p.category ?? p.suggestedCategory ?? '';
+  const addAlias = async (e: FormEvent) => {
+    e.preventDefault();
+    if (!alias.trim()) return;
+    await run(() => api.post('/products/alias', { name: p.name, alias: alias.trim() }));
+    setAlias('');
+  };
+
+  return (
+    <li className="space-y-2 py-3">
+      <div className="flex items-center gap-2">
+        <span className="min-w-0 flex-1 truncate font-medium">{p.name}</span>
+        {p.isStaple && <Badge>{t('products.staple')}</Badge>}
+        <Select aria-label={t('products.aisle')} value={aisle} onChange={(e) => run(() => api.patch(`/products/${p.id}`, { category: e.target.value || null }))} className="h-8 w-40 px-2 text-xs">
+          <option value="">{t('aisle.none')}</option>
+          {AISLES.map((c) => (
+            <option key={c} value={c}>
+              {t(`aisle.${c}` as MessageKey)}
+            </option>
+          ))}
+          {aisle && !AISLES.includes(aisle) && <option value={aisle}>{aisle}</option>}
+        </Select>
+      </div>
+      <div className="flex flex-wrap items-center gap-1.5">
+        <span className="text-xs text-muted">{t('products.aliases')}:</span>
+        {p.aliases.map((a) => (
+          <span key={a} className="inline-flex items-center gap-1 rounded-md bg-ink/5 py-0.5 pr-1 pl-2 text-xs">
+            {a}
+            <button type="button" aria-label={t('products.removeAlias', { alias: a })} className="cursor-pointer rounded p-0.5 text-muted hover:text-ink" onClick={() => run(() => api.del(`/products/alias?alias=${encodeURIComponent(a)}`))}>
+              <X size={12} />
+            </button>
+          </span>
+        ))}
+        <form onSubmit={addAlias}>
+          <Input placeholder={t('products.addAlias')} aria-label={t('products.addAlias')} value={alias} onChange={(e) => setAlias(e.target.value)} className="h-7 w-36 px-2 text-xs" />
+        </form>
+      </div>
+    </li>
   );
 }

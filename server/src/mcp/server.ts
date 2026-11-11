@@ -9,6 +9,8 @@ Products are identified by name and created automatically the first time a name 
 Quantities are stored in base units: g for mass, ml for volume, "piece" for countable items. kg, l, cl, tablespoons, teaspoons and cups are converted automatically.
 Products can carry conversions (update_product: gramsPerPiece, gramsPerMl) so grams, ml and pieces are comparable (1 sweet potato = 300 g), and a staple flag for things always at home (oil, salt, pepper): staples stay in recipes but are never bought, missing or used up. Use toTaste for "a pinch" ingredients and approximate=true for "plenty of it" stock.
 Equipment: list_equipment shows the appliances and utensils the household owns; recipes can require some (create_recipe equipment, step appliance) and check_recipe_availability reports missingEquipment. Check it before suggesting a recipe.
+Recipes carry a rating (1-5 stars) and a favorite flag set by the household (update_recipe); suggest_recipes ranks loved recipes higher, so respect them when proposing a menu.
+Products can be filed under a store aisle (update_product category: produce, dairy, meat_fish, bakery, pantry, frozen, drinks, household, other); the shopping list can be shown by aisle or by meal, and generated lines say which planned meals they are for.
 Several items at once? Use the *_bulk tools instead of many single calls.
 Money: amounts you send are decimal numbers in the household currency (2.49); amounts you receive are integers in cents (249). Record purchases with record_expense so prices feed the cost estimates.
 Typical flow: plan meals (plan_meal) -> generate_shopping_list for the planned period -> check items while shopping -> complete_shopping moves them into stock -> cook_planned_meal takes ingredients out of stock.`;
@@ -67,7 +69,7 @@ export function createMcpServer({ settings, equipment, products, stock, recipes,
 
   // --- Products ------------------------------------------------------------
   tool('list_products', 'List all known products with their category, default unit and minimum stock threshold.', {}, ro, () => products.list());
-  tool('update_product', 'Rename a product, set its category, low-stock threshold, staple flag, or conversions (gramsPerPiece, gramsPerMl).', s.productUpdate.shape, rw, (a) => products.update(a));
+  tool('update_product', 'Rename a product, set its category (aisle: produce, dairy, meat_fish, bakery, pantry, frozen, drinks, household, other), low-stock threshold, staple flag, or conversions (gramsPerPiece, gramsPerMl).', s.productUpdate.shape, rw, (a) => products.update(a));
 
   // --- Recipes -------------------------------------------------------------
   tool('list_recipes', 'List recipes (summary). Optionally search by recipe or ingredient name.', s.recipeList.shape, ro, (a) => recipes.list(a));
