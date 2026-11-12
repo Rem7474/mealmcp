@@ -1,18 +1,18 @@
+import { BookOpen, CalendarBlank, CookingPot, Package, ShoppingCart, Wallet } from '@phosphor-icons/react';
 import { useQuery } from '@tanstack/react-query';
+import type { ComponentType } from 'react';
 import { useCallback, useEffect, useState } from 'react';
 import { ErrorContext } from './api';
 import { LanguageSwitch, localizeError, useT } from './i18n';
 import { useLiveUpdates } from './live';
 import { Account } from './pages/Account';
-import { Budget } from './pages/Budget';
 import { AuthPage, fetchMe, meKey } from './pages/AuthPage';
+import { Budget } from './pages/Budget';
 import { Consent } from './pages/Consent';
 import { Planning } from './pages/Planning';
 import { Recipes } from './pages/Recipes';
 import { Shopping } from './pages/Shopping';
 import { Stock } from './pages/Stock';
-import { BookOpen, CalendarBlank, CookingPot, Package, ShoppingCart, Wallet } from '@phosphor-icons/react';
-import type { ComponentType } from 'react';
 import type { User } from './types';
 
 const TABS = ['planning', 'recipes', 'shopping', 'stock', 'budget', 'account'] as const;
@@ -100,6 +100,7 @@ function Shell({ user }: { user: User }) {
           <nav className="hidden flex-1 gap-0.5 self-stretch overflow-x-auto [scrollbar-width:none] sm:flex [&::-webkit-scrollbar]:hidden">
             {NAV.map(({ id, Icon }) => (
               <button
+                type="button"
                 key={id}
                 onClick={() => select(id)}
                 aria-current={tab === id ? 'page' : undefined}
@@ -107,7 +108,9 @@ function Shell({ user }: { user: User }) {
               >
                 <Icon size={16} className={tab === id ? 'text-accent' : ''} />
                 {t(`tab.${id}`)}
-                {tab === id && <span className="absolute inset-x-2.5 bottom-0 h-0.5 rounded-full bg-accent shadow-[0_0_12px_var(--accent)]" />}
+                {tab === id && (
+                  <span className="absolute inset-x-2.5 bottom-0 h-0.5 rounded-full bg-accent shadow-[0_0_12px_var(--accent)]" />
+                )}
               </button>
             ))}
           </nav>
@@ -119,12 +122,15 @@ function Shell({ user }: { user: User }) {
           />
           <LanguageSwitch />
           <button
+            type="button"
             onClick={() => select('account')}
             title={t('tab.account')}
             aria-label={t('tab.account')}
             aria-current={tab === 'account' ? 'page' : undefined}
             className={`grid size-8 cursor-pointer place-items-center rounded-full text-xs ${
-              tab === 'account' ? 'bg-accent-deep text-accent-soft shadow-[0_0_0_1px_var(--accent),0_0_12px_var(--glow)]' : 'bg-line text-ink hover:bg-muted/40'
+              tab === 'account'
+                ? 'bg-accent-deep text-accent-soft shadow-[0_0_0_1px_var(--accent),0_0_12px_var(--glow)]'
+                : 'bg-line text-ink hover:bg-muted/40'
             }`}
           >
             {initials(user.name)}
@@ -134,9 +140,12 @@ function Shell({ user }: { user: User }) {
       </header>
       <main className="mx-auto max-w-6xl space-y-4 px-4 py-4 pb-24 sm:pb-4">
         {error && (
-          <div role="alert" className="flex items-center justify-between gap-3 rounded-lg border border-danger px-3 py-2 text-sm text-danger">
+          <div
+            role="alert"
+            className="flex items-center justify-between gap-3 rounded-lg border border-danger px-3 py-2 text-sm text-danger"
+          >
             <span>{localizeError(t, error)}</span>
-            <button className="cursor-pointer text-muted hover:text-ink" onClick={() => setError(null)}>
+            <button type="button" className="cursor-pointer text-muted hover:text-ink" onClick={() => setError(null)}>
               {t('app.close')}
             </button>
           </div>
@@ -148,6 +157,7 @@ function Shell({ user }: { user: User }) {
         <div className="fade-rule absolute inset-x-0 top-0" />
         {NAV.map(({ id, Icon }) => (
           <button
+            type="button"
             key={id}
             onClick={() => select(id)}
             aria-current={tab === id ? 'page' : undefined}

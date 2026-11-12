@@ -1,12 +1,12 @@
-import { useQuery } from '@tanstack/react-query';
 import { ArrowsClockwise, Basket, Package, Plus, X } from '@phosphor-icons/react';
+import { useQuery } from '@tanstack/react-query';
 import { type FormEvent, useState } from 'react';
 import { api, useAction } from '../api';
 import { addDays, currencySymbol, formatDay, formatMoney, formatQty, MEALS, today } from '../format';
 import { type MessageKey, useI18n, useT } from '../i18n';
 import type { BudgetStatus, HouseholdSettings, ShoppingItem } from '../types';
-import { Badge, Button, Card, Empty, Input, Select, Disclose } from '../ui';
-import { LocationSelect, parseQty, ProductDatalist, useCurrency } from './shared';
+import { Badge, Button, Card, Disclose, Empty, Input, Select } from '../ui';
+import { LocationSelect, ProductDatalist, parseQty, useCurrency } from './shared';
 
 const AISLES = ['produce', 'dairy', 'meat_fish', 'bakery', 'pantry', 'frozen', 'drinks', 'household', 'other'];
 type GroupBy = NonNullable<HouseholdSettings['shoppingGroupBy']>;
@@ -23,7 +23,8 @@ export function Shopping() {
   const group = (list: ShoppingItem[], by: GroupBy): Group[] => {
     if (by === 'none') return [{ key: 'all', title: null, items: list }];
     const buckets = new Map<string, Group>();
-    const put = (key: string, title: string, item: ShoppingItem) => (buckets.get(key) ?? buckets.set(key, { key, title, items: [] }).get(key)!).items.push(item);
+    const put = (key: string, title: string, item: ShoppingItem) =>
+      (buckets.get(key) ?? buckets.set(key, { key, title, items: [] }).get(key)!).items.push(item);
     for (const item of list) {
       if (by === 'aisle') {
         const c = item.category;
@@ -94,15 +95,31 @@ export function Shopping() {
         <Disclose summary={t('shopping.options')}>
           <div className="flex flex-wrap items-center gap-2">
             <span className="text-sm text-muted">{t('shopping.generate.from')}</span>
-            <Input type="date" aria-label={t('shopping.generate.fromAria')} value={range.from} onChange={(e) => setRange({ ...range, from: e.target.value })} />
+            <Input
+              type="date"
+              aria-label={t('shopping.generate.fromAria')}
+              value={range.from}
+              onChange={(e) => setRange({ ...range, from: e.target.value })}
+            />
             <span className="text-sm text-muted">{t('shopping.generate.to')}</span>
-            <Input type="date" aria-label={t('shopping.generate.toAria')} value={range.to} onChange={(e) => setRange({ ...range, to: e.target.value })} />
+            <Input
+              type="date"
+              aria-label={t('shopping.generate.toAria')}
+              value={range.to}
+              onChange={(e) => setRange({ ...range, to: e.target.value })}
+            />
           </div>
           <p className="mt-2 max-w-2xl text-xs text-muted">{t('shopping.generate.help')}</p>
           <div className="mt-3 flex flex-wrap items-center gap-2 text-sm" role="group" aria-label={t('shopping.group')}>
             <span className="text-muted">{t('shopping.group')}</span>
             {(['none', 'aisle', 'meal'] as const).map((mode) => (
-              <Button key={mode} variant={groupBy === mode ? 'primary' : 'secondary'} className="h-8 px-3" aria-pressed={groupBy === mode} onClick={() => run(() => api.put('/settings', { shoppingGroupBy: mode }))}>
+              <Button
+                key={mode}
+                variant={groupBy === mode ? 'primary' : 'secondary'}
+                className="h-8 px-3"
+                aria-pressed={groupBy === mode}
+                onClick={() => run(() => api.put('/settings', { shoppingGroupBy: mode }))}
+              >
                 {t(`shopping.group.${mode}`)}
               </Button>
             ))}
@@ -111,9 +128,31 @@ export function Shopping() {
 
         <Disclose summary={t('shopping.addItem')}>
           <form onSubmit={add} className="flex flex-wrap gap-2">
-            <Input required list="product-names" placeholder={t('shopping.list.item')} aria-label={t('shopping.list.item')} value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} className="flex-1 basis-40" />
-            <Input inputMode="decimal" placeholder={t('common.qty')} aria-label={t('common.quantity')} value={form.quantity} onChange={(e) => setForm({ ...form, quantity: e.target.value })} className="w-20" />
-            <Input list="unit-names" placeholder={t('common.unit')} aria-label={t('common.unit')} value={form.unit} onChange={(e) => setForm({ ...form, unit: e.target.value })} className="w-24" />
+            <Input
+              required
+              list="product-names"
+              placeholder={t('shopping.list.item')}
+              aria-label={t('shopping.list.item')}
+              value={form.name}
+              onChange={(e) => setForm({ ...form, name: e.target.value })}
+              className="flex-1 basis-40"
+            />
+            <Input
+              inputMode="decimal"
+              placeholder={t('common.qty')}
+              aria-label={t('common.quantity')}
+              value={form.quantity}
+              onChange={(e) => setForm({ ...form, quantity: e.target.value })}
+              className="w-20"
+            />
+            <Input
+              list="unit-names"
+              placeholder={t('common.unit')}
+              aria-label={t('common.unit')}
+              value={form.unit}
+              onChange={(e) => setForm({ ...form, unit: e.target.value })}
+              className="w-24"
+            />
             <Button type="submit" disabled={pending}>
               <Plus size={16} />
               {t('common.add')}
@@ -136,69 +175,97 @@ export function Shopping() {
                 <ul>
                   {g.items.map((item) => (
                     <li key={item.id} className="relative flex items-center gap-x-2 px-2 py-1 hover:bg-ink/5 sm:gap-x-3">
-                <label className="flex min-h-11 min-w-0 flex-1 cursor-pointer items-center gap-3">
-                  <input
-                    type="checkbox"
-                    className="size-[18px] shrink-0 accent-(--accent)"
-                    checked={item.checked}
-                    onChange={() => run(() => api.patch(`/shopping/${item.id}`, { checked: !item.checked }))}
-                  />
-                  <span className="flex min-w-0 flex-1 flex-col sm:flex-row sm:items-baseline sm:gap-3">
-                    <span className={`wrap-break-word ${item.checked ? 'text-muted line-through' : ''}`}>{item.name}</span>
-                    <span className="flex items-center gap-2">
-                      <span className="text-sm whitespace-nowrap text-muted tabular-nums">{formatQty(item.quantity, item.unit)}</span>
+                      <label className="flex min-h-11 min-w-0 flex-1 cursor-pointer items-center gap-3">
+                        <input
+                          type="checkbox"
+                          className="size-[18px] shrink-0 accent-(--accent)"
+                          checked={item.checked}
+                          onChange={() => run(() => api.patch(`/shopping/${item.id}`, { checked: !item.checked }))}
+                        />
+                        <span className="flex min-w-0 flex-1 flex-col sm:flex-row sm:items-baseline sm:gap-3">
+                          <span className={`wrap-break-word ${item.checked ? 'text-muted line-through' : ''}`}>{item.name}</span>
+                          <span className="flex items-center gap-2">
+                            <span className="text-sm whitespace-nowrap text-muted tabular-nums">{formatQty(item.quantity, item.unit)}</span>
+                            {item.season === 'out' && !item.checked && (
+                              <span
+                                className="sm:hidden"
+                                title={
+                                  item.seasonAlternatives.length
+                                    ? t('season.instead', { list: item.seasonAlternatives.map((p) => p[lang]).join(', ') })
+                                    : undefined
+                                }
+                              >
+                                <Badge tone="warn">{t('season.out')}</Badge>
+                              </span>
+                            )}
+                          </span>
+                        </span>
+                      </label>
+                      {groupBy === 'meal' && item.meals.length > 1 && (
+                        <span className="hidden text-xs text-muted sm:inline">
+                          {t('shopping.alsoFor', {
+                            meals: item.meals
+                              .slice(1)
+                              .map((m) => m.title)
+                              .join(', '),
+                          })}
+                        </span>
+                      )}
+                      {groupBy === 'aisle' && (
+                        <Select
+                          aria-label={t('products.aisle')}
+                          value={item.category ?? ''}
+                          onChange={(e) => run(() => api.patch(`/products/${item.productId}`, { category: e.target.value || null }))}
+                          className="hidden h-8 w-36 px-2 text-xs sm:block"
+                        >
+                          <option value="">{t('aisle.none')}</option>
+                          {AISLES.map((c) => (
+                            <option key={c} value={c}>
+                              {t(`aisle.${c}` as MessageKey)}
+                            </option>
+                          ))}
+                          {item.category && !AISLES.includes(item.category) && <option value={item.category}>{item.category}</option>}
+                        </Select>
+                      )}
+                      {item.source === 'plan' && groupBy !== 'meal' && (
+                        <span className="hidden sm:inline">
+                          <Badge tone="accent">{t('shopping.list.fromPlan')}</Badge>
+                        </span>
+                      )}
                       {item.season === 'out' && !item.checked && (
-                        <span className="sm:hidden" title={item.seasonAlternatives.length ? t('season.instead', { list: item.seasonAlternatives.map((p) => p[lang]).join(', ') }) : undefined}>
+                        <span
+                          className="hidden sm:inline"
+                          title={
+                            item.seasonAlternatives.length
+                              ? t('season.instead', { list: item.seasonAlternatives.map((p) => p[lang]).join(', ') })
+                              : undefined
+                          }
+                        >
                           <Badge tone="warn">{t('season.out')}</Badge>
                         </span>
                       )}
-                    </span>
-                  </span>
-                </label>
-                {groupBy === 'meal' && item.meals.length > 1 && (
-                  <span className="hidden text-xs text-muted sm:inline">{t('shopping.alsoFor', { meals: item.meals.slice(1).map((m) => m.title).join(', ') })}</span>
-                )}
-                {groupBy === 'aisle' && (
-                  <Select
-                    aria-label={t('products.aisle')}
-                    value={item.category ?? ''}
-                    onChange={(e) => run(() => api.patch(`/products/${item.productId}`, { category: e.target.value || null }))}
-                    className="hidden h-8 w-36 px-2 text-xs sm:block"
-                  >
-                    <option value="">{t('aisle.none')}</option>
-                    {AISLES.map((c) => (
-                      <option key={c} value={c}>
-                        {t(`aisle.${c}` as MessageKey)}
-                      </option>
-                    ))}
-                    {item.category && !AISLES.includes(item.category) && <option value={item.category}>{item.category}</option>}
-                  </Select>
-                )}
-                {item.source === 'plan' && groupBy !== 'meal' && (
-                  <span className="hidden sm:inline">
-                    <Badge tone="accent">{t('shopping.list.fromPlan')}</Badge>
-                  </span>
-                )}
-                {item.season === 'out' && !item.checked && (
-                  <span className="hidden sm:inline" title={item.seasonAlternatives.length ? t('season.instead', { list: item.seasonAlternatives.map((p) => p[lang]).join(', ') }) : undefined}>
-                    <Badge tone="warn">{t('season.out')}</Badge>
-                  </span>
-                )}
-                <Input
-                  key={`${item.priceCents}-${item.estimatedCents}`}
-                  defaultValue={item.priceCents !== null ? item.priceCents / 100 : ''}
-                  placeholder={item.estimatedCents !== null ? `≈ ${formatMoney(item.estimatedCents, currency)}` : currencySymbol(currency)}
-                  inputMode="decimal"
-                  aria-label={t('shopping.price', { name: item.name })}
-                  onBlur={(e) => savePrice(item, e.target.value)}
-                  onKeyDown={(e) => e.key === 'Enter' && e.currentTarget.blur()}
-                  className="h-8 w-[5.75rem] shrink-0 border-transparent bg-transparent px-1 text-right text-sm text-muted tabular-nums placeholder:text-muted/60 focus:w-20 focus:border-line focus:bg-surface focus:text-ink sm:w-24 sm:border-line sm:bg-surface sm:px-2 sm:text-base sm:text-ink sm:focus:w-24"
-                />
-                <Button variant="ghost" className="size-8 shrink-0 px-0" aria-label={t('stock.remove', { name: item.name })} onClick={() => run(() => api.del(`/shopping/${item.id}`))}>
-                  <X size={14} />
-                </Button>
-                <span className="fade-rule absolute inset-x-0 bottom-0 opacity-50" />
-              </li>
+                      <Input
+                        key={`${item.priceCents}-${item.estimatedCents}`}
+                        defaultValue={item.priceCents !== null ? item.priceCents / 100 : ''}
+                        placeholder={
+                          item.estimatedCents !== null ? `≈ ${formatMoney(item.estimatedCents, currency)}` : currencySymbol(currency)
+                        }
+                        inputMode="decimal"
+                        aria-label={t('shopping.price', { name: item.name })}
+                        onBlur={(e) => savePrice(item, e.target.value)}
+                        onKeyDown={(e) => e.key === 'Enter' && e.currentTarget.blur()}
+                        className="h-8 w-[5.75rem] shrink-0 border-transparent bg-transparent px-1 text-right text-sm text-muted tabular-nums placeholder:text-muted/60 focus:w-20 focus:border-line focus:bg-surface focus:text-ink sm:w-24 sm:border-line sm:bg-surface sm:px-2 sm:text-base sm:text-ink sm:focus:w-24"
+                      />
+                      <Button
+                        variant="ghost"
+                        className="size-8 shrink-0 px-0"
+                        aria-label={t('stock.remove', { name: item.name })}
+                        onClick={() => run(() => api.del(`/shopping/${item.id}`))}
+                      >
+                        <X size={14} />
+                      </Button>
+                      <span className="fade-rule absolute inset-x-0 bottom-0 opacity-50" />
+                    </li>
                   ))}
                 </ul>
               </section>
@@ -212,9 +279,22 @@ export function Shopping() {
               <Basket size={20} className="text-accent" />
               <span>{t('shopping.complete.text', { n: basket.length })}</span>
               <LocationSelect value={complete.location} onChange={(e) => setComplete({ ...complete, location: e.target.value })} />
-              <Input placeholder={t('shopping.complete.store')} aria-label={t('shopping.complete.store')} value={complete.store} onChange={(e) => setComplete({ ...complete, store: e.target.value })} className="w-40" />
+              <Input
+                placeholder={t('shopping.complete.store')}
+                aria-label={t('shopping.complete.store')}
+                value={complete.store}
+                onChange={(e) => setComplete({ ...complete, store: e.target.value })}
+                className="w-40"
+              />
               <span className="flex-1" />
-              <Input inputMode="decimal" placeholder={t('shopping.complete.total')} aria-label={t('shopping.complete.total')} value={complete.total} onChange={(e) => setComplete({ ...complete, total: e.target.value })} className="w-44" />
+              <Input
+                inputMode="decimal"
+                placeholder={t('shopping.complete.total')}
+                aria-label={t('shopping.complete.total')}
+                value={complete.total}
+                onChange={(e) => setComplete({ ...complete, total: e.target.value })}
+                className="w-44"
+              />
               <Button variant="primary" disabled={pending} onClick={finish}>
                 <Package size={16} />
                 {t('shopping.complete.button')}

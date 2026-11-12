@@ -13,6 +13,7 @@ services:
       PUBLIC_URL: ${PUBLIC_URL:-http://localhost:${PORT:-3000}}
       ALLOW_REGISTRATION: ${ALLOW_REGISTRATION:-false}
       TRUST_PROXY: ${TRUST_PROXY:-0}
+      LOG_LEVEL: ${LOG_LEVEL:-info}
       # Time zone used for "today" in the meal plan and expiry dates (e.g. TZ=Europe/Paris in .env).
       TZ: ${TZ:-UTC}
     volumes:

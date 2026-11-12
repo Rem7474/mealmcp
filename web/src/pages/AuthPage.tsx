@@ -48,9 +48,26 @@ export function AuthPage({ registrationOpen }: { registrationOpen: boolean }) {
       <Card title={t(`auth.title.${mode}`)}>
         <form onSubmit={submit} className="space-y-3">
           {mode === 'register' && (
-            <Input required autoComplete="name" placeholder={t('auth.name')} aria-label={t('auth.name')} value={form.name} onChange={(e) => set({ name: e.target.value })} className="w-full" />
+            <Input
+              required
+              autoComplete="name"
+              placeholder={t('auth.name')}
+              aria-label={t('auth.name')}
+              value={form.name}
+              onChange={(e) => set({ name: e.target.value })}
+              className="w-full"
+            />
           )}
-          <Input required type="email" autoComplete="email" placeholder={t('auth.email')} aria-label={t('auth.email')} value={form.email} onChange={(e) => set({ email: e.target.value })} className="w-full" />
+          <Input
+            required
+            type="email"
+            autoComplete="email"
+            placeholder={t('auth.email')}
+            aria-label={t('auth.email')}
+            value={form.email}
+            onChange={(e) => set({ email: e.target.value })}
+            className="w-full"
+          />
           <Input
             required
             type="password"
@@ -73,9 +90,17 @@ export function AuthPage({ registrationOpen }: { registrationOpen: boolean }) {
                 className="w-full"
               />
               {registrationOpen && !joining && (
-                <Input placeholder={t('auth.householdName')} aria-label={t('auth.householdName')} value={form.householdName} onChange={(e) => set({ householdName: e.target.value })} className="w-full" />
+                <Input
+                  placeholder={t('auth.householdName')}
+                  aria-label={t('auth.householdName')}
+                  value={form.householdName}
+                  onChange={(e) => set({ householdName: e.target.value })}
+                  className="w-full"
+                />
               )}
-              <p className="text-sm text-muted">{joining ? t('auth.hint.join') : registrationOpen ? t('auth.hint.open') : t('auth.hint.closed')}</p>
+              <p className="text-sm text-muted">
+                {joining ? t('auth.hint.join') : registrationOpen ? t('auth.hint.open') : t('auth.hint.closed')}
+              </p>
             </>
           )}
           {error && (
@@ -91,6 +116,7 @@ export function AuthPage({ registrationOpen }: { registrationOpen: boolean }) {
       <p className="mt-4 text-center text-sm text-muted">
         {mode === 'login' ? t('auth.noAccount') : t('auth.haveAccount')}{' '}
         <button
+          type="button"
           className="cursor-pointer text-accent underline"
           onClick={() => {
             setMode(mode === 'login' ? 'register' : 'login');
@@ -108,6 +134,8 @@ export const meKey = ['me'] as const;
 
 /** After login/logout: drop cached household data (it may belong to someone else) and re-read who is logged in. */
 export async function resetSession(queryClient: QueryClient) {
+  // Anything the service worker kept goes too (a shared device must not hold on to the previous person's pages).
+  navigator.serviceWorker?.controller?.postMessage('clear-caches');
   queryClient.removeQueries({ predicate: (q) => q.queryKey[0] !== meKey[0] });
   await queryClient.invalidateQueries({ queryKey: meKey });
 }

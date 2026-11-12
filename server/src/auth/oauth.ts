@@ -1,5 +1,3 @@
-import { and, eq, lt } from 'drizzle-orm';
-import type { Response } from 'express';
 import type { OAuthRegisteredClientsStore } from '@modelcontextprotocol/sdk/server/auth/clients.js';
 import {
   InvalidClientMetadataError,
@@ -10,6 +8,8 @@ import {
 import type { AuthorizationParams, OAuthServerProvider } from '@modelcontextprotocol/sdk/server/auth/provider.js';
 import type { AuthInfo } from '@modelcontextprotocol/sdk/server/auth/types.js';
 import type { OAuthClientInformationFull, OAuthTokenRevocationRequest, OAuthTokens } from '@modelcontextprotocol/sdk/shared/auth.js';
+import { and, eq, lt } from 'drizzle-orm';
+import type { Response } from 'express';
 import type { Config } from '../config.js';
 import type { Db } from '../db/index.js';
 import { accessTokens, authCodes, oauthClients, oauthRequests, refreshTokens } from '../db/schema.js';
@@ -141,7 +141,11 @@ export class OAuthProvider implements OAuthServerProvider {
   // --- Token endpoint -----------------------------------------------------
 
   private codeRow(client: OAuthClientInformationFull, code: string) {
-    const row = this.db.select().from(authCodes).where(eq(authCodes.codeHash, sha256(code))).get();
+    const row = this.db
+      .select()
+      .from(authCodes)
+      .where(eq(authCodes.codeHash, sha256(code)))
+      .get();
     if (!row || row.clientId !== client.client_id || row.expiresAt < Date.now())
       throw new InvalidGrantError('Invalid or expired authorization code');
     return row;
@@ -161,12 +165,17 @@ export class OAuthProvider implements OAuthServerProvider {
     // Single use: delete before issuing; a replay then fails in codeRow.
     const claimed = this.db.delete(authCodes).where(eq(authCodes.codeHash, row.codeHash)).returning().get();
     if (!claimed) throw new InvalidGrantError('Authorization code already used');
-    if (redirectUri && redirectUri !== row.redirectUri) throw new InvalidGrantError('redirect_uri does not match the authorization request');
+    if (redirectUri && redirectUri !== row.redirectUri)
+      throw new InvalidGrantError('redirect_uri does not match the authorization request');
     return this.issueTokens(row.userId, client.client_id, row.scopes, row.resource);
   }
 
   async exchangeRefreshToken(client: OAuthClientInformationFull, refreshToken: string, scopes?: string[]): Promise<OAuthTokens> {
-    const row = this.db.select().from(refreshTokens).where(eq(refreshTokens.tokenHash, sha256(refreshToken))).get();
+    const row = this.db
+      .select()
+      .from(refreshTokens)
+      .where(eq(refreshTokens.tokenHash, sha256(refreshToken)))
+      .get();
     if (!row || row.clientId !== client.client_id || row.expiresAt < Date.now())
       throw new InvalidGrantError('Invalid or expired refresh token');
     const previous = this.db.select().from(accessTokens).where(eq(accessTokens.id, row.accessTokenId)).get();

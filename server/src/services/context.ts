@@ -49,7 +49,10 @@ export function createContextService(
         favorites: all.filter((r) => r.favorite || (r.rating ?? 0) >= 4).map(slim),
         neverMade: all.filter((r) => r.timesMade === 0).map(slim),
         recipeCount: all.length,
-        equipmentOwned: equipment.list().filter((e) => e.owned).map((e) => e.name),
+        equipmentOwned: equipment
+          .list()
+          .filter((e) => e.owned)
+          .map((e) => e.name),
         budget: budget.budgetStatus(),
       };
     },

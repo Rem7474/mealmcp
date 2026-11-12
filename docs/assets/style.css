@@ -148,6 +148,6 @@ a.zoom { display: block; cursor: zoom-in; }
 .phones { display: grid; gap: 24px; margin-top: 32px; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); }
 .phones figure { margin: 0; }
 .phones figcaption { color: var(--muted); font-size: 0.9rem; margin-top: 10px; }
-a.zoom.phone { max-width: 260px; border-radius: 22px; margin: 0 auto; border-radius: 26px; border: 1px solid var(--line); box-shadow: 0 24px 60px -28px color-mix(in srgb, var(--accent) 55%, transparent); overflow: hidden; background: var(--surface); }
+a.zoom.phone { max-width: 260px; margin: 0 auto; border-radius: 26px; border: 1px solid var(--line); box-shadow: 0 24px 60px -28px color-mix(in srgb, var(--accent) 55%, transparent); overflow: hidden; background: var(--surface); }
 a.zoom.phone img { width: 100%; height: auto; display: block; }
 .phones figcaption { text-align: center; }

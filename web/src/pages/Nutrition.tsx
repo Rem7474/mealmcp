@@ -2,7 +2,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { type FormEvent, useEffect, useState } from 'react';
 import { api, useAction } from '../api';
 import { type MessageKey, useT } from '../i18n';
-import type { HouseholdSettings, NutritionHit, NutrientValues, Product, RecipeNutritionInfo } from '../types';
+import type { HouseholdSettings, NutrientValues, NutritionHit, Product, RecipeNutritionInfo } from '../types';
 import { Badge, Button, Input } from '../ui';
 import { parseQty, useProducts } from './shared';
 
@@ -13,7 +13,14 @@ export function useNutritionEnabled(): boolean {
 }
 
 const summary = (v: NutrientValues) =>
-  [`${Math.round(v.kcal ?? 0)} kcal`, v.protein !== undefined ? `P ${v.protein}` : null, v.carbs !== undefined ? `G ${v.carbs}` : null, v.fat !== undefined ? `L ${v.fat}` : null].filter(Boolean).join(' · ');
+  [
+    `${Math.round(v.kcal ?? 0)} kcal`,
+    v.protein !== undefined ? `P ${v.protein}` : null,
+    v.carbs !== undefined ? `G ${v.carbs}` : null,
+    v.fat !== undefined ? `L ${v.fat}` : null,
+  ]
+    .filter(Boolean)
+    .join(' · ');
 
 // Recipes already tried this session, so a product Open Food Facts does not know is not searched again on every visit.
 const autofilled = new Set<number>();
@@ -23,7 +30,11 @@ export function RecipeNutrition({ id }: { id: number }) {
   const t = useT();
   const on = useNutritionEnabled();
   const queryClient = useQueryClient();
-  const { data } = useQuery({ queryKey: ['recipe', id, 'nutrition'], enabled: on, queryFn: () => api.get<RecipeNutritionInfo>(`/recipes/${id}/nutrition`) });
+  const { data } = useQuery({
+    queryKey: ['recipe', id, 'nutrition'],
+    enabled: on,
+    queryFn: () => api.get<RecipeNutritionInfo>(`/recipes/${id}/nutrition`),
+  });
   const [looking, setLooking] = useState(false);
   const incomplete = !!data && data.coverage.missing.length > 0;
   useEffect(() => {
@@ -32,7 +43,13 @@ export function RecipeNutrition({ id }: { id: number }) {
     setLooking(true);
     api
       .post<{ filled: number }>(`/recipes/${id}/nutrition/autofill`, {})
-      .then((r) => (r.filled > 0 ? queryClient.invalidateQueries({ queryKey: ['recipe', id, 'nutrition'] }).then(() => queryClient.invalidateQueries({ queryKey: ['products'] })) : undefined))
+      .then((r) =>
+        r.filled > 0
+          ? queryClient
+              .invalidateQueries({ queryKey: ['recipe', id, 'nutrition'] })
+              .then(() => queryClient.invalidateQueries({ queryKey: ['products'] }))
+          : undefined,
+      )
       .catch(() => undefined)
       .finally(() => setLooking(false));
   }, [on, incomplete, id, queryClient]);
@@ -47,12 +64,24 @@ export function RecipeNutrition({ id }: { id: number }) {
           <div className="flex flex-wrap items-center gap-1.5">
             <span className="text-muted">{t('nutrition.perServing')}</span>
             <Badge tone="accent">{Math.round(p.kcal)} kcal</Badge>
-            <Badge>{t('nutrition.protein')} {p.protein} g</Badge>
-            <Badge>{t('nutrition.carbs')} {p.carbs} g</Badge>
-            <Badge>{t('nutrition.fat')} {p.fat} g</Badge>
-            <Badge>{t('nutrition.fiber')} {p.fiber} g</Badge>
+            <Badge>
+              {t('nutrition.protein')} {p.protein} g
+            </Badge>
+            <Badge>
+              {t('nutrition.carbs')} {p.carbs} g
+            </Badge>
+            <Badge>
+              {t('nutrition.fat')} {p.fat} g
+            </Badge>
+            <Badge>
+              {t('nutrition.fiber')} {p.fiber} g
+            </Badge>
           </div>
-          {!coverage.complete && <p className="mt-1 text-muted">{looking ? t('nutrition.looking') : t('nutrition.incomplete', { names: coverage.missing.join(', ') })}</p>}
+          {!coverage.complete && (
+            <p className="mt-1 text-muted">
+              {looking ? t('nutrition.looking') : t('nutrition.incomplete', { names: coverage.missing.join(', ') })}
+            </p>
+          )}
         </>
       )}
     </div>
@@ -77,10 +106,17 @@ export function ProductNutritionCard() {
               <div className="min-w-40 flex-1">
                 <div className="font-medium wrap-break-word">{p.name}</div>
                 <div className="text-xs text-muted">
-                  {p.nutrition ? `${summary(p.nutrition.per100)} (${p.nutrition.source === 'openfoodfacts' ? 'Open Food Facts' : t('nutrition.manual')})` : t('nutrition.unset')}
+                  {p.nutrition
+                    ? `${summary(p.nutrition.per100)} (${p.nutrition.source === 'openfoodfacts' ? 'Open Food Facts' : t('nutrition.manual')})`
+                    : t('nutrition.unset')}
                 </div>
               </div>
-              <Button variant="ghost" className="h-8 px-2 text-xs" aria-expanded={open === p.id} onClick={() => setOpen(open === p.id ? null : p.id)}>
+              <Button
+                variant="ghost"
+                className="h-8 px-2 text-xs"
+                aria-expanded={open === p.id}
+                onClick={() => setOpen(open === p.id ? null : p.id)}
+              >
                 {t('nutrition.edit')}
               </Button>
             </div>
@@ -135,7 +171,14 @@ function ProductEditor({ product, onDone }: { product: Product; onDone: () => vo
   return (
     <div className="mt-2 space-y-3 rounded-lg bg-ink/5 p-3">
       <form onSubmit={search} className="flex flex-wrap gap-2">
-        <Input required minLength={2} value={query} onChange={(e) => setQuery(e.target.value)} aria-label={t('nutrition.searchAria', { name: product.name })} className="min-w-0 flex-1 basis-48" />
+        <Input
+          required
+          minLength={2}
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+          aria-label={t('nutrition.searchAria', { name: product.name })}
+          className="min-w-0 flex-1 basis-48"
+        />
         <Button type="submit" disabled={busy}>
           {t('nutrition.search')}
         </Button>
@@ -147,7 +190,10 @@ function ProductEditor({ product, onDone }: { product: Product; onDone: () => vo
           {hits.map((h) => (
             <li key={h.code} className="flex flex-wrap items-center gap-x-3 gap-y-1">
               <div className="min-w-40 flex-1">
-                <div className="wrap-break-word">{h.name}{h.brands ? ` · ${h.brands}` : ''}</div>
+                <div className="wrap-break-word">
+                  {h.name}
+                  {h.brands ? ` · ${h.brands}` : ''}
+                </div>
                 <div className="text-xs text-muted">{summary(h.per100)}</div>
               </div>
               <Button className="h-8 px-2 text-xs" disabled={pending} onClick={() => save({ code: h.code })}>
@@ -160,7 +206,15 @@ function ProductEditor({ product, onDone }: { product: Product; onDone: () => vo
       <form onSubmit={saveManual} className="flex flex-wrap items-center gap-2">
         <span className="text-muted">{t('nutrition.manualHelp')}</span>
         {(['kcal', 'protein', 'carbs', 'fat'] as const).map((k) => (
-          <Input key={k} inputMode="decimal" placeholder={k === 'kcal' ? 'kcal' : t(`nutrition.${k}` as MessageKey)} aria-label={t(`nutrition.${k}Aria` as MessageKey, { name: product.name })} value={manual[k]} onChange={(e) => setManual({ ...manual, [k]: e.target.value })} className="h-8 w-20 px-2 text-right" />
+          <Input
+            key={k}
+            inputMode="decimal"
+            placeholder={k === 'kcal' ? 'kcal' : t(`nutrition.${k}` as MessageKey)}
+            aria-label={t(`nutrition.${k}Aria` as MessageKey, { name: product.name })}
+            value={manual[k]}
+            onChange={(e) => setManual({ ...manual, [k]: e.target.value })}
+            className="h-8 w-20 px-2 text-right"
+          />
         ))}
         <Button type="submit" className="h-8 px-2 text-xs" disabled={pending}>
           {t('nutrition.save')}

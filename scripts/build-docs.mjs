@@ -8,9 +8,25 @@ const TOOLS = {
   recipes: ['list_recipes', 'get_recipe', 'create_recipe', 'update_recipe', 'check_recipe_availability', 'suggest_recipes_to_use_up'],
   plan: ['list_meal_plan', 'plan_meal', 'cook_planned_meal', 'list_planning_slots'],
   shop: ['list_shopping_list', 'generate_shopping_list', 'add_shopping_item', 'check_shopping_item', 'complete_shopping'],
-  budget: ['record_expense', 'get_spending_summary', 'get_budget_status', 'set_budget', 'estimate_recipe_cost', 'estimate_shopping_list_cost'],
+  budget: [
+    'record_expense',
+    'get_spending_summary',
+    'get_budget_status',
+    'set_budget',
+    'estimate_recipe_cost',
+    'estimate_shopping_list_cost',
+  ],
   nutrition: ['search_nutrition', 'set_product_nutrition', 'get_recipe_nutrition', 'get_meal_plan_nutrition'],
-  more: ['list_products', 'update_product', 'add_product_alias', 'list_equipment', 'set_household_settings', 'add_stock_bulk', 'create_recipes_bulk', 'plan_meals_bulk'],
+  more: [
+    'list_products',
+    'update_product',
+    'add_product_alias',
+    'list_equipment',
+    'set_household_settings',
+    'add_stock_bulk',
+    'create_recipes_bulk',
+    'plan_meals_bulk',
+  ],
 };
 
 const t = {
@@ -31,23 +47,68 @@ const t = {
     fHead: 'From “what do we eat?” to the receipt',
     fLead: 'Do it by hand, or ask your AI: everything you can do in the app, it can do too.',
     features: [
-      ['📅', 'Plan the week in minutes', 'Drop a recipe or a quick note on each day. Empty slots stand out, so nothing is left to “we will see”.'],
-      ['🛒', 'Shopping lists that write themselves', 'One tap turns the week’s meals into a list: what you need, minus what is already at home. Sort it by aisle and tick as you walk the shop.'],
-      ['🧊', 'Know what is in the fridge', 'See what expires first, get an alert on opened jars, and cook what you already own before buying more.'],
-      ['📖', 'Recipes that fit your kitchen', 'Rate and favorite recipes, see which ones you can make tonight, and get a warning when one needs an appliance you do not have.'],
-      ['💶', 'Grocery budget under control', 'Log receipts, set a monthly budget and see where you will land before the month ends. In any currency.'],
-      ['🍎', 'Calories and macros, only if you want them', 'Turn on nutrition to see calories, protein, carbs and fat for every recipe. Values come from Open Food Facts or your own numbers, and the app tells you when an ingredient is missing. Off by default.'],
-      ['🥕', 'Eat in season', 'A fruit and vegetable calendar for your country. Out-of-season items on your list come with in-season alternatives.'],
-      ['🥗', 'Diets and allergies, handled', 'Vegetarian, gluten-free, the 14 EU allergens, foods someone dislikes: unsuitable recipes are flagged and never suggested.'],
-      ['♻️', 'Less waste, less repetition', 'Remember what you cooked so menus stay fresh, and see what throwing food away really costs you.'],
-      ['👨‍👩‍👧', 'One household, everyone in sync', 'Invite the family. Changes show up on every device instantly, including the ones your AI makes.'],
+      [
+        '📅',
+        'Plan the week in minutes',
+        'Drop a recipe or a quick note on each day. Empty slots stand out, so nothing is left to “we will see”.',
+      ],
+      [
+        '🛒',
+        'Shopping lists that write themselves',
+        'One tap turns the week’s meals into a list: what you need, minus what is already at home. Sort it by aisle and tick as you walk the shop.',
+      ],
+      [
+        '🧊',
+        'Know what is in the fridge',
+        'See what expires first, get an alert on opened jars, and cook what you already own before buying more.',
+      ],
+      [
+        '📖',
+        'Recipes that fit your kitchen',
+        'Rate and favorite recipes, see which ones you can make tonight, and get a warning when one needs an appliance you do not have.',
+      ],
+      [
+        '💶',
+        'Grocery budget under control',
+        'Log receipts, set a monthly budget and see where you will land before the month ends. In any currency.',
+      ],
+      [
+        '🍎',
+        'Calories and macros, only if you want them',
+        'Turn on nutrition to see calories, protein, carbs and fat for every recipe. Values come from Open Food Facts or your own numbers, and the app tells you when an ingredient is missing. Off by default.',
+      ],
+      [
+        '🥕',
+        'Eat in season',
+        'A fruit and vegetable calendar for your country. Out-of-season items on your list come with in-season alternatives.',
+      ],
+      [
+        '🥗',
+        'Diets and allergies, handled',
+        'Vegetarian, gluten-free, the 14 EU allergens, foods someone dislikes: unsuitable recipes are flagged and never suggested.',
+      ],
+      [
+        '♻️',
+        'Less waste, less repetition',
+        'Remember what you cooked so menus stay fresh, and see what throwing food away really costs you.',
+      ],
+      [
+        '👨‍👩‍👧',
+        'One household, everyone in sync',
+        'Invite the family. Changes show up on every device instantly, including the ones your AI makes.',
+      ],
       ['📱', 'On your phone', 'Install it like an app and use it one-handed in the shop. Dark theme, English and French.'],
     ],
     mHead: 'Say it, your AI does it',
-    mLead: 'Ask Claude what to cook tonight, to plan the week or to build the list. It sees your real stock and budget, so its answers fit your kitchen, not a generic one.',
+    mLead:
+      'Ask Claude what to cook tonight, to plan the week or to build the list. It sees your real stock and budget, so its answers fit your kitchen, not a generic one.',
     chat: [
       ['me', 'What can I cook tonight with what is about to expire?'],
-      ['ai', 'You have a half jar of tomato sauce (opened 3 days ago) and potatoes expiring on the 13th. Air fryer fries + a pasta?', 'suggest_recipes_to_use_up'],
+      [
+        'ai',
+        'You have a half jar of tomato sauce (opened 3 days ago) and potatoes expiring on the 13th. Air fryer fries + a pasta?',
+        'suggest_recipes_to_use_up',
+      ],
       ['me', 'Plan the pasta for Thursday and generate the shopping list.'],
       ['ai', 'Done: pasta planned for Thursday dinner. 8 items to buy, about €23 estimated.', 'plan_meal · generate_shopping_list'],
     ],
@@ -58,7 +119,15 @@ const t = {
       ['Your household only', ': the assistant never sees another household’s data.'],
     ],
     toolsHead: 'What your AI can do',
-    toolGroups: [['Stock', 'stock'], ['Recipes', 'recipes'], ['Meal plan', 'plan'], ['Shopping', 'shop'], ['Budget', 'budget'], ['Nutrition (optional)', 'nutrition'], ['And more', 'more']],
+    toolGroups: [
+      ['Stock', 'stock'],
+      ['Recipes', 'recipes'],
+      ['Meal plan', 'plan'],
+      ['Shopping', 'shop'],
+      ['Budget', 'budget'],
+      ['Nutrition (optional)', 'nutrition'],
+      ['And more', 'more'],
+    ],
     zoom: 'Enlarge the screenshot',
     mobileHead: 'In your pocket',
     mobileLead: 'Open the list in the shop and tick as you go. Check what is left at home before you buy it twice.',
@@ -81,14 +150,24 @@ const t = {
     dHead: 'Self-host in two minutes',
     dLead: 'One container, one file for your data. Runs on a Raspberry Pi, a NAS or a small server.',
     steps: [
-      ['Get the files', 'Grab <code>docker-compose.yml</code> and <code>.env.example</code> from the repository and copy the example to <code>.env</code>. Set <code>PUBLIC_URL</code> to the real address of the app.'],
+      [
+        'Get the files',
+        'Grab <code>docker-compose.yml</code> and <code>.env.example</code> from the repository and copy the example to <code>.env</code>. Set <code>PUBLIC_URL</code> to the real address of the app.',
+      ],
       ['Start it', null],
-      ['Create the first account', 'Open the app: <strong>the first account becomes the household owner</strong>. Invite others from the Account tab with a single-use code.'],
-      ['Connect your AI', 'Add <code>PUBLIC_URL/mcp</code> as an MCP server in Claude. Remote clients need HTTPS: put the app behind a reverse proxy.'],
+      [
+        'Create the first account',
+        'Open the app: <strong>the first account becomes the household owner</strong>. Invite others from the Account tab with a single-use code.',
+      ],
+      [
+        'Connect your AI',
+        'Add <code>PUBLIC_URL/mcp</code> as an MCP server in Claude. Remote clients need HTTPS: put the app behind a reverse proxy.',
+      ],
     ],
     dNote: 'Your data never leaves your server. Passwords are hashed, sessions are protected and sign-in attempts are rate-limited.',
     aHead: 'Under the hood',
-    aLead: 'Express 5, TypeScript, SQLite, the official MCP SDK on the server; React 19, Vite and Tailwind 4 on the web. The web app and the AI endpoint run the same code, so they never disagree.',
+    aLead:
+      'Express 5, TypeScript, SQLite, the official MCP SDK on the server; React 19, Vite and Tailwind 4 on the web. The web app and the AI endpoint run the same code, so they never disagree.',
     foot: 'Released under the MIT licence.',
     links: { repo: 'Repository', docs: 'Full documentation', rel: 'Releases' },
   },
@@ -109,23 +188,72 @@ const t = {
     fHead: 'De « qu’est-ce qu’on mange ? » au ticket de caisse',
     fLead: 'Faites-le à la main, ou demandez à votre IA : tout ce que vous faites dans l’application, elle peut le faire aussi.',
     features: [
-      ['📅', 'La semaine planifiée en quelques minutes', 'Posez une recette ou une simple note sur chaque jour. Les créneaux vides ressortent : plus de « on verra ».'],
-      ['🛒', 'Des courses qui se préparent seules', 'Un clic transforme les repas de la semaine en liste : ce qu’il faut, moins ce qu’il y a déjà. Triez par rayon et cochez en faisant les courses.'],
-      ['🧊', 'Savoir ce qu’il y a dans le frigo', 'Voyez ce qui expire en premier, soyez alerté pour les pots ouverts et cuisinez ce que vous avez avant d’en racheter.'],
-      ['📖', 'Des recettes adaptées à votre cuisine', 'Notez et mettez en favori, voyez ce que vous pouvez cuisiner ce soir, et soyez prévenu si une recette demande un appareil que vous n’avez pas.'],
-      ['💶', 'Un budget courses maîtrisé', 'Enregistrez vos tickets, fixez un budget mensuel et voyez où vous allez finir avant la fin du mois. Dans la devise de votre choix.'],
-      ['🍎', 'Calories et macros, seulement si vous voulez', 'Activez la nutrition pour voir calories, protéines, glucides et lipides de chaque recette. Les valeurs viennent d’Open Food Facts ou de vos chiffres, et l’appli signale l’ingrédient manquant. Désactivé par défaut.'],
-      ['🥕', 'Manger de saison', 'Un calendrier des fruits et légumes de votre pays. Les articles hors saison de la liste viennent avec des alternatives de saison.'],
-      ['🥗', 'Régimes et allergies pris en compte', 'Végétarien, sans gluten, les 14 allergènes de l’UE, ce que quelqu’un n’aime pas : les recettes qui ne conviennent pas sont signalées et jamais suggérées.'],
-      ['♻️', 'Moins de gaspillage, moins de répétitions', 'Retient ce que vous avez cuisiné pour varier les menus, et chiffre ce que coûte vraiment la nourriture jetée.'],
-      ['👨‍👩‍👧', 'Un foyer, tout le monde synchronisé', 'Invitez la famille. Les changements apparaissent aussitôt sur chaque appareil, y compris ceux de votre IA.'],
-      ['📱', 'Dans votre poche', 'Installez-la comme une application et utilisez-la d’une main en magasin. Thème sombre, français et anglais.'],
+      [
+        '📅',
+        'La semaine planifiée en quelques minutes',
+        'Posez une recette ou une simple note sur chaque jour. Les créneaux vides ressortent : plus de « on verra ».',
+      ],
+      [
+        '🛒',
+        'Des courses qui se préparent seules',
+        'Un clic transforme les repas de la semaine en liste : ce qu’il faut, moins ce qu’il y a déjà. Triez par rayon et cochez en faisant les courses.',
+      ],
+      [
+        '🧊',
+        'Savoir ce qu’il y a dans le frigo',
+        'Voyez ce qui expire en premier, soyez alerté pour les pots ouverts et cuisinez ce que vous avez avant d’en racheter.',
+      ],
+      [
+        '📖',
+        'Des recettes adaptées à votre cuisine',
+        'Notez et mettez en favori, voyez ce que vous pouvez cuisiner ce soir, et soyez prévenu si une recette demande un appareil que vous n’avez pas.',
+      ],
+      [
+        '💶',
+        'Un budget courses maîtrisé',
+        'Enregistrez vos tickets, fixez un budget mensuel et voyez où vous allez finir avant la fin du mois. Dans la devise de votre choix.',
+      ],
+      [
+        '🍎',
+        'Calories et macros, seulement si vous voulez',
+        'Activez la nutrition pour voir calories, protéines, glucides et lipides de chaque recette. Les valeurs viennent d’Open Food Facts ou de vos chiffres, et l’appli signale l’ingrédient manquant. Désactivé par défaut.',
+      ],
+      [
+        '🥕',
+        'Manger de saison',
+        'Un calendrier des fruits et légumes de votre pays. Les articles hors saison de la liste viennent avec des alternatives de saison.',
+      ],
+      [
+        '🥗',
+        'Régimes et allergies pris en compte',
+        'Végétarien, sans gluten, les 14 allergènes de l’UE, ce que quelqu’un n’aime pas : les recettes qui ne conviennent pas sont signalées et jamais suggérées.',
+      ],
+      [
+        '♻️',
+        'Moins de gaspillage, moins de répétitions',
+        'Retient ce que vous avez cuisiné pour varier les menus, et chiffre ce que coûte vraiment la nourriture jetée.',
+      ],
+      [
+        '👨‍👩‍👧',
+        'Un foyer, tout le monde synchronisé',
+        'Invitez la famille. Les changements apparaissent aussitôt sur chaque appareil, y compris ceux de votre IA.',
+      ],
+      [
+        '📱',
+        'Dans votre poche',
+        'Installez-la comme une application et utilisez-la d’une main en magasin. Thème sombre, français et anglais.',
+      ],
     ],
     mHead: 'Dites-le, votre IA s’en occupe',
-    mLead: 'Demandez à Claude quoi cuisiner ce soir, de planifier la semaine ou de préparer la liste. Il voit votre vrai stock et votre budget : ses réponses collent à votre cuisine, pas à une cuisine générique.',
+    mLead:
+      'Demandez à Claude quoi cuisiner ce soir, de planifier la semaine ou de préparer la liste. Il voit votre vrai stock et votre budget : ses réponses collent à votre cuisine, pas à une cuisine générique.',
     chat: [
       ['me', 'Que cuisiner ce soir avec ce qui va bientôt expirer ?'],
-      ['ai', 'Il vous reste un demi-pot de sauce tomate (ouvert depuis 3 jours) et des pommes de terre qui expirent le 13. Des frites à l’air fryer + des pâtes ?', 'suggest_recipes_to_use_up'],
+      [
+        'ai',
+        'Il vous reste un demi-pot de sauce tomate (ouvert depuis 3 jours) et des pommes de terre qui expirent le 13. Des frites à l’air fryer + des pâtes ?',
+        'suggest_recipes_to_use_up',
+      ],
       ['me', 'Planifie les pâtes jeudi et génère la liste de courses.'],
       ['ai', 'C’est fait : pâtes au dîner de jeudi. 8 articles à acheter, environ 23 € estimés.', 'plan_meal · generate_shopping_list'],
     ],
@@ -136,7 +264,15 @@ const t = {
       ['Votre foyer uniquement', ' : l’assistant ne voit jamais les données d’un autre foyer.'],
     ],
     toolsHead: 'Ce que votre IA peut faire',
-    toolGroups: [['Stock', 'stock'], ['Recettes', 'recipes'], ['Planning', 'plan'], ['Courses', 'shop'], ['Budget', 'budget'], ['Nutrition (optionnel)', 'nutrition'], ['Et plus', 'more']],
+    toolGroups: [
+      ['Stock', 'stock'],
+      ['Recettes', 'recipes'],
+      ['Planning', 'plan'],
+      ['Courses', 'shop'],
+      ['Budget', 'budget'],
+      ['Nutrition (optionnel)', 'nutrition'],
+      ['Et plus', 'more'],
+    ],
     zoom: 'Agrandir la capture',
     mobileHead: 'Dans votre poche',
     mobileLead: 'Ouvrez la liste en magasin et cochez au fil des rayons. Vérifiez ce qu’il reste à la maison avant de l’acheter deux fois.',
@@ -159,20 +295,32 @@ const t = {
     dHead: 'Installez-le en deux minutes',
     dLead: 'Un conteneur, un fichier pour vos données. Tourne sur un Raspberry Pi, un NAS ou un petit serveur.',
     steps: [
-      ['Récupérez les fichiers', 'Prenez <code>docker-compose.yml</code> et <code>.env.example</code> dans le dépôt et copiez l’exemple vers <code>.env</code>. Renseignez <code>PUBLIC_URL</code> avec l’adresse réelle de l’application.'],
+      [
+        'Récupérez les fichiers',
+        'Prenez <code>docker-compose.yml</code> et <code>.env.example</code> dans le dépôt et copiez l’exemple vers <code>.env</code>. Renseignez <code>PUBLIC_URL</code> avec l’adresse réelle de l’application.',
+      ],
       ['Démarrez', null],
-      ['Créez le premier compte', 'Ouvrez l’application : <strong>le premier compte devient propriétaire du foyer</strong>. Invitez les autres depuis l’onglet Compte avec un code à usage unique.'],
-      ['Connectez votre IA', 'Ajoutez <code>PUBLIC_URL/mcp</code> comme serveur MCP dans Claude. Les clients distants exigent HTTPS : placez l’application derrière un reverse proxy.'],
+      [
+        'Créez le premier compte',
+        'Ouvrez l’application : <strong>le premier compte devient propriétaire du foyer</strong>. Invitez les autres depuis l’onglet Compte avec un code à usage unique.',
+      ],
+      [
+        'Connectez votre IA',
+        'Ajoutez <code>PUBLIC_URL/mcp</code> comme serveur MCP dans Claude. Les clients distants exigent HTTPS : placez l’application derrière un reverse proxy.',
+      ],
     ],
-    dNote: 'Vos données ne quittent jamais votre serveur. Les mots de passe sont hachés, les sessions protégées et les tentatives de connexion limitées.',
+    dNote:
+      'Vos données ne quittent jamais votre serveur. Les mots de passe sont hachés, les sessions protégées et les tentatives de connexion limitées.',
     aHead: 'Sous le capot',
-    aLead: 'Express 5, TypeScript, SQLite, le SDK MCP officiel côté serveur ; React 19, Vite et Tailwind 4 côté web. L’application web et le point d’accès IA exécutent le même code : ils ne se contredisent jamais.',
+    aLead:
+      'Express 5, TypeScript, SQLite, le SDK MCP officiel côté serveur ; React 19, Vite et Tailwind 4 côté web. L’application web et le point d’accès IA exécutent le même code : ils ne se contredisent jamais.',
     foot: 'Publié sous licence MIT.',
     links: { repo: 'Dépôt', docs: 'Documentation complète', rel: 'Versions' },
   },
 };
 
-const logo = '<svg viewBox="0 0 32 32" aria-hidden="true"><path d="M7 15h18v3a7 7 0 0 1-7 7h-4a7 7 0 0 1-7-7z" fill="none" stroke="#9184d9" stroke-width="2" stroke-linejoin="round"/><path d="M5 15h22M12 11c0-2 2-2 2-4M18 11c0-2 2-2 2-4" fill="none" stroke="#d2cefd" stroke-width="2" stroke-linecap="round"/></svg>';
+const logo =
+  '<svg viewBox="0 0 32 32" aria-hidden="true"><path d="M7 15h18v3a7 7 0 0 1-7 7h-4a7 7 0 0 1-7-7z" fill="none" stroke="#9184d9" stroke-width="2" stroke-linejoin="round"/><path d="M5 15h22M12 11c0-2 2-2 2-4M18 11c0-2 2-2 2-4" fill="none" stroke="#d2cefd" stroke-width="2" stroke-linecap="round"/></svg>';
 
 const esc = (s) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;');
 
@@ -185,16 +333,26 @@ function page(c) {
   const chat = c.chat
     .map(([who, text, tool]) => `<div class="msg ${who}">${esc(text)}${tool ? `<small>${tool}</small>` : ''}</div>`)
     .join('\n        ');
-  const feats = c.features.map(([i, h, p]) => `<div class="card"><div class="ico" aria-hidden="true">${i}</div><h3>${h}</h3><p>${p}</p></div>`).join('\n      ');
+  const feats = c.features
+    .map(([i, h, p]) => `<div class="card"><div class="ico" aria-hidden="true">${i}</div><h3>${h}</h3><p>${p}</p></div>`)
+    .join('\n      ');
   const tour = c.tour
-    .map(([k, cap]) => `<figure><div class="shot"><a class="zoom" href="${a}screens/${k}-${c.lang}.jpg" aria-label="${esc(c.zoom)}"><img src="${a}screens/${k}-${c.lang}.jpg" alt="${esc(cap)}" loading="lazy" width="1280" height="800"></a></div><figcaption>${cap}</figcaption></figure>`)
+    .map(
+      ([k, cap]) =>
+        `<figure><div class="shot"><a class="zoom" href="${a}screens/${k}-${c.lang}.jpg" aria-label="${esc(c.zoom)}"><img src="${a}screens/${k}-${c.lang}.jpg" alt="${esc(cap)}" loading="lazy" width="1280" height="800"></a></div><figcaption>${cap}</figcaption></figure>`,
+    )
     .join('\n      ');
   const phones = c.mobile
-    .map(([k, cap]) => `<figure><a class="zoom phone" href="${a}screens/m-${k}-${c.lang}.jpg" aria-label="${esc(c.zoom)}"><img src="${a}screens/m-${k}-${c.lang}.jpg" alt="${esc(cap)}" loading="lazy" width="780" height="1688"></a><figcaption>${cap}</figcaption></figure>`)
+    .map(
+      ([k, cap]) =>
+        `<figure><a class="zoom phone" href="${a}screens/m-${k}-${c.lang}.jpg" aria-label="${esc(c.zoom)}"><img src="${a}screens/m-${k}-${c.lang}.jpg" alt="${esc(cap)}" loading="lazy" width="780" height="1688"></a><figcaption>${cap}</figcaption></figure>`,
+    )
     .join('\n      ');
   const run = `cp .env.example .env   # ${c.lang === 'fr' ? 'puis éditez PUBLIC_URL' : 'then edit PUBLIC_URL'}\ndocker compose up -d`;
   const steps = c.steps
-    .map(([h, p]) => `<div class="step"><div><p><strong>${h}</strong></p>${p ? `<p>${p}</p>` : `<pre><code>${run}</code></pre>`}</div></div>`)
+    .map(
+      ([h, p]) => `<div class="step"><div><p><strong>${h}</strong></p>${p ? `<p>${p}</p>` : `<pre><code>${run}</code></pre>`}</div></div>`,
+    )
     .join('\n      ');
   const bullets = c.mBullets.map(([b, r]) => `<li><strong>${b}</strong>${r}</li>`).join('');
   const url = `${SITE}/${c.path}`;

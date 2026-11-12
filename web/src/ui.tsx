@@ -58,7 +58,9 @@ export function Fold({ title, children }: { title: ReactNode; children: ReactNod
   return (
     <details open={wide} className="group rounded-xl bg-surface p-4 shadow-[0_0_0_1px_var(--line)]">
       <summary className="cursor-pointer font-medium">{title}</summary>
-      <div className="mt-3 [&>section]:bg-transparent [&>section]:p-0 [&>section]:shadow-none [&>section>header:not(:has(button))]:hidden [&>section>header>h2]:hidden">{children}</div>
+      <div className="mt-3 [&>section]:bg-transparent [&>section]:p-0 [&>section]:shadow-none [&>section>header:not(:has(button))]:hidden [&>section>header>h2]:hidden">
+        {children}
+      </div>
     </details>
   );
 }
@@ -89,13 +91,36 @@ export function Empty({ children }: { children: ReactNode }) {
 }
 
 /** Five stars: read-only when `onChange` is missing. Clicking the current rating clears it. */
-export function Stars({ value, onChange, label, size = 16 }: { value: number | null; onChange?: (value: number | null) => void; label?: (n: number) => string; size?: number }) {
+export function Stars({
+  value,
+  onChange,
+  label,
+  size = 16,
+}: {
+  value: number | null;
+  onChange?: (value: number | null) => void;
+  label?: (n: number) => string;
+  size?: number;
+}) {
   return (
-    <span className="inline-flex items-center gap-0.5" role={onChange ? 'group' : 'img'} aria-label={onChange ? undefined : `${value ?? 0}/5`}>
+    <span
+      className="inline-flex items-center gap-0.5"
+      role={onChange ? 'group' : 'img'}
+      aria-label={onChange ? undefined : `${value ?? 0}/5`}
+    >
       {[1, 2, 3, 4, 5].map((n) => {
-        const star = <Star size={size} weight={n <= (value ?? 0) ? 'fill' : 'regular'} className={n <= (value ?? 0) ? 'text-warn' : 'text-muted'} />;
+        const star = (
+          <Star size={size} weight={n <= (value ?? 0) ? 'fill' : 'regular'} className={n <= (value ?? 0) ? 'text-warn' : 'text-muted'} />
+        );
         return onChange ? (
-          <button key={n} type="button" aria-label={label?.(n) ?? String(n)} aria-pressed={n === value} className="cursor-pointer rounded p-0.5 hover:bg-ink/5" onClick={() => onChange(n === value ? null : n)}>
+          <button
+            key={n}
+            type="button"
+            aria-label={label?.(n) ?? String(n)}
+            aria-pressed={n === value}
+            className="cursor-pointer rounded p-0.5 hover:bg-ink/5"
+            onClick={() => onChange(n === value ? null : n)}
+          >
             {star}
           </button>
         ) : (

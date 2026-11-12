@@ -48,16 +48,30 @@ Interface sur http://localhost:5173, backend sur http://localhost:3000.
 
 | Commande | Effet |
 | --- | --- |
-| `npm test` | tests des services |
+| `npm test` | tests serveur (services, auth, OAuth, sécurité, config) et web (composants, i18n, service worker) |
+| `npm run test:coverage` | idem, et échoue si la couverture passe sous les seuils |
+| `npm run lint` | Biome : lint et formatage (`npm run format` corrige ce qui peut l'être) |
+| `npm run typecheck` | TypeScript sur le serveur (tests inclus) et le web |
+| `npm run release -- patch` | incrémente la version partout, commit et tag (pousser avec `git push --follow-tags`) |
 | `npm run build` | build web + serveur |
 | `npm start` | sert l'app construite sur le port 3000 |
 | `npm run db:generate` | génère une migration après modification de `server/src/db/schema.ts` |
 
 ## CI/CD
 
-- `ci.yml` : à chaque push et pull request, build (typage web + serveur), tests, puis construction de l'image Docker et test de fumée du conteneur (accès refusé sans compte, découverte OAuth, création de compte).
-- `release.yml` : après les tests, publie l'image sur GitHub Container Registry. Pour une version : `git tag v0.1.0 && git push --tags`.
-- Dependabot met à jour les dépendances npm, les actions GitHub et l'image de base.
+- `_checks.yml` (réutilisable, partagé par la CI et les releases) : lint/format Biome, typage, build, tests avec seuils de couverture, et `npm audit` sur les dépendances de production.
+- `ci.yml` : ces contrôles à chaque push et pull request, puis construction de l'image Docker, test de fumée du conteneur (health check, accès refusé sans compte, découverte OAuth, `no-store` sur l'API, logs JSON sans secrets, arrêt propre sur SIGTERM) et analyse Trivy.
+- `codeql.yml` : analyse statique CodeQL sur les push, pull requests et chaque semaine.
+- `release.yml` : après les mêmes contrôles, publie l'image multi-arch sur GitHub Container Registry avec SBOM, attestation de provenance et signature cosign. Pour un tag `vX.Y.Z`, vérifie d'abord que le tag correspond à la version des `package.json`, puis crée la Release GitHub. Pour publier : `npm run release -- minor && git push --follow-tags`.
+- Dependabot met à jour les dépendances npm, les actions GitHub et l'image de base. Les actions et l'image de base sont épinglées par empreinte.
+
+Vérifier une image publiée :
+
+```bash
+cosign verify ghcr.io/rem7474/mealmcp:0.4.5 \
+  --certificate-identity-regexp '^https://github.com/Rem7474/mealmcp/' \
+  --certificate-oidc-issuer https://token.actions.githubusercontent.com
+```
 
 ## Déploiement Docker
 
@@ -75,11 +89,16 @@ L'image (amd64 et arm64) est publiée à chaque push sur `main` (tag `main`) et 
 
 La base SQLite est dans le volume `mealmcp-data`. Si l'app est exposée hors du réseau local, placez-la derrière un reverse proxy HTTPS et réglez `PUBLIC_URL` et `TRUST_PROXY` (voir `.env.example`).
 
+La configuration est vérifiée au démarrage : une valeur erronée (`PORT=abc`, `PUBLIC_URL` sans `https://`...) arrête l'app en listant tous les problèmes. Les logs vont sur la sortie standard, un objet JSON par ligne en production (`LOG_FORMAT=json`), avec un identifiant de requête (`X-Request-Id`) et les secrets masqués ; `LOG_LEVEL` vaut `debug`, `info`, `warn`, `error` ou `silent`. Le conteneur a un health check sur `/health` et s'arrête proprement sur `SIGTERM`.
+
+**Sauvegarde** : copiez la base à chaud avec `docker compose exec mealmcp node -e "require('better-sqlite3')('/data/mealmcp.db').backup('/data/backup.db').then(()=>console.log('ok'))"` puis récupérez `/data/backup.db` dans le volume.
+
 ## Comptes et foyers
 
 - Un **foyer** regroupe recettes, planning, courses et stock ; chaque donnée appartient à un foyer et les services filtrent systématiquement dessus (deux foyers ne voient jamais les données l'un de l'autre).
 - Le premier compte crée un foyer et en est propriétaire. Il invite ensuite d'autres personnes (onglet **Compte**) avec un code à usage unique valable 7 jours. `ALLOW_REGISTRATION=true` ouvre aussi la création de nouveaux foyers.
-- Mots de passe hachés avec scrypt, sessions par cookie `HttpOnly`/`SameSite=Lax`, jetons et codes stockés hachés, limitation des tentatives de connexion.
+- Mots de passe hachés avec scrypt, sessions par cookie `HttpOnly`/`SameSite=Lax`, jetons et codes stockés hachés, limitation des tentatives de connexion par IP et par email. L'inscription ne révèle jamais si un email est déjà utilisé.
+- Dans l'onglet **Compte** : changer de mot de passe (les autres appareils sont déconnectés), voir les appareils connectés et en déconnecter, retirer un membre du foyer (propriétaire), supprimer son compte (et le foyer si l'on y est seul), créer des jetons personnels avec une date d'expiration facultative.
 - **Pas de réinitialisation de mot de passe par email** : l'app n'envoie pas de mail. En cas d'oubli, supprimez la ligne de l'utilisateur dans la base ou recréez le compte.
 
 ## Connexion d'une IA (MCP)
@@ -94,7 +113,7 @@ Point d'accès : `POST /mcp` (transport Streamable HTTP, sans session), qui agit
 claude mcp add --transport http mealmcp http://localhost:3000/mcp --header "Authorization: Bearer mmcp_VOTRE_JETON"
 ```
 
-Le même jeton fonctionne sur l'API REST (`/api`). Pour tester le flux OAuth en local, utilisez l'app construite (`npm run build && npm start`) plutôt que `npm run dev`.
+Le même jeton (ou un jeton d'accès OAuth) fonctionne sur l'API REST (`/api`) pour tout ce qui touche à la cuisine, mais ne peut pas gérer le compte (mot de passe, appareils, jetons, invitations, membres) : cela exige la session du navigateur. Pour tester le flux OAuth en local, utilisez l'app construite (`npm run build && npm start`) plutôt que `npm run dev`.
 
 Argent : les montants que vous envoyez sont des décimaux dans la devise du foyer (`2.49`), ceux que vous recevez sont des entiers en centimes (`249`). Les écritures faites via MCP (ou l'API) sont poussées aux tableaux de bord ouverts par Server-Sent Events (`GET /api/events`) : rien à rafraîchir.
 

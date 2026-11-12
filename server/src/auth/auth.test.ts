@@ -16,7 +16,7 @@ beforeAll(async () => {
   const port = (probe.address() as AddressInfo).port;
   await new Promise((r) => probe.close(r));
   base = `http://localhost:${port}`;
-  const config = loadConfig({ PORT: String(port), DATABASE_PATH: ':memory:', PUBLIC_URL: base });
+  const config = loadConfig({ PORT: String(port), DATABASE_PATH: ':memory:', PUBLIC_URL: base, LOG_LEVEL: 'silent' });
   server = createApp(createDb(':memory:'), config).listen(port);
   await new Promise((r) => server.once('listening', r));
 });
@@ -55,7 +55,12 @@ const rpc = (token: string | null, method: string, params: unknown = {}) =>
   });
 
 const toolText = async (res: Response) => {
-  const data = JSON.parse((await res.text()).split('\n').find((l) => l.startsWith('data:'))!.slice(5));
+  const data = JSON.parse(
+    (await res.text())
+      .split('\n')
+      .find((l) => l.startsWith('data:'))!
+      .slice(5),
+  );
   return data.result.content[0].text as string;
 };
 
@@ -112,21 +117,33 @@ describe('accounts', () => {
     const weak = await alice.call('/api/auth/register', { method: 'POST', json: { email: 'a@x.fr', name: 'Alice', password: 'short' } });
     expect(weak.status).toBe(400);
 
-    const created = await alice.call('/api/auth/register', { method: 'POST', json: { email: 'a@x.fr', name: 'Alice', password: 'correct horse battery' } });
+    const created = await alice.call('/api/auth/register', {
+      method: 'POST',
+      json: { email: 'a@x.fr', name: 'Alice', password: 'correct horse battery' },
+    });
     expect(created.status).toBe(201);
     expect((await (await alice.call('/api/auth/me')).json()).user).toMatchObject({ email: 'a@x.fr', role: 'owner' });
 
     // Registration is now closed to strangers...
-    const stranger = await browser().call('/api/auth/register', { method: 'POST', json: { email: 'b@x.fr', name: 'Bob', password: 'another long password' } });
+    const stranger = await browser().call('/api/auth/register', {
+      method: 'POST',
+      json: { email: 'b@x.fr', name: 'Bob', password: 'another long password' },
+    });
     expect(stranger.status).toBe(403);
 
     // ...but an invite code gets Bob into Alice's household, once.
     const { code } = await (await alice.call('/api/household/invites', { method: 'POST', json: {} })).json();
     const bob = browser();
-    const joined = await bob.call('/api/auth/register', { method: 'POST', json: { email: 'b@x.fr', name: 'Bob', password: 'another long password', inviteCode: code } });
+    const joined = await bob.call('/api/auth/register', {
+      method: 'POST',
+      json: { email: 'b@x.fr', name: 'Bob', password: 'another long password', inviteCode: code },
+    });
     expect(joined.status).toBe(201);
     expect((await (await bob.call('/api/auth/me')).json()).user).toMatchObject({ role: 'member' });
-    const reuse = await browser().call('/api/auth/register', { method: 'POST', json: { email: 'c@x.fr', name: 'Carl', password: 'yet another password', inviteCode: code } });
+    const reuse = await browser().call('/api/auth/register', {
+      method: 'POST',
+      json: { email: 'c@x.fr', name: 'Carl', password: 'yet another password', inviteCode: code },
+    });
     expect(reuse.status).toBe(400);
     expect((await bob.call('/api/household/invites', { method: 'POST', json: {} })).status).toBe(403);
 
@@ -136,8 +153,12 @@ describe('accounts', () => {
 
     // Login / logout.
     const again = browser();
-    expect((await again.call('/api/auth/login', { method: 'POST', json: { email: 'a@x.fr', password: 'wrong password!!' } })).status).toBe(401);
-    expect((await again.call('/api/auth/login', { method: 'POST', json: { email: 'a@x.fr', password: 'correct horse battery' } })).status).toBe(200);
+    expect((await again.call('/api/auth/login', { method: 'POST', json: { email: 'a@x.fr', password: 'wrong password!!' } })).status).toBe(
+      401,
+    );
+    expect(
+      (await again.call('/api/auth/login', { method: 'POST', json: { email: 'a@x.fr', password: 'correct horse battery' } })).status,
+    ).toBe(200);
     expect((await again.call('/api/shopping')).status).toBe(200);
     await again.call('/api/auth/logout', { method: 'POST', json: {} });
     expect((await browser().call('/api/shopping')).status).toBe(401);
@@ -175,7 +196,10 @@ describe('MCP OAuth', () => {
     expect(await toolText(await rpc(tokens.access_token, 'tools/call', { name: 'list_shopping_list', arguments: {} }))).toContain('Milk');
 
     // Authorization codes are single use.
-    expect((await exchange({ grant_type: 'authorization_code', code, code_verifier: verifier, redirect_uri: 'http://localhost:9999/callback' })).status).toBe(400);
+    expect(
+      (await exchange({ grant_type: 'authorization_code', code, code_verifier: verifier, redirect_uri: 'http://localhost:9999/callback' }))
+        .status,
+    ).toBe(400);
 
     // A wrong PKCE verifier is refused (new code needed, so run a fresh flow).
     const second = (await authorizeClient(user)) as Exclude<Awaited<ReturnType<typeof authorizeClient>>, { denied: string | null }>;

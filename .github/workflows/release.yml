@@ -3,6 +3,7 @@ name: Publish image
 # Publishes the Docker image to GitHub Container Registry:
 #   - every push to main  -> :main and :sha-<commit>
 #   - every tag vX.Y.Z    -> :X.Y.Z, :X.Y, :latest
+# Each image carries an SBOM and a build provenance attestation, and is signed with cosign (keyless).
 on:
   push:
     branches: [main]
@@ -16,31 +17,41 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  test:
-    name: Build & test
+  checks:
+    name: Checks
+    uses: ./.github/workflows/_checks.yml
+
+  version:
+    name: Tag matches package version
+    if: startsWith(github.ref, 'refs/tags/v')
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
-      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7
-        with:
-          node-version: 24
-          cache: npm
-      - name: Install (lifecycle scripts off; only the native SQLite binding is built)
-        run: npm ci --ignore-scripts && npm rebuild better-sqlite3
-      - run: npm run build
-      - run: npm test
+      - name: Compare
+        env:
+          TAG: ${{ github.ref_name }}
+        run: |
+          for f in package.json server/package.json web/package.json; do
+            v="$(node -p "require('./$f').version")"
+            [ "$v" = "${TAG#v}" ] || { echo "::error file=$f::version $v does not match tag $TAG"; exit 1; }
+          done
 
   publish:
-    name: Build & push image
-    needs: test
+    name: Build, sign and push image
+    needs: [checks, version]
+    # `version` is skipped on branch pushes; that is fine, but a failure must still stop the release.
+    if: ${{ !cancelled() && needs.checks.result == 'success' && (needs.version.result == 'success' || needs.version.result == 'skipped') }}
     runs-on: ubuntu-latest
     permissions:
       contents: read
       packages: write
+      id-token: write
+      attestations: write
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
       - uses: docker/setup-qemu-action@c7c53464625b32c7a7e944ae62b3e17d2b600130 # v3
       - uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f # v3
+      - uses: sigstore/cosign-installer@756fe2d284c7292c4e9b62c8a28f1e5629c59532 # v4.1.3
       - uses: docker/login-action@8aa5831fb8d48d8f76594c7ddde61ae58019f550 # v4
         with:
           registry: ghcr.io
@@ -55,7 +66,8 @@ jobs:
             type=sha
             type=semver,pattern={{version}}
             type=semver,pattern={{major}}.{{minor}}
-      - uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7
+      - id: build
+        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7
         with:
           context: .
           push: true
@@ -63,8 +75,20 @@ jobs:
           platforms: linux/amd64,linux/arm64
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
+          sbom: true
+          provenance: mode=max
           cache-from: type=gha
           cache-to: type=gha,mode=max
+      - name: Sign the image (keyless)
+        env:
+          IMAGE: ghcr.io/${{ github.repository }}
+          DIGEST: ${{ steps.build.outputs.digest }}
+        run: cosign sign --yes "${IMAGE,,}@${DIGEST}"
+      - uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8 # v4.2.2
+        with:
+          subject-name: ghcr.io/${{ github.repository }}
+          subject-digest: ${{ steps.build.outputs.digest }}
+          push-to-registry: true
 
   github-release:
     name: GitHub Release
@@ -80,21 +104,30 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           TAG: ${{ github.ref_name }}
-          IMAGE: ghcr.io/${{ github.repository }}
+          REPO: ${{ github.repository }}
         run: |
           VERSION="${TAG#v}"
+          IMAGE="ghcr.io/${REPO,,}"
           cat > notes.md <<EOF
           ## Docker
 
           \`\`\`bash
-          docker pull ${IMAGE,,}:${VERSION}
+          docker pull ${IMAGE}:${VERSION}
           \`\`\`
 
-          Multi-arch image (amd64, arm64). See the README for configuration (\`PUBLIC_URL\`, accounts, MCP connection).
+          Multi-arch image (amd64, arm64), signed with cosign and shipped with an SBOM and build provenance:
+
+          \`\`\`bash
+          cosign verify ${IMAGE}:${VERSION} \\
+            --certificate-identity-regexp '^https://github.com/${REPO}/' \\
+            --certificate-oidc-issuer https://token.actions.githubusercontent.com
+          \`\`\`
+
+          See the README for configuration (\`PUBLIC_URL\`, accounts, MCP connection).
 
           ## Changes
           EOF
-          # Pre-release for 0.x or tags with a suffix such as v1.0.0-rc.1.
+          # Pre-release for tags with a suffix such as v1.0.0-rc.1.
           FLAGS=""
           case "$VERSION" in *-*) FLAGS="--prerelease" ;; esac
           gh release create "$TAG" --title "$TAG" --generate-notes --notes-file notes.md $FLAGS

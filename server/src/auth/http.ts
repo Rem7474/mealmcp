@@ -10,14 +10,25 @@ declare module 'express-serve-static-core' {
   interface Request {
     /** Set by `attachUser` when the request carries a valid session cookie or bearer token. */
     user?: CurrentUser;
+    /** How the caller proved who they are: the browser cookie, or a personal/OAuth bearer token. */
+    authVia?: 'session' | 'bearer';
   }
 }
+
+/** A malformed %-sequence in a cookie must not turn into a server error. */
+const safeDecode = (v: string) => {
+  try {
+    return decodeURIComponent(v);
+  } catch {
+    return v;
+  }
+};
 
 function parseCookies(header: string | undefined): Record<string, string> {
   const out: Record<string, string> = {};
   for (const part of header?.split(';') ?? []) {
     const i = part.indexOf('=');
-    if (i > 0) out[part.slice(0, i).trim()] = decodeURIComponent(part.slice(i + 1).trim());
+    if (i > 0) out[part.slice(0, i).trim()] = safeDecode(part.slice(i + 1).trim());
   }
   return out;
 }
@@ -49,14 +60,31 @@ export function attachUser(accounts: AccountService): RequestHandler {
     const bearer = bearerOf(req.headers.authorization);
     if (bearer) {
       const identity = accounts.verifyToken(bearer);
-      if (identity) req.user = accounts.getUser(identity.userId);
+      if (identity) {
+        req.user = accounts.getUser(identity.userId);
+        req.authVia = 'bearer';
+      }
     } else {
       const session = sessionTokenOf(req);
-      if (session) req.user = accounts.userForSession(session) ?? undefined;
+      const user = session ? accounts.userForSession(session) : null;
+      if (user) {
+        req.user = user;
+        req.authVia = 'session';
+      }
     }
     next();
   };
 }
+
+/**
+ * Account management (tokens, invitations, password, devices, deleting the account) is for a person in a
+ * browser. A bearer token, personal or issued to an AI client through OAuth, can work on the kitchen but
+ * can never mint new tokens or invitations, or take the account over.
+ */
+export const sessionOnly: RequestHandler = (req, _res, next) => {
+  if (req.authVia !== 'session') throw new ForbiddenError('This action needs a signed-in browser session, not an access token');
+  next();
+};
 
 export const requireUser: RequestHandler = (req, _res, next) => {
   if (!req.user) throw new UnauthorizedError('Authentication required');

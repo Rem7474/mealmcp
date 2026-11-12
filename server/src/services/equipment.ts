@@ -17,13 +17,21 @@ export function createEquipmentService(db: Db, hid: number) {
     },
 
     get(id: number) {
-      const row = db.select().from(equipment).where(and(mine, eq(equipment.id, id))).get();
+      const row = db
+        .select()
+        .from(equipment)
+        .where(and(mine, eq(equipment.id, id)))
+        .get();
       if (!row) throw new NotFoundError('Equipment', id);
       return row;
     },
 
     findByName(name: string) {
-      return db.select().from(equipment).where(and(mine, eq(equipment.nameKey, key(name)))).get();
+      return db
+        .select()
+        .from(equipment)
+        .where(and(mine, eq(equipment.nameKey, key(name))))
+        .get();
     },
 
     /** Adds an item, or updates the existing one with the same name (so "I have a mandoline" is idempotent). */
@@ -45,13 +53,19 @@ export function createEquipmentService(db: Db, hid: number) {
     update({ id, name, ...patch }: z.input<typeof equipmentUpdate>) {
       const row = svc.get(id as number);
       const change = { ...patch, ...(name !== undefined ? { name: name.trim(), nameKey: key(name) } : {}) };
-      if (Object.keys(change).length) db.update(equipment).set(change).where(and(mine, eq(equipment.id, row.id))).run();
+      if (Object.keys(change).length)
+        db.update(equipment)
+          .set(change)
+          .where(and(mine, eq(equipment.id, row.id)))
+          .run();
       return svc.get(row.id);
     },
 
     remove(id: number) {
       svc.get(id);
-      db.delete(equipment).where(and(mine, eq(equipment.id, id))).run();
+      db.delete(equipment)
+        .where(and(mine, eq(equipment.id, id)))
+        .run();
     },
   };
   return svc;

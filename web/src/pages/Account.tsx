@@ -1,12 +1,25 @@
-import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { X } from '@phosphor-icons/react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { type FormEvent, useState } from 'react';
 import { api, useAction } from '../api';
 import { formatDate, MEALS, weekdayName } from '../format';
 import { type MessageKey, useI18n, useT } from '../i18n';
-import { ALLERGENS, COUNTRIES, type Country, DIETS, type Equipment, type Household, type HouseholdSettings, type MealTypeKey, type Product, type TokenInfo, type User } from '../types';
+import {
+  ALLERGENS,
+  COUNTRIES,
+  type Country,
+  DIETS,
+  type Equipment,
+  type Household,
+  type HouseholdSettings,
+  type MealTypeKey,
+  type Product,
+  type TokenInfo,
+  type User,
+} from '../types';
 import { Badge, Button, Card, Empty, Fold, Input, Select } from '../ui';
 import { resetSession } from './AuthPage';
+import { DeleteAccountCard, DevicesCard, PasswordCard } from './Security';
 import { useProducts } from './shared';
 
 const day = (ms: number) => formatDate(new Date(ms).toISOString().slice(0, 10));
@@ -52,6 +65,9 @@ export function Account({ user }: { user: User }) {
           <Fold title={t('products.title')}>
             <ProductsCard />
           </Fold>
+          <PasswordCard />
+          <DevicesCard />
+          <DeleteAccountCard user={user} />
         </div>
       </div>
     </>
@@ -67,7 +83,16 @@ function HouseholdCard({ user }: { user: User }) {
   const createInvite = async () => setInvite((await run(() => api.post('/household/invites'))) as { code: string; expiresAt: number });
 
   return (
-    <Card title={t('household.title')} actions={user.role === 'owner' && <Button disabled={pending} onClick={createInvite}>{t('household.invite')}</Button>}>
+    <Card
+      title={t('household.title')}
+      actions={
+        user.role === 'owner' && (
+          <Button disabled={pending} onClick={createInvite}>
+            {t('household.invite')}
+          </Button>
+        )
+      }
+    >
       <ul className="divide-y divide-line text-sm">
         {household?.members.map((m) => (
           <li key={m.id} className="flex items-center justify-between gap-2 py-2">
@@ -75,6 +100,17 @@ function HouseholdCard({ user }: { user: User }) {
               {m.name} <span className="text-muted">{m.email}</span>
             </span>
             {m.role === 'owner' && <Badge tone="accent">{t('role.owner')}</Badge>}
+            {user.role === 'owner' && m.id !== user.id && (
+              <Button
+                variant="danger"
+                disabled={pending}
+                onClick={() =>
+                  window.confirm(t('household.removeConfirm', { name: m.name })) && run(() => api.del(`/household/members/${m.id}`))
+                }
+              >
+                {t('household.remove')}
+              </Button>
+            )}
           </li>
         ))}
       </ul>
@@ -116,10 +152,23 @@ function SettingsCard() {
   };
 
   return (
-    <Card title={t('settings.title')} actions={<Button variant="primary" disabled={pending || !draft} onClick={save}>{saved ? t('settings.saved') : t('settings.save')}</Button>}>
+    <Card
+      title={t('settings.title')}
+      actions={
+        <Button variant="primary" disabled={pending || !draft} onClick={save}>
+          {saved ? t('settings.saved') : t('settings.save')}
+        </Button>
+      }
+    >
       <label className="flex flex-wrap items-center gap-2 text-sm">
         {t('settings.servings')}
-        <Input type="number" min={1} value={current.defaultServings ?? ''} onChange={(e) => change({ ...current, defaultServings: e.target.value ? Number(e.target.value) : undefined })} className="w-20" />
+        <Input
+          type="number"
+          min={1}
+          value={current.defaultServings ?? ''}
+          onChange={(e) => change({ ...current, defaultServings: e.target.value ? Number(e.target.value) : undefined })}
+          className="w-20"
+        />
       </label>
       <p className="mt-1 text-sm text-muted">{t('settings.servingsHelp')}</p>
       <h3 className="mt-4 text-sm font-semibold">{t('settings.meals')}</h3>
@@ -170,32 +219,66 @@ function SettingsCard() {
           </Select>
         </label>
         <label className="flex items-center gap-2">
-          <input type="checkbox" className="size-4 accent-(--accent)" checked={current.hemisphere === 'south'} onChange={(e) => change({ ...current, hemisphere: e.target.checked ? 'south' : 'north' })} />
+          <input
+            type="checkbox"
+            className="size-4 accent-(--accent)"
+            checked={current.hemisphere === 'south'}
+            onChange={(e) => change({ ...current, hemisphere: e.target.checked ? 'south' : 'north' })}
+          />
           {t('settings.southern')}
         </label>
       </div>
       <h3 className="mt-4 text-sm font-semibold">{t('settings.diet')}</h3>
       <p className="text-sm text-muted">{t('settings.dietHelp')}</p>
-      <ChipPicker label={t('settings.diets')} options={DIETS.map((d) => ({ value: d, label: t(`diet.${d}` as MessageKey) }))} value={current.diet?.diets ?? []} onChange={(diets) => change({ ...current, diet: { ...current.diet, diets } })} />
-      <ChipPicker label={t('settings.allergens')} options={ALLERGENS.map((a) => ({ value: a, label: t(`allergen.${a}` as MessageKey) }))} value={current.diet?.allergens ?? []} onChange={(allergens) => change({ ...current, diet: { ...current.diet, allergens } })} />
+      <ChipPicker
+        label={t('settings.diets')}
+        options={DIETS.map((d) => ({ value: d, label: t(`diet.${d}` as MessageKey) }))}
+        value={current.diet?.diets ?? []}
+        onChange={(diets) => change({ ...current, diet: { ...current.diet, diets } })}
+      />
+      <ChipPicker
+        label={t('settings.allergens')}
+        options={ALLERGENS.map((a) => ({ value: a, label: t(`allergen.${a}` as MessageKey) }))}
+        value={current.diet?.allergens ?? []}
+        onChange={(allergens) => change({ ...current, diet: { ...current.diet, allergens } })}
+      />
       <label className="mt-3 block text-sm">
         {t('settings.avoid')}
         <Input
           key={(current.diet?.avoid ?? []).join(',')}
           defaultValue={(current.diet?.avoid ?? []).join(', ')}
           placeholder={t('settings.avoidHelp')}
-          onBlur={(e) => change({ ...current, diet: { ...current.diet, avoid: e.target.value.split(',').map((x) => x.trim()).filter(Boolean) } })}
+          onBlur={(e) =>
+            change({
+              ...current,
+              diet: {
+                ...current.diet,
+                avoid: e.target.value
+                  .split(',')
+                  .map((x) => x.trim())
+                  .filter(Boolean),
+              },
+            })
+          }
           className="mt-1 w-full"
         />
       </label>
       <h3 className="mt-4 text-sm font-semibold">{t('settings.nutrition')}</h3>
       <p className="text-sm text-muted">{t('settings.nutritionHelp')}</p>
       <label className="mt-2 flex items-center gap-2 text-sm">
-        <input type="checkbox" className="size-4 accent-(--accent)" checked={!!current.nutrition?.enabled} onChange={(e) => change({ ...current, nutrition: { enabled: e.target.checked } })} />
+        <input
+          type="checkbox"
+          className="size-4 accent-(--accent)"
+          checked={!!current.nutrition?.enabled}
+          onChange={(e) => change({ ...current, nutrition: { enabled: e.target.checked } })}
+        />
         {t('settings.nutritionOn')}
       </label>
       {draft && (
-        <div role="status" className="sticky bottom-20 z-10 mt-4 flex flex-wrap items-center justify-between gap-2 rounded-xl border border-accent bg-surface p-3 text-sm shadow-lg sm:bottom-4">
+        <div
+          role="status"
+          className="sticky bottom-20 z-10 mt-4 flex flex-wrap items-center justify-between gap-2 rounded-xl border border-accent bg-surface p-3 text-sm shadow-lg sm:bottom-4"
+        >
           <span className="font-medium">{t('settings.unsaved')}</span>
           <span className="flex gap-2">
             <Button onClick={() => setDraft(null)}>{t('settings.discard')}</Button>
@@ -210,7 +293,17 @@ function SettingsCard() {
 }
 
 /** A group of toggle chips: several options can be on at once. */
-function ChipPicker({ label, options, value, onChange }: { label: string; options: { value: string; label: string }[]; value: string[]; onChange: (next: string[]) => void }) {
+function ChipPicker({
+  label,
+  options,
+  value,
+  onChange,
+}: {
+  label: string;
+  options: { value: string; label: string }[];
+  value: string[];
+  onChange: (next: string[]) => void;
+}) {
   return (
     <fieldset className="mt-3 min-w-0">
       <legend className="mb-1 text-sm">{label}</legend>
@@ -218,7 +311,14 @@ function ChipPicker({ label, options, value, onChange }: { label: string; option
         {options.map((o) => {
           const on = value.includes(o.value);
           return (
-            <Button key={o.value} type="button" variant={on ? 'primary' : 'secondary'} className="h-8 px-3" aria-pressed={on} onClick={() => onChange(on ? value.filter((v) => v !== o.value) : [...value, o.value])}>
+            <Button
+              key={o.value}
+              type="button"
+              variant={on ? 'primary' : 'secondary'}
+              className="h-8 px-3"
+              aria-pressed={on}
+              onClick={() => onChange(on ? value.filter((v) => v !== o.value) : [...value, o.value])}
+            >
               {o.label}
             </Button>
           );
@@ -245,8 +345,19 @@ function EquipmentCard() {
     <Card title={t('equipment.title')}>
       <p className="mb-3 text-sm text-muted">{t('equipment.help')}</p>
       <form onSubmit={add} className="mb-3 flex flex-wrap gap-2">
-        <Input required placeholder={t('equipment.name')} aria-label={t('equipment.name')} value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} className="flex-1 basis-48" />
-        <Select aria-label={t('equipment.appliance')} value={form.kind} onChange={(e) => setForm({ ...form, kind: e.target.value as Equipment['kind'] })}>
+        <Input
+          required
+          placeholder={t('equipment.name')}
+          aria-label={t('equipment.name')}
+          value={form.name}
+          onChange={(e) => setForm({ ...form, name: e.target.value })}
+          className="flex-1 basis-48"
+        />
+        <Select
+          aria-label={t('equipment.appliance')}
+          value={form.kind}
+          onChange={(e) => setForm({ ...form, kind: e.target.value as Equipment['kind'] })}
+        >
           <option value="appliance">{t('equipment.appliance')}</option>
           <option value="utensil">{t('equipment.utensil')}</option>
         </Select>
@@ -263,10 +374,20 @@ function EquipmentCard() {
               <span className="min-w-0 flex-1 truncate font-medium">{item.name}</span>
               <Badge>{t(`equipment.${item.kind}`)}</Badge>
               <label className="flex items-center gap-1">
-                <input type="checkbox" className="size-4 accent-(--accent)" checked={item.owned} onChange={() => run(() => api.patch(`/equipment/${item.id}`, { owned: !item.owned }))} />
+                <input
+                  type="checkbox"
+                  className="size-4 accent-(--accent)"
+                  checked={item.owned}
+                  onChange={() => run(() => api.patch(`/equipment/${item.id}`, { owned: !item.owned }))}
+                />
                 {t('equipment.owned')}
               </label>
-              <Button variant="ghost" className="h-8 px-2" aria-label={t('equipment.remove', { name: item.name })} onClick={() => run(() => api.del(`/equipment/${item.id}`))}>
+              <Button
+                variant="ghost"
+                className="h-8 px-2"
+                aria-label={t('equipment.remove', { name: item.name })}
+                onClick={() => run(() => api.del(`/equipment/${item.id}`))}
+              >
                 ✕
               </Button>
             </li>
@@ -283,10 +404,13 @@ function TokensCard() {
   const { run, pending } = useAction();
   const [name, setName] = useState('');
   const [created, setCreated] = useState<string | null>(null);
+  // Tokens that expire by themselves are the safer default; "never" stays available for long-lived scripts.
+  const [expiry, setExpiry] = useState('90');
 
   const create = async (e: FormEvent) => {
     e.preventDefault();
-    const { token } = (await run(() => api.post('/tokens', { name }))) as { token: string };
+    const expiresInDays = expiry === 'never' ? null : Number(expiry);
+    const { token } = (await run(() => api.post('/tokens', { name, expiresInDays }))) as { token: string };
     setCreated(token);
     setName('');
   };
@@ -294,7 +418,21 @@ function TokensCard() {
   return (
     <Card title={t('tokens.title')}>
       <form onSubmit={create} className="mb-3 flex flex-wrap gap-2">
-        <Input required placeholder={t('tokens.namePlaceholder')} aria-label={t('tokens.nameAria')} value={name} onChange={(e) => setName(e.target.value)} className="flex-1 basis-48" />
+        <Input
+          required
+          placeholder={t('tokens.namePlaceholder')}
+          aria-label={t('tokens.nameAria')}
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+          className="flex-1 basis-48"
+        />
+        <Select aria-label={t('tokens.expiry')} value={expiry} onChange={(e) => setExpiry(e.target.value)}>
+          {['30', '90', '365', 'never'].map((v) => (
+            <option key={v} value={v}>
+              {`${t('tokens.expiry')} · ${t(`tokens.expiry.${v}` as MessageKey)}`}
+            </option>
+          ))}
+        </Select>
         <Button type="submit" disabled={pending}>
           {t('tokens.create')}
         </Button>
@@ -318,6 +456,9 @@ function TokensCard() {
                     created: day(token.createdAt),
                     usage: token.lastUsedAt ? t('tokens.lastUsed', { date: day(token.lastUsedAt) }) : t('tokens.neverUsed'),
                   })}
+                  {token.expiresAt !== null &&
+                    token.name !== null &&
+                    ` · ${token.expiresAt < Date.now() ? t('tokens.expired') : t('tokens.expires', { date: day(token.expiresAt) })}`}
                 </div>
               </div>
               <Button variant="danger" onClick={() => run(() => api.del(`/tokens/${token.id}`))}>
@@ -348,7 +489,14 @@ function ProductsCard() {
   return (
     <Card title={t('products.title')}>
       <p className="mb-3 text-sm text-muted">{t('products.help')}</p>
-      <Input type="search" placeholder={t('products.search')} aria-label={t('products.search')} value={search} onChange={(e) => setSearch(e.target.value)} className="mb-3 w-full" />
+      <Input
+        type="search"
+        placeholder={t('products.search')}
+        aria-label={t('products.search')}
+        value={search}
+        onChange={(e) => setSearch(e.target.value)}
+        className="mb-3 w-full"
+      />
       {matches.length === 0 ? (
         <Empty>{t('products.none')}</Empty>
       ) : (
@@ -379,7 +527,12 @@ function ProductRow({ product: p, run }: { product: Product; run: (fn: () => Pro
       <div className="flex items-center gap-2">
         <span className="min-w-0 flex-1 truncate font-medium">{p.name}</span>
         {p.isStaple && <Badge>{t('products.staple')}</Badge>}
-        <Select aria-label={t('products.aisle')} value={aisle} onChange={(e) => run(() => api.patch(`/products/${p.id}`, { category: e.target.value || null }))} className="h-8 w-40 px-2 text-xs">
+        <Select
+          aria-label={t('products.aisle')}
+          value={aisle}
+          onChange={(e) => run(() => api.patch(`/products/${p.id}`, { category: e.target.value || null }))}
+          className="h-8 w-40 px-2 text-xs"
+        >
           <option value="">{t('aisle.none')}</option>
           {AISLES.map((c) => (
             <option key={c} value={c}>
@@ -394,13 +547,24 @@ function ProductRow({ product: p, run }: { product: Product; run: (fn: () => Pro
         {p.aliases.map((a) => (
           <span key={a} className="inline-flex items-center gap-1 rounded-md bg-ink/5 py-0.5 pr-1 pl-2 text-xs">
             {a}
-            <button type="button" aria-label={t('products.removeAlias', { alias: a })} className="cursor-pointer rounded p-0.5 text-muted hover:text-ink" onClick={() => run(() => api.del(`/products/alias?alias=${encodeURIComponent(a)}`))}>
+            <button
+              type="button"
+              aria-label={t('products.removeAlias', { alias: a })}
+              className="cursor-pointer rounded p-0.5 text-muted hover:text-ink"
+              onClick={() => run(() => api.del(`/products/alias?alias=${encodeURIComponent(a)}`))}
+            >
               <X size={12} />
             </button>
           </span>
         ))}
         <form onSubmit={addAlias}>
-          <Input placeholder={t('products.addAlias')} aria-label={t('products.addAlias')} value={alias} onChange={(e) => setAlias(e.target.value)} className="h-7 w-36 px-2 text-xs" />
+          <Input
+            placeholder={t('products.addAlias')}
+            aria-label={t('products.addAlias')}
+            value={alias}
+            onChange={(e) => setAlias(e.target.value)}
+            className="h-7 w-36 px-2 text-xs"
+          />
         </form>
       </div>
     </li>

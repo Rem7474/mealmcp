@@ -1,5 +1,5 @@
-import { useQuery } from '@tanstack/react-query';
 import { Package, Snowflake, Thermometer } from '@phosphor-icons/react';
+import { useQuery } from '@tanstack/react-query';
 import { type FormEvent, useState } from 'react';
 import { api, useAction } from '../api';
 import { daysUntil, formatDate, formatMoney, formatQty, LOCATIONS } from '../format';
@@ -7,9 +7,13 @@ import { useT } from '../i18n';
 import type { Product, StockAlerts, StockItem, WasteSummary } from '../types';
 import { Badge, Button, Card, Empty, Input } from '../ui';
 import { ProductNutritionCard } from './Nutrition';
-import { LocationSelect, parseQty, ProductDatalist, useCurrency, useProducts } from './shared';
+import { LocationSelect, ProductDatalist, parseQty, useCurrency, useProducts } from './shared';
 
-const LOCATION_ICON = { fridge: <Thermometer size={16} className="text-accent" />, freezer: <Snowflake size={16} className="text-accent" />, pantry: <Package size={16} className="text-accent" /> };
+const LOCATION_ICON = {
+  fridge: <Thermometer size={16} className="text-accent" />,
+  freezer: <Snowflake size={16} className="text-accent" />,
+  pantry: <Package size={16} className="text-accent" />,
+};
 
 export function Stock() {
   const t = useT();
@@ -56,7 +60,16 @@ export function Stock() {
         {LOCATIONS.map((location) => {
           const here = items.filter((i) => i.location === location);
           return (
-            <Card key={location} title={<span className="inline-flex items-center gap-2">{LOCATION_ICON[location]}{t(`location.${location}`)}</span>} actions={<span className="text-sm text-muted">{here.length}</span>}>
+            <Card
+              key={location}
+              title={
+                <span className="inline-flex items-center gap-2">
+                  {LOCATION_ICON[location]}
+                  {t(`location.${location}`)}
+                </span>
+              }
+              actions={<span className="text-sm text-muted">{here.length}</span>}
+            >
               {here.length === 0 ? (
                 <Empty>{t('stock.nothingHere')}</Empty>
               ) : (
@@ -80,7 +93,16 @@ export function Stock() {
 function AddForm() {
   const t = useT();
   const { run, pending } = useAction();
-  const [form, setForm] = useState({ name: '', quantity: '1', unit: '', location: 'fridge', expiresOn: '', approximate: false, packSize: '', opened: false });
+  const [form, setForm] = useState({
+    name: '',
+    quantity: '1',
+    unit: '',
+    location: 'fridge',
+    expiresOn: '',
+    approximate: false,
+    packSize: '',
+    opened: false,
+  });
   const set = (patch: Partial<typeof form>) => setForm((f) => ({ ...f, ...patch }));
 
   const submit = async (e: FormEvent) => {
@@ -107,18 +129,59 @@ function AddForm() {
     <details className="rounded-xl border border-line bg-surface p-4">
       <summary className="cursor-pointer font-semibold">{t('stock.add.title')}</summary>
       <form onSubmit={submit} className="mt-3 flex flex-wrap gap-2">
-        <Input required list="product-names" placeholder={t('common.product')} aria-label={t('common.product')} value={form.name} onChange={(e) => set({ name: e.target.value })} className="flex-1 basis-40" />
-        <Input required={!form.approximate} disabled={form.approximate} inputMode="decimal" placeholder={t('common.qty')} aria-label={t('common.quantity')} value={form.approximate ? '' : form.quantity} onChange={(e) => set({ quantity: e.target.value })} className="w-20" />
-        <Input inputMode="decimal" placeholder={t('stock.packSize')} aria-label={t('stock.packSize')} value={form.packSize} onChange={(e) => set({ packSize: e.target.value })} className="w-40" />
-        <Input list="unit-names" placeholder={t('common.unit')} aria-label={t('common.unit')} value={form.unit} onChange={(e) => set({ unit: e.target.value })} className="w-24" />
+        <Input
+          required
+          list="product-names"
+          placeholder={t('common.product')}
+          aria-label={t('common.product')}
+          value={form.name}
+          onChange={(e) => set({ name: e.target.value })}
+          className="flex-1 basis-40"
+        />
+        <Input
+          required={!form.approximate}
+          disabled={form.approximate}
+          inputMode="decimal"
+          placeholder={t('common.qty')}
+          aria-label={t('common.quantity')}
+          value={form.approximate ? '' : form.quantity}
+          onChange={(e) => set({ quantity: e.target.value })}
+          className="w-20"
+        />
+        <Input
+          inputMode="decimal"
+          placeholder={t('stock.packSize')}
+          aria-label={t('stock.packSize')}
+          value={form.packSize}
+          onChange={(e) => set({ packSize: e.target.value })}
+          className="w-40"
+        />
+        <Input
+          list="unit-names"
+          placeholder={t('common.unit')}
+          aria-label={t('common.unit')}
+          value={form.unit}
+          onChange={(e) => set({ unit: e.target.value })}
+          className="w-24"
+        />
         <LocationSelect value={form.location} onChange={(e) => set({ location: e.target.value })} />
         <Input type="date" aria-label={t('stock.expiry')} value={form.expiresOn} onChange={(e) => set({ expiresOn: e.target.value })} />
         <label className="flex h-10 items-center gap-2 text-sm">
-          <input type="checkbox" className="size-4 accent-(--accent)" checked={form.approximate} onChange={(e) => set({ approximate: e.target.checked })} />
+          <input
+            type="checkbox"
+            className="size-4 accent-(--accent)"
+            checked={form.approximate}
+            onChange={(e) => set({ approximate: e.target.checked })}
+          />
           {t('stock.approximate')}
         </label>
         <label className="flex h-10 items-center gap-2 text-sm">
-          <input type="checkbox" className="size-4 accent-(--accent)" checked={form.opened} onChange={(e) => set({ opened: e.target.checked })} />
+          <input
+            type="checkbox"
+            className="size-4 accent-(--accent)"
+            checked={form.opened}
+            onChange={(e) => set({ opened: e.target.checked })}
+          />
           {t('stock.alreadyOpened')}
         </label>
         <Button type="submit" variant="primary" disabled={pending} className="w-full sm:w-auto">
@@ -141,16 +204,40 @@ function StockRow({ item }: { item: StockItem }) {
   };
 
   const actions: { key: string; label: string; aria: string; run: () => void }[] = [];
-  if (item.opened && (item.packSize === null || item.quantity >= item.packSize - 1e-9)) actions.push({ key: 'unopen', label: t('stock.unopen'), aria: t('stock.unopenAria', { name: item.name }), run: () => void run(() => api.post('/stock/' + item.id + '/unopen', {})) });
-  if (!item.approximate && !item.opened) actions.push({ key: 'open', label: t('stock.open'), aria: t('stock.openAria', { name: item.name }), run: () => void run(() => api.post(`/stock/${item.id}/open`, {})) });
-  actions.push({ key: 'discard', label: t('stock.discard'), aria: t('stock.discardAria', { name: item.name }), run: () => void run(() => api.post(`/stock/${item.id}/discard`, { reason: days !== null && days < 0 ? 'expired' : 'spoiled' })) });
-  actions.push({ key: 'remove', label: t('stock.removeShort'), aria: t('stock.remove', { name: item.name }), run: () => void run(() => api.del(`/stock/${item.id}`)) });
+  if (item.opened && (item.packSize === null || item.quantity >= item.packSize - 1e-9))
+    actions.push({
+      key: 'unopen',
+      label: t('stock.unopen'),
+      aria: t('stock.unopenAria', { name: item.name }),
+      run: () => void run(() => api.post(`/stock/${item.id}/unopen`, {})),
+    });
+  if (!item.approximate && !item.opened)
+    actions.push({
+      key: 'open',
+      label: t('stock.open'),
+      aria: t('stock.openAria', { name: item.name }),
+      run: () => void run(() => api.post(`/stock/${item.id}/open`, {})),
+    });
+  actions.push({
+    key: 'discard',
+    label: t('stock.discard'),
+    aria: t('stock.discardAria', { name: item.name }),
+    run: () => void run(() => api.post(`/stock/${item.id}/discard`, { reason: days !== null && days < 0 ? 'expired' : 'spoiled' })),
+  });
+  actions.push({
+    key: 'remove',
+    label: t('stock.removeShort'),
+    aria: t('stock.remove', { name: item.name }),
+    run: () => void run(() => api.del(`/stock/${item.id}`)),
+  });
 
   return (
     <li className="flex items-center gap-x-2 py-2 text-sm">
       <div className="min-w-0 flex-1">
         <div className="font-medium wrap-break-word">{item.name}</div>
-        {item.opened && item.openedOn && <div className="text-xs text-accent">{t('stock.openedBadge', { date: formatDate(item.openedOn) })}</div>}
+        {item.opened && item.openedOn && (
+          <div className="text-xs text-accent">{t('stock.openedBadge', { date: formatDate(item.openedOn) })}</div>
+        )}
         {item.packCount !== null && item.packSize !== null && (
           <div className="text-xs text-muted">
             {item.packCount} × {formatQty(item.packSize, item.unit)}
@@ -181,13 +268,22 @@ function StockRow({ item }: { item: StockItem }) {
       {/* Phones: one "more" menu keeps the row to a single line. Wider screens show the actions as buttons. */}
       <div className="hidden items-center justify-end gap-1 sm:ml-auto sm:flex">
         {actions.map((a) => (
-          <Button key={a.key} variant={a.key === 'remove' ? 'ghost' : 'secondary'} className={a.key === 'remove' ? 'size-8 px-0' : 'h-8 px-2 text-xs'} aria-label={a.aria} onClick={a.run}>
+          <Button
+            key={a.key}
+            variant={a.key === 'remove' ? 'ghost' : 'secondary'}
+            className={a.key === 'remove' ? 'size-8 px-0' : 'h-8 px-2 text-xs'}
+            aria-label={a.aria}
+            onClick={a.run}
+          >
             {a.key === 'remove' ? '✕' : a.label}
           </Button>
         ))}
       </div>
       <details className="relative sm:hidden">
-        <summary aria-label={t('common.more')} className="flex size-9 cursor-pointer list-none items-center justify-center rounded-lg text-xl leading-none text-muted active:bg-ink/10 [&::-webkit-details-marker]:hidden">
+        <summary
+          aria-label={t('common.more')}
+          className="flex size-9 cursor-pointer list-none items-center justify-center rounded-lg text-xl leading-none text-muted active:bg-ink/10 [&::-webkit-details-marker]:hidden"
+        >
           ⋯
         </summary>
         <div className="absolute right-0 z-20 mt-1 w-48 rounded-xl border border-line bg-surface p-1 shadow-lg">
@@ -224,7 +320,9 @@ function WasteCard() {
         <Empty>{t('waste.empty')}</Empty>
       ) : (
         <>
-          <p className="text-sm font-medium">{t('waste.total', { n: data.itemsThrownAway, cost: formatMoney(data.totalCostCents, currency) })}</p>
+          <p className="text-sm font-medium">
+            {t('waste.total', { n: data.itemsThrownAway, cost: formatMoney(data.totalCostCents, currency) })}
+          </p>
           <ul className="mt-2 flex flex-wrap gap-2 text-sm">
             {data.byProduct.slice(0, 8).map((p) => (
               <li key={p.name + p.unit}>
@@ -256,8 +354,22 @@ function DrainedField({ product: p, patch }: { product: Product; patch: (p: Prod
   };
   return (
     <span className="flex items-center gap-1" role="group" aria-label={t('stock.drainedAria', { name: p.name })}>
-      <Input value={net} onChange={(e) => setNet(e.target.value)} onBlur={save} placeholder={t('stock.drainedNet')} inputMode="decimal" className="h-8 w-20 px-2 text-right" />
-      <Input value={drained} onChange={(e) => setDrained(e.target.value)} onBlur={save} placeholder={t('stock.drainedDrained')} inputMode="decimal" className="h-8 w-24 px-2 text-right" />
+      <Input
+        value={net}
+        onChange={(e) => setNet(e.target.value)}
+        onBlur={save}
+        placeholder={t('stock.drainedNet')}
+        inputMode="decimal"
+        className="h-8 w-20 px-2 text-right"
+      />
+      <Input
+        value={drained}
+        onChange={(e) => setDrained(e.target.value)}
+        onBlur={save}
+        placeholder={t('stock.drainedDrained')}
+        inputMode="decimal"
+        className="h-8 w-24 px-2 text-right"
+      />
     </span>
   );
 }
@@ -287,10 +399,17 @@ function Thresholds({ products }: { products: Product[] }) {
           <li key={p.id} className="flex flex-wrap items-center gap-x-3 gap-y-1 py-2">
             <div className="min-w-40 flex-1">
               <div className="truncate font-medium">{p.name}</div>
-              {p.aliases.length > 0 && <div className="truncate text-xs text-muted">{t('stock.aliases', { names: p.aliases.join(', ') })}</div>}
+              {p.aliases.length > 0 && (
+                <div className="truncate text-xs text-muted">{t('stock.aliases', { names: p.aliases.join(', ') })}</div>
+              )}
             </div>
             <label className="flex items-center gap-1" title={t('stock.stapleTitle')}>
-              <input type="checkbox" className="size-4 accent-(--accent)" checked={p.isStaple} onChange={(e) => patch(p, { staple: e.target.checked })} />
+              <input
+                type="checkbox"
+                className="size-4 accent-(--accent)"
+                checked={p.isStaple}
+                onChange={(e) => patch(p, { staple: e.target.checked })}
+              />
               {t('stock.staple')}
             </label>
             <Input
@@ -322,7 +441,8 @@ function Thresholds({ products }: { products: Product[] }) {
               aria-label={t('stock.shelfLifeAria', { name: p.name })}
               onBlur={(e) => {
                 const days = parseQty(e.target.value) ?? null;
-                if (days === null ? p.openedShelfLifeDays !== null : !Number.isNaN(days) && days !== p.openedShelfLifeDays) patch(p, { openedShelfLifeDays: days });
+                if (days === null ? p.openedShelfLifeDays !== null : !Number.isNaN(days) && days !== p.openedShelfLifeDays)
+                  patch(p, { openedShelfLifeDays: days });
               }}
               onKeyDown={(e) => e.key === 'Enter' && e.currentTarget.blur()}
               className="h-8 w-36 px-2 text-right"

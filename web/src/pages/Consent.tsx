@@ -51,7 +51,9 @@ export function Consent({ userName, householdName }: { userName: string; househo
             <li>{t('consent.scope.data', { household: householdName })}</li>
             <li>{t('consent.scope.actAs', { user: userName })}</li>
           </ul>
-          <p className="text-sm text-muted">{rich('consent.redirect', { url: <code className="break-all">{info.data!.redirectTo}</code> })}</p>
+          <p className="text-sm text-muted">
+            {rich('consent.redirect', { url: <code className="break-all">{info.data!.redirectTo}</code> })}
+          </p>
           {error && (
             <p role="alert" className="mt-3 text-sm text-danger">
               {error}

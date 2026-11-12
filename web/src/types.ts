@@ -25,6 +25,16 @@ export interface Household {
   members: { id: number; name: string; email: string; role: 'owner' | 'member' }[];
 }
 
+/** A browser signed in to the account. */
+export interface SessionInfo {
+  id: string;
+  createdAt: number | null;
+  lastSeenAt: number | null;
+  expiresAt: number;
+  userAgent: string | null;
+  current: boolean;
+}
+
 export interface TokenInfo {
   id: number;
   /** Set for personal tokens; null for apps authorised through OAuth. */
@@ -158,7 +168,16 @@ export interface Availability {
   canCook: boolean;
   missingEquipment: string[];
   servings: number;
-  ingredients: { name: string; unit: string; needed: number; inStock: number; missing: number; staple?: true; toTaste?: true; approximate?: true }[];
+  ingredients: {
+    name: string;
+    unit: string;
+    needed: number;
+    inStock: number;
+    missing: number;
+    staple?: true;
+    toTaste?: true;
+    approximate?: true;
+  }[];
 }
 
 export interface PlannedMeal {
@@ -272,7 +291,22 @@ export interface HouseholdSettings {
 export const COUNTRIES = ['FR', 'BE', 'CH', 'GB', 'CA', 'US'] as const;
 export type Country = (typeof COUNTRIES)[number];
 export const DIETS = ['vegetarian', 'vegan', 'pescatarian', 'gluten_free', 'lactose_free', 'no_pork', 'no_alcohol'] as const;
-export const ALLERGENS = ['gluten', 'crustaceans', 'molluscs', 'eggs', 'fish', 'peanuts', 'soy', 'milk', 'nuts', 'celery', 'mustard', 'sesame', 'sulphites', 'lupin'] as const;
+export const ALLERGENS = [
+  'gluten',
+  'crustaceans',
+  'molluscs',
+  'eggs',
+  'fish',
+  'peanuts',
+  'soy',
+  'milk',
+  'nuts',
+  'celery',
+  'mustard',
+  'sesame',
+  'sulphites',
+  'lupin',
+] as const;
 
 export interface Produce {
   id: string;

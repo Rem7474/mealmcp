@@ -7,7 +7,7 @@ import { locale, type MessageKey, useI18n, useT } from '../i18n';
 import type { Availability, Produce, Recipe, RecipeCost, RecipeSummary, Seasonal } from '../types';
 import { Badge, Button, Card, Empty, Input, Select, Stars } from '../ui';
 import { RecipeNutrition } from './Nutrition';
-import { parseQty, ProductDatalist, useCurrency } from './shared';
+import { ProductDatalist, parseQty, useCurrency } from './shared';
 
 type View = { mode: 'list' } | { mode: 'detail'; id: number } | { mode: 'edit'; recipe?: Recipe };
 
@@ -24,12 +24,19 @@ export function Recipes() {
   const [sort, setSort] = useState<'name' | 'rating'>('name');
   const { data: found = [] } = useQuery({
     queryKey: ['recipes', search, tag, favoritesOnly],
-    queryFn: () => api.get<RecipeSummary[]>(`/recipes?search=${encodeURIComponent(search)}&tag=${encodeURIComponent(tag)}${favoritesOnly ? '&favorite=true' : ''}`),
+    queryFn: () =>
+      api.get<RecipeSummary[]>(
+        `/recipes?search=${encodeURIComponent(search)}&tag=${encodeURIComponent(tag)}${favoritesOnly ? '&favorite=true' : ''}`,
+      ),
   });
   // Best rated first: favorites, then stars, then name (the server already sorts by name).
-  const recipes = sort === 'rating' ? [...found].sort((a, b) => Number(b.favorite) - Number(a.favorite) || (b.rating ?? 0) - (a.rating ?? 0)) : found;
+  const recipes =
+    sort === 'rating' ? [...found].sort((a, b) => Number(b.favorite) - Number(a.favorite) || (b.rating ?? 0) - (a.rating ?? 0)) : found;
   // Unfiltered list, only to know which tags exist.
-  const { data: all = [] } = useQuery({ queryKey: ['recipes', '', '', false], queryFn: () => api.get<RecipeSummary[]>('/recipes?search=&tag=') });
+  const { data: all = [] } = useQuery({
+    queryKey: ['recipes', '', '', false],
+    queryFn: () => api.get<RecipeSummary[]>('/recipes?search=&tag='),
+  });
   const tags = [...new Set(all.flatMap((r) => r.tags))].sort((a, b) => a.localeCompare(b));
 
   if (view.mode === 'edit')
@@ -40,24 +47,47 @@ export function Recipes() {
     <div className="min-w-0 space-y-3">
       <SeasonCard />
       <div className="flex gap-2">
-        <Input type="search" placeholder={t('recipes.search')} aria-label={t('recipes.searchAria')} value={search} onChange={(e) => setSearch(e.target.value)} className="flex-1" />
+        <Input
+          type="search"
+          placeholder={t('recipes.search')}
+          aria-label={t('recipes.searchAria')}
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          className="flex-1"
+        />
         <Button variant="primary" onClick={() => setView({ mode: 'edit' })}>
           {t('recipes.new')}
         </Button>
       </div>
       {/* One swipeable row of filters on phones (it used to take three lines before the first recipe). */}
       <div className="-mx-4 flex items-center gap-1.5 overflow-x-auto px-4 pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden [&>*]:shrink-0 lg:mx-0 lg:flex-wrap lg:overflow-visible lg:px-0">
-        <Select aria-label={t('recipes.sort.name')} value={sort} onChange={(e) => setSort(e.target.value as 'name' | 'rating')} className="h-8 text-xs">
+        <Select
+          aria-label={t('recipes.sort.name')}
+          value={sort}
+          onChange={(e) => setSort(e.target.value as 'name' | 'rating')}
+          className="h-8 text-xs"
+        >
           <option value="name">{t('recipes.sort.name')}</option>
           <option value="rating">{t('recipes.sort.rating')}</option>
         </Select>
-        <Button variant={favoritesOnly ? 'primary' : 'secondary'} className="h-8 px-3" aria-pressed={favoritesOnly} onClick={() => setFavoritesOnly(!favoritesOnly)}>
+        <Button
+          variant={favoritesOnly ? 'primary' : 'secondary'}
+          className="h-8 px-3"
+          aria-pressed={favoritesOnly}
+          onClick={() => setFavoritesOnly(!favoritesOnly)}
+        >
           <Heart size={14} weight={favoritesOnly ? 'fill' : 'regular'} />
           {t('recipes.filter.favorites')}
         </Button>
         {tags.length > 0 &&
           ['', ...tags].map((value) => (
-            <Button key={value} variant={tag === value ? 'primary' : 'secondary'} className="h-8 px-3" aria-pressed={tag === value} onClick={() => setTag(value)}>
+            <Button
+              key={value}
+              variant={tag === value ? 'primary' : 'secondary'}
+              className="h-8 px-3"
+              aria-pressed={tag === value}
+              onClick={() => setTag(value)}
+            >
               {value || t('recipes.filter.all')}
             </Button>
           ))}
@@ -69,6 +99,7 @@ export function Recipes() {
           {recipes.map((r) => (
             <li key={r.id} className="min-w-0">
               <button
+                type="button"
                 onClick={() => setView({ mode: 'detail', id: r.id })}
                 className={`h-full w-full cursor-pointer rounded-xl bg-surface p-3.5 text-left hover:shadow-[0_0_0_1px_var(--muted)] ${selected === r.id ? 'shadow-[0_0_0_1px_var(--accent)]' : 'shadow-[0_0_0_1px_var(--line)]'}`}
               >
@@ -89,7 +120,9 @@ export function Recipes() {
                     <Badge key={x}>{x}</Badge>
                   ))}
                   <Badge>{r.lastMadeOn ? t('recipes.lastMade', { date: formatDate(r.lastMadeOn) }) : t('recipes.neverMade')}</Badge>
-                  {r.dietConflicts.length > 0 && <Badge tone="danger">{t('recipes.dietConflict', { items: r.dietConflicts.map((c) => c.ingredient).join(', ') })}</Badge>}
+                  {r.dietConflicts.length > 0 && (
+                    <Badge tone="danger">{t('recipes.dietConflict', { items: r.dietConflicts.map((c) => c.ingredient).join(', ') })}</Badge>
+                  )}
                 </div>
               </button>
             </li>
@@ -107,7 +140,12 @@ export function Recipes() {
         {selected === null ? (
           <Empty>{t('recipes.pick')}</Empty>
         ) : (
-          <RecipeDetail key={selected} id={selected} onBack={() => setView({ mode: 'list' })} onEdit={(recipe) => setView({ mode: 'edit', recipe })} />
+          <RecipeDetail
+            key={selected}
+            id={selected}
+            onBack={() => setView({ mode: 'list' })}
+            onEdit={(recipe) => setView({ mode: 'edit', recipe })}
+          />
         )}
       </div>
     </div>
@@ -152,8 +190,12 @@ function SeasonCard() {
               </div>
             );
           })}
-        {data && data.lastMonth.length > 0 && <p className="text-muted">{t('season.ending', { list: data.lastMonth.map(name).join(', ') })}</p>}
-        {data && data.startingNextMonth.length > 0 && <p className="text-muted">{t('season.next', { list: data.startingNextMonth.map(name).join(', ') })}</p>}
+        {data && data.lastMonth.length > 0 && (
+          <p className="text-muted">{t('season.ending', { list: data.lastMonth.map(name).join(', ') })}</p>
+        )}
+        {data && data.startingNextMonth.length > 0 && (
+          <p className="text-muted">{t('season.next', { list: data.startingNextMonth.map(name).join(', ') })}</p>
+        )}
       </div>
     </details>
   );
@@ -200,8 +242,17 @@ function RecipeDetail({ id, onBack, onEdit }: { id: number; onBack: () => void; 
         }
       >
         <div className="flex flex-wrap items-center gap-3">
-          <Stars value={recipe.rating} label={(n) => t('recipes.rate', { n })} onChange={(rating) => run(() => api.patch(`/recipes/${id}`, { rating }))} />
-          <Button variant="ghost" className="h-8 px-2" aria-pressed={recipe.favorite} onClick={() => run(() => api.patch(`/recipes/${id}`, { favorite: !recipe.favorite }))}>
+          <Stars
+            value={recipe.rating}
+            label={(n) => t('recipes.rate', { n })}
+            onChange={(rating) => run(() => api.patch(`/recipes/${id}`, { rating }))}
+          />
+          <Button
+            variant="ghost"
+            className="h-8 px-2"
+            aria-pressed={recipe.favorite}
+            onClick={() => run(() => api.patch(`/recipes/${id}`, { favorite: !recipe.favorite }))}
+          >
             <Heart size={16} weight={recipe.favorite ? 'fill' : 'regular'} className={recipe.favorite ? 'text-accent' : ''} />
             {recipe.favorite ? t('recipes.unfavorite') : t('recipes.favorite')}
           </Button>
@@ -229,7 +280,10 @@ function RecipeDetail({ id, onBack, onEdit }: { id: number; onBack: () => void; 
         {cost && (
           <p className="mt-2 text-sm">
             {cost.totalCents > 0
-              ? t('recipes.cost', { perServing: formatMoney(cost.perServingCents, currency), total: formatMoney(cost.totalCents, currency) })
+              ? t('recipes.cost', {
+                  perServing: formatMoney(cost.perServingCents, currency),
+                  total: formatMoney(cost.totalCents, currency),
+                })
               : t('recipes.cost.none')}
             {cost.totalCents > 0 && cost.unpricedIngredients.length > 0 && (
               <span className="text-muted"> {t('recipes.cost.unpriced', { names: cost.unpricedIngredients.join(', ') })}</span>
@@ -240,7 +294,12 @@ function RecipeDetail({ id, onBack, onEdit }: { id: number; onBack: () => void; 
 
         <h3 className="mt-4 mb-2 flex items-center gap-2 font-semibold">
           {t('recipes.ingredients')}
-          {availability && (availability.canCook ? <Badge tone="accent">{t('recipes.allInStock')}</Badge> : <Badge tone="warn">{t('recipes.someMissing')}</Badge>)}
+          {availability &&
+            (availability.canCook ? (
+              <Badge tone="accent">{t('recipes.allInStock')}</Badge>
+            ) : (
+              <Badge tone="warn">{t('recipes.someMissing')}</Badge>
+            ))}
         </h3>
         <ul className="divide-y divide-line text-sm">
           {recipe.ingredients.map((ing, i) => {
@@ -354,9 +413,15 @@ function RecipeForm({ recipe, onDone }: { recipe?: Recipe; onDone: (id?: number)
       servings: Number(form.servings),
       prepMinutes: form.prepMinutes ? Number(form.prepMinutes) : null,
       cookMinutes: form.cookMinutes ? Number(form.cookMinutes) : null,
-      tags: form.tags.split(',').map((x) => x.trim()).filter(Boolean),
+      tags: form.tags
+        .split(',')
+        .map((x) => x.trim())
+        .filter(Boolean),
       instructions: form.instructions || null,
-      equipment: form.equipment.split(',').map((x) => x.trim()).filter(Boolean),
+      equipment: form.equipment
+        .split(',')
+        .map((x) => x.trim())
+        .filter(Boolean),
       steps: steps
         .filter((s) => s.text.trim())
         .map((s) => ({
@@ -375,7 +440,9 @@ function RecipeForm({ recipe, onDone }: { recipe?: Recipe; onDone: (id?: number)
           note: r.note || null,
         })),
     };
-    const saved = (await run(() => (recipe ? api.patch<Recipe>(`/recipes/${recipe.id}`, body) : api.post<Recipe>('/recipes', body)))) as Recipe;
+    const saved = (await run(() =>
+      recipe ? api.patch<Recipe>(`/recipes/${recipe.id}`, body) : api.post<Recipe>('/recipes', body),
+    )) as Recipe;
     onDone(saved.id);
   };
 
@@ -383,38 +450,124 @@ function RecipeForm({ recipe, onDone }: { recipe?: Recipe; onDone: (id?: number)
     <Card title={recipe ? t('recipes.form.editTitle') : t('recipes.form.newTitle')}>
       <ProductDatalist />
       <form onSubmit={submit} className="space-y-3">
-        <Input required placeholder={t('recipes.form.name')} aria-label={t('recipes.form.nameAria')} value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} className="w-full" />
-        <Input placeholder={t('recipes.form.description')} aria-label={t('recipes.form.descriptionAria')} value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} className="w-full" />
+        <Input
+          required
+          placeholder={t('recipes.form.name')}
+          aria-label={t('recipes.form.nameAria')}
+          value={form.name}
+          onChange={(e) => setForm({ ...form, name: e.target.value })}
+          className="w-full"
+        />
+        <Input
+          placeholder={t('recipes.form.description')}
+          aria-label={t('recipes.form.descriptionAria')}
+          value={form.description}
+          onChange={(e) => setForm({ ...form, description: e.target.value })}
+          className="w-full"
+        />
         <div className="grid grid-cols-3 gap-2 text-xs text-muted sm:flex sm:flex-wrap sm:gap-3 sm:text-sm sm:text-ink">
           <label className="flex flex-col gap-1 sm:flex-row sm:items-center sm:gap-2">
             {t('recipes.form.servings')}
-            <Input type="number" min={1} required value={form.servings} onChange={(e) => setForm({ ...form, servings: e.target.value })} className="w-full sm:w-20" />
+            <Input
+              type="number"
+              min={1}
+              required
+              value={form.servings}
+              onChange={(e) => setForm({ ...form, servings: e.target.value })}
+              className="w-full sm:w-20"
+            />
           </label>
           <label className="flex flex-col gap-1 sm:flex-row sm:items-center sm:gap-2">
             {t('recipes.form.time')}
-            <Input type="number" min={0} value={form.prepMinutes} onChange={(e) => setForm({ ...form, prepMinutes: e.target.value })} className="w-full sm:w-20" />
+            <Input
+              type="number"
+              min={0}
+              value={form.prepMinutes}
+              onChange={(e) => setForm({ ...form, prepMinutes: e.target.value })}
+              className="w-full sm:w-20"
+            />
           </label>
           <label className="flex flex-col gap-1 sm:flex-row sm:items-center sm:gap-2">
             {t('recipes.form.cookTime')}
-            <Input type="number" min={0} value={form.cookMinutes} onChange={(e) => setForm({ ...form, cookMinutes: e.target.value })} className="w-full sm:w-20" />
+            <Input
+              type="number"
+              min={0}
+              value={form.cookMinutes}
+              onChange={(e) => setForm({ ...form, cookMinutes: e.target.value })}
+              className="w-full sm:w-20"
+            />
           </label>
         </div>
-        <Input placeholder={t('recipes.form.equipment')} aria-label={t('recipes.form.equipment')} value={form.equipment} onChange={(e) => setForm({ ...form, equipment: e.target.value })} className="w-full" />
-        <Input placeholder={t('recipes.form.tags')} aria-label={t('recipes.form.tags')} value={form.tags} onChange={(e) => setForm({ ...form, tags: e.target.value })} className="w-full" />
+        <Input
+          placeholder={t('recipes.form.equipment')}
+          aria-label={t('recipes.form.equipment')}
+          value={form.equipment}
+          onChange={(e) => setForm({ ...form, equipment: e.target.value })}
+          className="w-full"
+        />
+        <Input
+          placeholder={t('recipes.form.tags')}
+          aria-label={t('recipes.form.tags')}
+          value={form.tags}
+          onChange={(e) => setForm({ ...form, tags: e.target.value })}
+          className="w-full"
+        />
 
         <fieldset className="space-y-2">
           <legend className="mb-1 font-semibold">{t('recipes.ingredients')}</legend>
           {rows.map((row, i) => (
-            <div key={i} className="grid grid-cols-[5rem_minmax(0,1fr)_auto] gap-2 rounded-lg border border-line p-2 sm:flex sm:flex-wrap sm:items-center sm:border-0 sm:p-0">
-              <Input disabled={row.toTaste} inputMode="decimal" placeholder={t('common.qty')} aria-label={t('common.quantity')} value={row.quantity} onChange={(e) => setRow(i, { quantity: e.target.value })} className="w-full sm:w-20" />
-              <Input disabled={row.toTaste} list="unit-names" placeholder={t('common.unit')} aria-label={t('common.unit')} value={row.unit} onChange={(e) => setRow(i, { unit: e.target.value })} className="w-full sm:w-24" />
-              <Input list="product-names" placeholder={t('recipes.form.ingredient')} aria-label={t('recipes.form.ingredient')} value={row.name} onChange={(e) => setRow(i, { name: e.target.value })} className="col-span-2 row-start-1 flex-1 basis-32" />
-              <Input placeholder={t('recipes.form.note')} aria-label={t('recipes.form.note')} value={row.note} onChange={(e) => setRow(i, { note: e.target.value })} className="col-span-3 flex-1 basis-24" />
+            <div
+              key={i}
+              className="grid grid-cols-[5rem_minmax(0,1fr)_auto] gap-2 rounded-lg border border-line p-2 sm:flex sm:flex-wrap sm:items-center sm:border-0 sm:p-0"
+            >
+              <Input
+                disabled={row.toTaste}
+                inputMode="decimal"
+                placeholder={t('common.qty')}
+                aria-label={t('common.quantity')}
+                value={row.quantity}
+                onChange={(e) => setRow(i, { quantity: e.target.value })}
+                className="w-full sm:w-20"
+              />
+              <Input
+                disabled={row.toTaste}
+                list="unit-names"
+                placeholder={t('common.unit')}
+                aria-label={t('common.unit')}
+                value={row.unit}
+                onChange={(e) => setRow(i, { unit: e.target.value })}
+                className="w-full sm:w-24"
+              />
+              <Input
+                list="product-names"
+                placeholder={t('recipes.form.ingredient')}
+                aria-label={t('recipes.form.ingredient')}
+                value={row.name}
+                onChange={(e) => setRow(i, { name: e.target.value })}
+                className="col-span-2 row-start-1 flex-1 basis-32"
+              />
+              <Input
+                placeholder={t('recipes.form.note')}
+                aria-label={t('recipes.form.note')}
+                value={row.note}
+                onChange={(e) => setRow(i, { note: e.target.value })}
+                className="col-span-3 flex-1 basis-24"
+              />
               <label className="col-start-3 row-start-2 flex items-center gap-1 text-sm">
-                <input type="checkbox" className="size-4 accent-(--accent)" checked={row.toTaste} onChange={(e) => setRow(i, { toTaste: e.target.checked })} />
+                <input
+                  type="checkbox"
+                  className="size-4 accent-(--accent)"
+                  checked={row.toTaste}
+                  onChange={(e) => setRow(i, { toTaste: e.target.checked })}
+                />
                 {t('recipes.form.toTaste')}
               </label>
-              <Button variant="ghost" className="col-start-3 row-start-1 px-2" aria-label={t('recipes.form.removeIngredient')} onClick={() => setRows(rows.filter((_, j) => j !== i))}>
+              <Button
+                variant="ghost"
+                className="col-start-3 row-start-1 px-2"
+                aria-label={t('recipes.form.removeIngredient')}
+                onClick={() => setRows(rows.filter((_, j) => j !== i))}
+              >
                 ✕
               </Button>
             </div>
@@ -425,13 +578,47 @@ function RecipeForm({ recipe, onDone }: { recipe?: Recipe; onDone: (id?: number)
         <fieldset className="space-y-2">
           <legend className="mb-1 font-semibold">{t('recipes.form.steps')}</legend>
           {steps.map((step, i) => (
-            <div key={i} className="grid grid-cols-[1.5rem_repeat(3,minmax(0,1fr))_auto] gap-2 rounded-lg border border-line p-2 sm:flex sm:flex-wrap sm:items-center sm:border-0 sm:p-0">
+            <div
+              key={i}
+              className="grid grid-cols-[1.5rem_repeat(3,minmax(0,1fr))_auto] gap-2 rounded-lg border border-line p-2 sm:flex sm:flex-wrap sm:items-center sm:border-0 sm:p-0"
+            >
               <span className="w-5 text-right text-sm text-muted">{i + 1}.</span>
-              <Input placeholder={t('recipes.form.step')} aria-label={t('recipes.form.step')} value={step.text} onChange={(e) => setStep(i, { text: e.target.value })} className="col-span-3 flex-1 basis-56" />
-              <Input inputMode="numeric" placeholder={t('recipes.form.stepMinutes')} aria-label={t('recipes.form.stepMinutes')} value={step.minutes} onChange={(e) => setStep(i, { minutes: e.target.value })} className="col-start-2 w-full sm:w-16" />
-              <Input inputMode="numeric" placeholder={t('recipes.form.stepTemperature')} aria-label={t('recipes.form.stepTemperature')} value={step.temperature} onChange={(e) => setStep(i, { temperature: e.target.value })} className="w-full sm:w-16" />
-              <Input placeholder={t('recipes.form.stepAppliance')} aria-label={t('recipes.form.stepAppliance')} value={step.appliance} onChange={(e) => setStep(i, { appliance: e.target.value })} className="w-full sm:w-32" />
-              <Button variant="ghost" className="px-2" aria-label={t('recipes.form.removeStep')} onClick={() => setSteps(steps.filter((_, j) => j !== i))}>
+              <Input
+                placeholder={t('recipes.form.step')}
+                aria-label={t('recipes.form.step')}
+                value={step.text}
+                onChange={(e) => setStep(i, { text: e.target.value })}
+                className="col-span-3 flex-1 basis-56"
+              />
+              <Input
+                inputMode="numeric"
+                placeholder={t('recipes.form.stepMinutes')}
+                aria-label={t('recipes.form.stepMinutes')}
+                value={step.minutes}
+                onChange={(e) => setStep(i, { minutes: e.target.value })}
+                className="col-start-2 w-full sm:w-16"
+              />
+              <Input
+                inputMode="numeric"
+                placeholder={t('recipes.form.stepTemperature')}
+                aria-label={t('recipes.form.stepTemperature')}
+                value={step.temperature}
+                onChange={(e) => setStep(i, { temperature: e.target.value })}
+                className="w-full sm:w-16"
+              />
+              <Input
+                placeholder={t('recipes.form.stepAppliance')}
+                aria-label={t('recipes.form.stepAppliance')}
+                value={step.appliance}
+                onChange={(e) => setStep(i, { appliance: e.target.value })}
+                className="w-full sm:w-32"
+              />
+              <Button
+                variant="ghost"
+                className="px-2"
+                aria-label={t('recipes.form.removeStep')}
+                onClick={() => setSteps(steps.filter((_, j) => j !== i))}
+              >
                 ✕
               </Button>
             </div>

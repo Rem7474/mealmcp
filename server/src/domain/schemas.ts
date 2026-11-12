@@ -7,25 +7,34 @@ import { householdSettings } from './settings.js';
  * Input schemas shared by the REST API and the MCP tools. The `.describe()`
  * texts are what an AI client sees for each parameter.
  */
-const isoDate = z
-  .string()
-  .regex(/^\d{4}-\d{2}-\d{2}$/, 'Expected a date formatted YYYY-MM-DD');
-const id = z.coerce.number().int().positive();
-const unit = z
-  .string()
-  .max(30)
-  .optional()
-  .describe('Unit such as g, kg, ml, l, or a free label (can, pack). Omit for countable pieces.');
+const isoDate = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Expected a date formatted YYYY-MM-DD');
+// Query strings and path parameters arrive as text: these coerce at runtime but are typed as plain numbers and booleans,
+// so callers (services, MCP tools) see the same input types as before.
+const num = () => z.coerce.number() as unknown as z.ZodNumber;
+const bool = () => z.coerce.boolean() as unknown as z.ZodBoolean;
+
+const id = num().int().positive();
+const unit = z.string().max(30).optional().describe('Unit such as g, kg, ml, l, or a free label (can, pack). Omit for countable pieces.');
 const location = z.enum(LOCATIONS).describe('Where it is stored: fridge, freezer or pantry');
 const productName = z.string().trim().min(1).max(120);
-const moneyOrNull = z.number().nonnegative().max(1_000_000).nullable().describe('Amount in the household currency, as a decimal number (e.g. 2.49)');
+const moneyOrNull = z
+  .number()
+  .nonnegative()
+  .max(1_000_000)
+  .nullable()
+  .describe('Amount in the household currency, as a decimal number (e.g. 2.49)');
 
 export const idParam = z.object({ id });
 
 export const productUpdate = z.object({
   id,
   name: productName.optional(),
-  category: z.string().max(60).nullable().optional().describe('Store aisle: produce, dairy, meat_fish, bakery, pantry, frozen, drinks, household or other (free text is accepted)'),
+  category: z
+    .string()
+    .max(60)
+    .nullable()
+    .optional()
+    .describe('Store aisle: produce, dairy, meat_fish, bakery, pantry, frozen, drinks, household or other (free text is accepted)'),
   minStock: z
     .number()
     .nonnegative()
@@ -36,13 +45,25 @@ export const productUpdate = z.object({
     .boolean()
     .optional()
     .describe('Always at home (oil, salt, pepper, thyme): stays in recipes but is never bought, counted as missing, or used up'),
-  gramsPerPiece: z.number().positive().nullable().optional().describe('Weight of one piece in grams (e.g. 300 for a sweet potato), so pieces and grams can be compared'),
-  gramsPerMl: z.number().positive().nullable().optional().describe('Density in grams per ml (e.g. 0.92 for oil), so ml and grams can be compared'),
+  gramsPerPiece: z
+    .number()
+    .positive()
+    .nullable()
+    .optional()
+    .describe('Weight of one piece in grams (e.g. 300 for a sweet potato), so pieces and grams can be compared'),
+  gramsPerMl: z
+    .number()
+    .positive()
+    .nullable()
+    .optional()
+    .describe('Density in grams per ml (e.g. 0.92 for oil), so ml and grams can be compared'),
   drained: z
     .object({ netGrams: z.number().positive(), drainedGrams: z.number().positive() })
     .nullable()
     .optional()
-    .describe('Beans, tuna, sweetcorn: the label says netGrams (200) but recipes use drainedGrams (125). Stock is kept in net grams and recipe grams are read as drained. null clears it.'),
+    .describe(
+      'Beans, tuna, sweetcorn: the label says netGrams (200) but recipes use drainedGrams (125). Stock is kept in net grams and recipe grams are read as drained. null clears it.',
+    ),
   openedShelfLifeDays: z
     .number()
     .int()
@@ -60,8 +81,7 @@ export const productUpdate = z.object({
 
 export const stockList = z.object({
   location: location.optional(),
-  expiringWithinDays: z.coerce
-    .number()
+  expiringWithinDays: num()
     .int()
     .nonnegative()
     .optional()
@@ -74,7 +94,9 @@ export const stockAdd = z.object({
   approximate: z
     .boolean()
     .default(false)
-    .describe('"There is plenty/some, amount unknown" (e.g. lots of pasta): counts as available in checks and shopping lists and is never used up by cooking'),
+    .describe(
+      '"There is plenty/some, amount unknown" (e.g. lots of pasta): counts as available in checks and shopping lists and is never used up by cooking',
+    ),
   unit,
   location: location.default('pantry'),
   expiresOn: isoDate.nullable().optional().describe('Expiry date YYYY-MM-DD'),
@@ -83,7 +105,9 @@ export const stockAdd = z.object({
     .int()
     .positive()
     .optional()
-    .describe('Bought in packs: "2 x 500 g" is packCount 2 + packSize 500 + unit g; "3 cartons of 200 ml" is packCount 3, packSize 200, unit ml. Keeps both the count and the size (do not send quantity).'),
+    .describe(
+      'Bought in packs: "2 x 500 g" is packCount 2 + packSize 500 + unit g; "3 cartons of 200 ml" is packCount 3, packSize 200, unit ml. Keeps both the count and the size (do not send quantity).',
+    ),
   packSize: z.number().positive().optional().describe('Size of one pack, in `unit`. With packCount, the quantity is their product.'),
   opened: z
     .boolean()
@@ -95,7 +119,13 @@ export const stockAdd = z.object({
 export const stockOpen = z.object({
   id,
   remaining: z.number().positive().optional().describe('What is left of the opened pack, in the item unit. Defaults to the whole pack.'),
-  shelfLifeDays: z.number().int().positive().max(365).optional().describe('Days it keeps once opened; remembered for the product when it has none yet'),
+  shelfLifeDays: z
+    .number()
+    .int()
+    .positive()
+    .max(365)
+    .optional()
+    .describe('Days it keeps once opened; remembered for the product when it has none yet'),
 });
 
 export const stockUpdate = z.object({
@@ -115,7 +145,10 @@ export const stockConsume = z.object({
 const ingredient = z.object({
   name: productName,
   quantity: z.number().positive().optional().describe('Required unless toTaste is true'),
-  toTaste: z.boolean().default(false).describe('"To taste" (pepper, a pinch of thyme): listed in the recipe but not counted, bought or priced'),
+  toTaste: z
+    .boolean()
+    .default(false)
+    .describe('"To taste" (pepper, a pinch of thyme): listed in the recipe but not counted, bought or priced'),
   unit,
   note: z.string().max(200).nullable().optional().describe('e.g. "sliced", "optional"'),
 });
@@ -128,7 +161,9 @@ const step = z.object({
 });
 export const EQUIPMENT_KINDS = ['appliance', 'utensil'] as const;
 const equipmentName = z.string().trim().min(1).max(60);
-const equipmentList = z.array(equipmentName).describe('Appliances/utensils the recipe needs, e.g. "air fryer", "mandoline". Appliances named in steps are added automatically');
+const equipmentList = z
+  .array(equipmentName)
+  .describe('Appliances/utensils the recipe needs, e.g. "air fryer", "mandoline". Appliances named in steps are added automatically');
 
 export const equipmentAdd = z.object({
   name: equipmentName,
@@ -142,7 +177,14 @@ export const equipmentUpdate = z.object({
   owned: z.boolean().optional(),
 });
 
-const rating = z.number().int().min(1).max(5).nullable().optional().describe('How much the household likes it, 1 to 5 stars (null clears it)');
+const rating = z
+  .number()
+  .int()
+  .min(1)
+  .max(5)
+  .nullable()
+  .optional()
+  .describe('How much the household likes it, 1 to 5 stars (null clears it)');
 const tags = z.array(z.string().trim().min(1).max(40)).describe('Labels such as "air fryer", "quick", "no shopping"');
 
 export const recipeCreate = z.object({
@@ -179,13 +221,13 @@ export const recipeUpdate = z.object({
 export const recipeList = z.object({
   search: z.string().optional().describe('Filter on recipe name or ingredient name'),
   tag: z.string().trim().optional().describe('Only recipes carrying this tag'),
-  favorite: z.coerce.boolean().optional().describe('Only favorites'),
-  minRating: z.coerce.number().int().min(1).max(5).optional().describe('Only recipes rated at least this many stars'),
+  favorite: bool().optional().describe('Only favorites'),
+  minRating: num().int().min(1).max(5).optional().describe('Only recipes rated at least this many stars'),
 });
 
 export const recipeAvailability = z.object({
   id,
-  servings: z.coerce.number().int().positive().optional().describe('Defaults to the recipe servings'),
+  servings: num().int().positive().optional().describe('Defaults to the recipe servings'),
 });
 
 export const planList = z.object({
@@ -228,15 +270,15 @@ export const shoppingComplete = z.object({
 
 // --- Budget -------------------------------------------------------------------
 
-const money = z
-  .number()
-  .nonnegative()
-  .max(1_000_000)
-  .describe('Amount in the household currency, as a decimal number (e.g. 2.49)');
+const money = z.number().nonnegative().max(1_000_000).describe('Amount in the household currency, as a decimal number (e.g. 2.49)');
 
 const expenseItem = z.object({
   name: productName,
-  quantity: z.number().positive().optional().describe('Quantity bought; with it, the product price is remembered and used for cost estimates'),
+  quantity: z
+    .number()
+    .positive()
+    .optional()
+    .describe('Quantity bought; with it, the product price is remembered and used for cost estimates'),
   unit,
   price: money.describe('Line total (what this line cost), not a unit price'),
 });
@@ -296,12 +338,14 @@ export const planSlots = z.object({
 });
 
 export const suggestRecipes = z.object({
-  withinDays: z.coerce.number().int().nonnegative().default(5).describe('Use up what expires within this many days'),
+  withinDays: num().int().nonnegative().default(5).describe('Use up what expires within this many days'),
   products: z.array(productName).optional().describe('Extra product names to use up, whatever their expiry'),
   tag: z.string().trim().optional().describe('Only consider recipes with this tag'),
-  servings: z.coerce.number().int().positive().optional().describe('Servings to check availability for; defaults to the household default'),
-  limit: z.coerce.number().int().positive().max(20).default(5),
-  ignoreDiet: z.coerce.boolean().optional().describe('Also return recipes that break the household diet, allergens or dislikes (they are left out by default)'),
+  servings: num().int().positive().optional().describe('Servings to check availability for; defaults to the household default'),
+  limit: num().int().positive().max(20).default(5),
+  ignoreDiet: bool()
+    .optional()
+    .describe('Also return recipes that break the household diet, allergens or dislikes (they are left out by default)'),
 });
 
 export const stockAddMany = z.object({ items: z.array(stockAdd).min(1).max(200) });
@@ -310,12 +354,12 @@ export const planAddMany = z.object({ meals: z.array(planAdd).min(1).max(100) })
 export const shoppingAddMany = z.object({ items: z.array(shoppingAdd).min(1).max(200) });
 
 export const seasonList = z.object({
-  month: z.coerce.number().int().min(1).max(12).optional().describe('Month number 1-12; defaults to the current month'),
+  month: num().int().min(1).max(12).optional().describe('Month number 1-12; defaults to the current month'),
   kind: z.enum(['fruit', 'vegetable', 'herb']).optional().describe('Only fruits, vegetables or herbs'),
 });
 
 export const mealHistory = z.object({
-  days: z.coerce.number().int().positive().max(365).default(60).describe('How many days back to look'),
+  days: num().int().positive().max(365).default(60).describe('How many days back to look'),
   recipeId: id.optional().describe('Only the times this recipe was made'),
 });
 
@@ -331,13 +375,18 @@ export const wasteSummary = z.object({
 });
 
 export const mealContext = z.object({
-  days: z.coerce.number().int().positive().max(60).default(14).describe('How many days ahead to look for open slots and planned meals'),
-  historyDays: z.coerce.number().int().positive().max(365).default(30).describe('How many days back to look for recent meals'),
+  days: num().int().positive().max(60).default(14).describe('How many days ahead to look for open slots and planned meals'),
+  historyDays: num().int().positive().max(365).default(30).describe('How many days back to look for recent meals'),
 });
 
 const nutrientNumber = z.number().nonnegative().max(1000);
 export const nutritionSearch = z.object({
-  query: z.string().trim().min(2).max(100).describe('Product name to look up on Open Food Facts, e.g. "oat flakes". Only this text is sent.'),
+  query: z
+    .string()
+    .trim()
+    .min(2)
+    .max(100)
+    .describe('Product name to look up on Open Food Facts, e.g. "oat flakes". Only this text is sent.'),
 });
 export const productNutritionSet = z.object({
   id,

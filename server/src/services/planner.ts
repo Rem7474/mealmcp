@@ -45,7 +45,9 @@ export function createPlannerService(db: Db, hid: number, recipeService: RecipeS
     },
 
     get(id: number) {
-      const entry = view().where(and(mine, eq(mealPlan.id, id))).get();
+      const entry = view()
+        .where(and(mine, eq(mealPlan.id, id)))
+        .get();
       if (!entry) throw new NotFoundError('Planned meal', id);
       return entry;
     },
@@ -78,7 +80,9 @@ export function createPlannerService(db: Db, hid: number, recipeService: RecipeS
 
     remove(id: number) {
       svc.get(id);
-      db.delete(mealPlan).where(and(mine, eq(mealPlan.id, id))).run();
+      db.delete(mealPlan)
+        .where(and(mine, eq(mealPlan.id, id)))
+        .run();
     },
 
     /**
@@ -104,7 +108,14 @@ export function createPlannerService(db: Db, hid: number, recipeService: RecipeS
     history({ days, recipeId }: z.infer<typeof mealHistory>) {
       const end = today();
       const meals = view()
-        .where(and(mine, gte(mealPlan.date, addDays(end, -days)), lte(mealPlan.date, end), recipeId ? eq(mealPlan.recipeId, recipeId) : undefined))
+        .where(
+          and(
+            mine,
+            gte(mealPlan.date, addDays(end, -days)),
+            lte(mealPlan.date, end),
+            recipeId ? eq(mealPlan.recipeId, recipeId) : undefined,
+          ),
+        )
         .orderBy(sql`${mealPlan.date} desc`, mealPlan.id)
         .all();
       const byRecipe = new Map<number, { recipeId: number; name: string; times: number; lastMadeOn: string }>();
@@ -115,7 +126,12 @@ export function createPlannerService(db: Db, hid: number, recipeService: RecipeS
         if (m.date > r.lastMadeOn) r.lastMadeOn = m.date;
         byRecipe.set(m.recipeId, r);
       }
-      return { from: addDays(end, -days), to: end, meals, recipes: [...byRecipe.values()].sort((a, b) => b.times - a.times || b.lastMadeOn.localeCompare(a.lastMadeOn)) };
+      return {
+        from: addDays(end, -days),
+        to: end,
+        meals,
+        recipes: [...byRecipe.values()].sort((a, b) => b.times - a.times || b.lastMadeOn.localeCompare(a.lastMadeOn)),
+      };
     },
 
     /** Marks a meal as cooked and takes its recipe's ingredients out of stock. */
@@ -123,7 +139,10 @@ export function createPlannerService(db: Db, hid: number, recipeService: RecipeS
       const entry = svc.get(id);
       if (entry.cooked) throw new ValidationError('This meal is already marked as cooked');
       const usage = db.transaction(() => {
-        db.update(mealPlan).set({ cooked: true }).where(and(mine, eq(mealPlan.id, id))).run();
+        db.update(mealPlan)
+          .set({ cooked: true })
+          .where(and(mine, eq(mealPlan.id, id)))
+          .run();
         if (!entry.recipeId) return [];
         const recipe = recipeService.get(entry.recipeId);
         const scale = entry.servings / recipe.servings;

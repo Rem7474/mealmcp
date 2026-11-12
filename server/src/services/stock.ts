@@ -1,4 +1,4 @@
-import { and, eq, gte, isNull, lte, sql } from 'drizzle-orm';
+import { and, eq, gt, gte, isNull, lte, or, sql } from 'drizzle-orm';
 import type { z } from 'zod';
 import type { Db } from '../db/index.js';
 import { products, stockItems, wasteLog } from '../db/schema.js';
@@ -53,18 +53,24 @@ export function createStockService(db: Db, hid: number, productService: ProductS
     return printed && printed < limit ? printed : limit;
   };
 
+  /** Lines left at 0 (the quantity is gone) have no reason to exist. Called by the writes that can empty a line. */
+  const purgeEmpty = () =>
+    void db
+      .delete(stockItems)
+      .where(and(mine, lte(stockItems.quantity, 0), eq(stockItems.approximate, false)))
+      .run();
+
   const svc = {
     list(filter: z.infer<typeof stockList> = {}) {
-      // Lines left at 0 (the quantity is gone) have no reason to exist: "plenty of it" markers are the only ones that hold 0 on purpose.
-      db.delete(stockItems).where(and(mine, lte(stockItems.quantity, 0), eq(stockItems.approximate, false))).run();
+      // A pure read: lines left at 0 are hidden ("plenty of it" markers are the only ones that hold 0 on purpose);
+      // the writes that can empty a line remove it themselves (see purgeEmpty).
       return view()
         .where(
           and(
             mine,
+            or(gt(stockItems.quantity, 0), eq(stockItems.approximate, true)),
             filter.location ? eq(stockItems.location, filter.location) : undefined,
-            filter.expiringWithinDays !== undefined
-              ? lte(stockItems.expiresOn, addDays(today(), filter.expiringWithinDays))
-              : undefined,
+            filter.expiringWithinDays !== undefined ? lte(stockItems.expiresOn, addDays(today(), filter.expiringWithinDays)) : undefined,
           ),
         )
         .orderBy(...fifo, products.name)
@@ -73,7 +79,9 @@ export function createStockService(db: Db, hid: number, productService: ProductS
     },
 
     get(id: number) {
-      const item = view().where(and(mine, eq(stockItems.id, id))).get();
+      const item = view()
+        .where(and(mine, eq(stockItems.id, id)))
+        .get();
       if (!item) throw new NotFoundError('Stock item', id);
       return shape(item);
     },
@@ -91,12 +99,25 @@ export function createStockService(db: Db, hid: number, productService: ProductS
           .where(and(mine, eq(stockItems.productId, product.id), eq(stockItems.location, location), eq(stockItems.approximate, true)))
           .get();
         if (marker) {
-          if (input.expiresOn !== undefined) db.update(stockItems).set({ expiresOn }).where(and(mine, eq(stockItems.id, marker.id))).run();
+          if (input.expiresOn !== undefined)
+            db.update(stockItems)
+              .set({ expiresOn })
+              .where(and(mine, eq(stockItems.id, marker.id)))
+              .run();
           return svc.get(marker.id);
         }
         const row = db
           .insert(stockItems)
-          .values({ householdId: hid, productId: product.id, quantity: 0, unit: product.defaultUnit, location, expiresOn, addedOn: today(), approximate: true })
+          .values({
+            householdId: hid,
+            productId: product.id,
+            quantity: 0,
+            unit: product.defaultUnit,
+            location,
+            expiresOn,
+            addedOn: today(),
+            approximate: true,
+          })
           .returning()
           .get();
         return svc.get(row.id);
@@ -104,8 +125,10 @@ export function createStockService(db: Db, hid: number, productService: ProductS
 
       // "2 x 500 g": keep the number of packs and their size, not just the total.
       if (input.packCount !== undefined && input.packSize === undefined) throw new ValidationError('packCount needs packSize');
-      if (input.packCount !== undefined && input.quantity !== undefined) throw new ValidationError('Give either quantity, or packCount with packSize');
-      if (input.opened && (input.packCount ?? 1) > 1) throw new ValidationError('An opened pack is a single pack: use packCount 1 or leave it out');
+      if (input.packCount !== undefined && input.quantity !== undefined)
+        throw new ValidationError('Give either quantity, or packCount with packSize');
+      if (input.opened && (input.packCount ?? 1) > 1)
+        throw new ValidationError('An opened pack is a single pack: use packCount 1 or leave it out');
       const rawUnit = input.unit ?? product.defaultUnit;
       const pack = input.packSize !== undefined ? toBase(input.packSize, rawUnit) : null;
       let quantity: number;
@@ -114,7 +137,8 @@ export function createStockService(db: Db, hid: number, productService: ProductS
         quantity = round(pack.quantity * input.packCount);
         unit = pack.unit;
       } else {
-        if (input.quantity === undefined) throw new ValidationError('quantity is required unless approximate is true or packCount and packSize are given');
+        if (input.quantity === undefined)
+          throw new ValidationError('quantity is required unless approximate is true or packCount and packSize are given');
         ({ quantity, unit } = toBase(input.quantity, rawUnit));
       }
       const packSize = pack?.quantity ?? null;
@@ -192,18 +216,39 @@ export function createStockService(db: Db, hid: number, productService: ProductS
 
       if (line.packSize === null) {
         // Not kept in packs: the line itself is the container.
-        db.update(stockItems).set({ openedOn, expiresOn, quantity: left, packSize: line.quantity }).where(and(mine, eq(stockItems.id, id))).run();
+        db.update(stockItems)
+          .set({ openedOn, expiresOn, quantity: left, packSize: line.quantity })
+          .where(and(mine, eq(stockItems.id, id)))
+          .run();
         return svc.get(id);
       }
       if (line.quantity < size - 1e-9) throw new ValidationError('This line holds less than one whole pack');
       const rest = round(line.quantity - size);
-      if (rest <= 1e-9) db.delete(stockItems).where(and(mine, eq(stockItems.id, id))).run();
-      else db.update(stockItems).set({ quantity: rest }).where(and(mine, eq(stockItems.id, id))).run();
+      if (rest <= 1e-9)
+        db.delete(stockItems)
+          .where(and(mine, eq(stockItems.id, id)))
+          .run();
+      else
+        db.update(stockItems)
+          .set({ quantity: rest })
+          .where(and(mine, eq(stockItems.id, id)))
+          .run();
       const row = db
         .insert(stockItems)
-        .values({ householdId: hid, productId: line.productId, quantity: left, unit: line.unit, location: line.location, expiresOn, addedOn: line.addedOn, packSize: size, openedOn })
+        .values({
+          householdId: hid,
+          productId: line.productId,
+          quantity: left,
+          unit: line.unit,
+          location: line.location,
+          expiresOn,
+          addedOn: line.addedOn,
+          packSize: size,
+          openedOn,
+        })
         .returning()
         .get();
+      purgeEmpty();
       return svc.get(row.id);
     },
 
@@ -214,7 +259,8 @@ export function createStockService(db: Db, hid: number, productService: ProductS
     unopen(id: number) {
       const line = svc.get(id);
       if (!line.openedOn) throw new ValidationError('This pack is not opened');
-      if (line.packSize !== null && line.quantity < line.packSize - 1e-9) throw new ValidationError('Part of it was already used: it cannot be sealed again');
+      if (line.packSize !== null && line.quantity < line.packSize - 1e-9)
+        throw new ValidationError('Part of it was already used: it cannot be sealed again');
       const product = productService.get(line.productId);
       const fromShelfLife = product.openedShelfLifeDays && line.expiresOn === addDays(line.openedOn, product.openedShelfLifeDays);
       const expiresOn = fromShelfLife ? null : line.expiresOn;
@@ -235,11 +281,19 @@ export function createStockService(db: Db, hid: number, productService: ProductS
         )
         .get();
       if (twin) {
-        db.update(stockItems).set({ quantity: round(twin.quantity + line.quantity) }).where(and(mine, eq(stockItems.id, twin.id))).run();
-        db.delete(stockItems).where(and(mine, eq(stockItems.id, id))).run();
+        db.update(stockItems)
+          .set({ quantity: round(twin.quantity + line.quantity) })
+          .where(and(mine, eq(stockItems.id, twin.id)))
+          .run();
+        db.delete(stockItems)
+          .where(and(mine, eq(stockItems.id, id)))
+          .run();
         return svc.get(twin.id);
       }
-      db.update(stockItems).set({ openedOn: null, expiresOn }).where(and(mine, eq(stockItems.id, id))).run();
+      db.update(stockItems)
+        .set({ openedOn: null, expiresOn })
+        .where(and(mine, eq(stockItems.id, id)))
+        .run();
       return svc.get(id);
     },
 
@@ -262,13 +316,19 @@ export function createStockService(db: Db, hid: number, productService: ProductS
       }
       // An exact quantity replaces the "plenty of it" marker.
       const changes = patch.quantity !== undefined && current.approximate ? { ...patch, approximate: false } : patch;
-      if (Object.keys(changes).length) db.update(stockItems).set(changes).where(and(mine, eq(stockItems.id, id))).run();
+      if (Object.keys(changes).length)
+        db.update(stockItems)
+          .set(changes)
+          .where(and(mine, eq(stockItems.id, id)))
+          .run();
       return svc.get(id);
     },
 
     remove(id: number) {
       svc.get(id);
-      db.delete(stockItems).where(and(mine, eq(stockItems.id, id))).run();
+      db.delete(stockItems)
+        .where(and(mine, eq(stockItems.id, id)))
+        .run();
     },
 
     /**
@@ -283,12 +343,32 @@ export function createStockService(db: Db, hid: number, productService: ProductS
       const cost = thrown > 0 ? costCents(product, thrown, line.unit) : null;
       db.transaction(() => {
         db.insert(wasteLog)
-          .values({ householdId: hid, productId: line.productId, quantity: round(thrown), unit: line.unit, costCents: cost === null ? null : Math.round(cost), reason, date: today() })
+          .values({
+            householdId: hid,
+            productId: line.productId,
+            quantity: round(thrown),
+            unit: line.unit,
+            costCents: cost === null ? null : Math.round(cost),
+            reason,
+            date: today(),
+          })
           .run();
         if (line.approximate || thrown >= line.quantity - 1e-9) svc.remove(id);
-        else db.update(stockItems).set({ quantity: round(line.quantity - thrown) }).where(and(mine, eq(stockItems.id, id))).run();
+        else
+          db.update(stockItems)
+            .set({ quantity: round(line.quantity - thrown) })
+            .where(and(mine, eq(stockItems.id, id)))
+            .run();
       });
-      return { name: line.name, unit: line.unit, discarded: round(thrown), costCents: cost === null ? null : Math.round(cost), reason, removed: line.approximate || thrown >= line.quantity - 1e-9 };
+      purgeEmpty();
+      return {
+        name: line.name,
+        unit: line.unit,
+        discarded: round(thrown),
+        costCents: cost === null ? null : Math.round(cost),
+        reason,
+        removed: line.approximate || thrown >= line.quantity - 1e-9,
+      };
     },
 
     /** What was thrown away between two dates (default: the last 30 days): totals, and by product, reason and month. Amounts in cents. */
@@ -296,7 +376,14 @@ export function createStockService(db: Db, hid: number, productService: ProductS
       const end = to ?? today();
       const start = from ?? addDays(end, -30);
       const rows = db
-        .select({ name: products.name, quantity: wasteLog.quantity, unit: wasteLog.unit, costCents: wasteLog.costCents, reason: wasteLog.reason, date: wasteLog.date })
+        .select({
+          name: products.name,
+          quantity: wasteLog.quantity,
+          unit: wasteLog.unit,
+          costCents: wasteLog.costCents,
+          reason: wasteLog.reason,
+          date: wasteLog.date,
+        })
         .from(wasteLog)
         .innerJoin(products, eq(products.id, wasteLog.productId))
         .where(and(eq(wasteLog.householdId, hid), gte(wasteLog.date, start), lte(wasteLog.date, end)))
@@ -328,7 +415,9 @@ export function createStockService(db: Db, hid: number, productService: ProductS
         unpricedItems: rows.filter((r) => r.costCents === null).length,
         byProduct: [...byProduct.values()].sort((a, b) => b.costCents - a.costCents || b.times - a.times),
         byReason: [...group((r) => r.reason)].map(([reason, g]) => ({ reason, ...g })),
-        byMonth: [...group((r) => r.date.slice(0, 7))].map(([month, g]) => ({ month, ...g })).sort((a, b) => a.month.localeCompare(b.month)),
+        byMonth: [...group((r) => r.date.slice(0, 7))]
+          .map(([month, g]) => ({ month, ...g }))
+          .sort((a, b) => a.month.localeCompare(b.month)),
       };
     },
 
@@ -359,7 +448,10 @@ export function createStockService(db: Db, hid: number, productService: ProductS
           const take = Math.min(line.quantity, wanted);
           remaining = round(Math.max(0, remaining - (convertQuantity(take, line.unit, unit, product) ?? 0)));
           const size = line.packSize;
-          if (take >= line.quantity - 1e-9) db.delete(stockItems).where(and(mine, eq(stockItems.id, line.id))).run();
+          if (take >= line.quantity - 1e-9)
+            db.delete(stockItems)
+              .where(and(mine, eq(stockItems.id, line.id)))
+              .run();
           else if (size && !line.openedOn) {
             // Whole packs go first; a part of a pack opens the next one.
             const whole = Math.floor(take / size + 1e-9);
@@ -382,8 +474,15 @@ export function createStockService(db: Db, hid: number, productService: ProductS
                 })
                 .run();
             }
-            if (left <= 1e-9) db.delete(stockItems).where(and(mine, eq(stockItems.id, line.id))).run();
-            else db.update(stockItems).set({ quantity: left }).where(and(mine, eq(stockItems.id, line.id))).run();
+            if (left <= 1e-9)
+              db.delete(stockItems)
+                .where(and(mine, eq(stockItems.id, line.id)))
+                .run();
+            else
+              db.update(stockItems)
+                .set({ quantity: left })
+                .where(and(mine, eq(stockItems.id, line.id)))
+                .run();
           } else {
             db.update(stockItems)
               .set({ quantity: round(line.quantity - take) })
@@ -392,6 +491,7 @@ export function createStockService(db: Db, hid: number, productService: ProductS
           }
         }
       }
+      purgeEmpty();
       const back = (q: number) => (opts.recipeFrame && product ? round(toDrainedFrame(product, q, unit)) : q);
       return { name: product?.name ?? input.name, unit, requested, consumed: back(round(needed - remaining)), missing: back(remaining) };
     },

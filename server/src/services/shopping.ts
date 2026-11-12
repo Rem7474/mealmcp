@@ -13,7 +13,7 @@ import type { PlannerService } from './planner.js';
 import type { ProductService } from './products.js';
 import type { RecipeService } from './recipes.js';
 import type { SeasonService } from './seasons.js';
-import { stockKey, type StockService } from './stock.js';
+import { type StockService, stockKey } from './stock.js';
 
 export function createShoppingService(
   db: Db,
@@ -100,7 +100,9 @@ export function createShoppingService(
     },
 
     get(id: number) {
-      const item = view().where(and(mine, eq(shoppingItems.id, id))).get();
+      const item = view()
+        .where(and(mine, eq(shoppingItems.id, id)))
+        .get();
       if (!item) throw new NotFoundError('Shopping item', id);
       return withMeals([decorate(item)])[0]!;
     },
@@ -143,7 +145,10 @@ export function createShoppingService(
         .get();
       if (same) {
         const total = same.quantity == null && quantity == null ? null : round((same.quantity ?? 0) + (quantity ?? 0));
-        db.update(shoppingItems).set({ quantity: total }).where(and(mine, eq(shoppingItems.id, same.id))).run();
+        db.update(shoppingItems)
+          .set({ quantity: total })
+          .where(and(mine, eq(shoppingItems.id, same.id)))
+          .run();
         return this.get(same.id);
       }
       const row = db.insert(shoppingItems).values({ householdId: hid, productId: product.id, quantity, unit }).returning().get();
@@ -162,7 +167,9 @@ export function createShoppingService(
 
     remove(id: number) {
       this.get(id);
-      db.delete(shoppingItems).where(and(mine, eq(shoppingItems.id, id))).run();
+      db.delete(shoppingItems)
+        .where(and(mine, eq(shoppingItems.id, id)))
+        .run();
     },
 
     /**
@@ -185,10 +192,12 @@ export function createShoppingService(
       for (const meal of planner.list({ from, to })) {
         if (!meal.recipeId || meal.cooked) continue;
         const recipe = recipeService.get(meal.recipeId);
-        for (const ing of recipe.ingredients) if (!ing.toTaste) need(ing.productId, ing.unit, (ing.quantity * meal.servings) / recipe.servings, meal.id);
+        for (const ing of recipe.ingredients)
+          if (!ing.toTaste) need(ing.productId, ing.unit, (ing.quantity * meal.servings) / recipe.servings, meal.id);
       }
       if (includeLowStock) {
-        for (const p of productService.list()) if (p.minStock != null) need(p.id, p.defaultUnit, toDrainedFrame(p, p.minStock, p.defaultUnit));
+        for (const p of productService.list())
+          if (p.minStock != null) need(p.id, p.defaultUnit, toDrainedFrame(p, p.minStock, p.defaultUnit));
       }
 
       const snap = stock.snapshot();
@@ -213,12 +222,21 @@ export function createShoppingService(
             const line = db
               .insert(shoppingItems)
               // Bought by the label: 125 g of drained beans are 200 g net.
-              .values({ householdId: hid, productId: n.productId, quantity: round(toNetFrame(product, missing, n.unit)), unit: n.unit, source: 'plan', priceCents: prices.get(k) ?? null })
+              .values({
+                householdId: hid,
+                productId: n.productId,
+                quantity: round(toNetFrame(product, missing, n.unit)),
+                unit: n.unit,
+                source: 'plan',
+                priceCents: prices.get(k) ?? null,
+              })
               .returning()
               .get();
             // What stock does not cover is shared between the meals in proportion to what each needs.
             for (const [mealId, q] of n.meals)
-              db.insert(shoppingItemMeals).values({ shoppingItemId: line.id, mealId, quantity: round((q / n.quantity) * missing) }).run();
+              db.insert(shoppingItemMeals)
+                .values({ shoppingItemId: line.id, mealId, quantity: round((q / n.quantity) * missing) })
+                .run();
           }
         }
       });
@@ -234,7 +252,9 @@ export function createShoppingService(
       db.transaction(() => {
         for (const item of bought) {
           stock.add({ name: item.name, quantity: item.quantity ?? 1, unit: item.unit, location });
-          db.delete(shoppingItems).where(and(mine, eq(shoppingItems.id, item.id))).run();
+          db.delete(shoppingItems)
+            .where(and(mine, eq(shoppingItems.id, item.id)))
+            .run();
         }
       });
       const priced = bought.filter((i) => i.priceCents !== null);
@@ -244,7 +264,12 @@ export function createShoppingService(
               date: opts.date,
               store: opts.store,
               total: opts.total ?? undefined,
-              items: priced.map((i) => ({ name: i.name, quantity: i.quantity ?? undefined, unit: i.unit, price: (i.priceCents as number) / 100 })),
+              items: priced.map((i) => ({
+                name: i.name,
+                quantity: i.quantity ?? undefined,
+                unit: i.unit,
+                price: (i.priceCents as number) / 100,
+              })),
               addToStock: false,
               location,
             })

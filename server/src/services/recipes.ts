@@ -1,7 +1,16 @@
 import { and, asc, eq, gte, like, lte, or, sql } from 'drizzle-orm';
 import type { z } from 'zod';
 import type { Db } from '../db/index.js';
-import { equipment as equipmentTable, mealPlan, products, recipeEquipment, recipeIngredients, recipeSteps, recipeTags, recipes } from '../db/schema.js';
+import {
+  equipment as equipmentTable,
+  mealPlan,
+  products,
+  recipeEquipment,
+  recipeIngredients,
+  recipeSteps,
+  recipes,
+  recipeTags,
+} from '../db/schema.js';
 import { today } from '../domain/dates.js';
 import { type Allergen, conflictsOf } from '../domain/diet.js';
 import { NotFoundError, ValidationError } from '../domain/errors.js';
@@ -16,7 +25,15 @@ import type { StockService } from './stock.js';
 type Ingredients = NonNullable<z.input<typeof recipeUpdate>['ingredients']>;
 type Steps = NonNullable<z.input<typeof recipeUpdate>['steps']>;
 
-export function createRecipeService(db: Db, hid: number, productService: ProductService, stock: StockService, settings: SettingsService, equipmentService: EquipmentService, seasons: SeasonService) {
+export function createRecipeService(
+  db: Db,
+  hid: number,
+  productService: ProductService,
+  stock: StockService,
+  settings: SettingsService,
+  equipmentService: EquipmentService,
+  seasons: SeasonService,
+) {
   const mine = eq(recipes.householdId, hid);
 
   const insertIngredients = (recipeId: number, ingredients: Ingredients) => {
@@ -24,26 +41,38 @@ export function createRecipeService(db: Db, hid: number, productService: Product
       const product = productService.findOrCreate(ing.name, ing.unit);
       const toTaste = ing.toTaste ?? false;
       if (!toTaste && ing.quantity === undefined) throw new ValidationError(`Ingredient "${ing.name}" needs a quantity (or toTaste: true)`);
-      const { quantity, unit } = toTaste ? { quantity: 0, unit: product.defaultUnit } : toBase(ing.quantity as number, ing.unit ?? product.defaultUnit);
-      db.insert(recipeIngredients).values({ recipeId, productId: product.id, quantity, unit, note: ing.note ?? null, toTaste }).run();
+      const { quantity, unit } = toTaste
+        ? { quantity: 0, unit: product.defaultUnit }
+        : toBase(ing.quantity as number, ing.unit ?? product.defaultUnit);
+      db.insert(recipeIngredients)
+        .values({ recipeId, productId: product.id, quantity, unit, note: ing.note ?? null, toTaste })
+        .run();
     }
   };
   const insertSteps = (recipeId: number, steps: Steps) =>
-    steps.forEach((s, i) =>
-      db
-        .insert(recipeSteps)
-        .values({ recipeId, position: i + 1, text: s.text, durationMinutes: s.durationMinutes ?? null, temperatureC: s.temperatureC ?? null, appliance: s.appliance ?? null })
-        .run(),
-    );
+    steps.forEach((s, i) => {
+      db.insert(recipeSteps)
+        .values({
+          recipeId,
+          position: i + 1,
+          text: s.text,
+          durationMinutes: s.durationMinutes ?? null,
+          temperatureC: s.temperatureC ?? null,
+          appliance: s.appliance ?? null,
+        })
+        .run();
+    });
   const insertTags = (recipeId: number, tags: string[]) => {
-    for (const tag of new Set(tags.map((t) => t.trim().toLowerCase()).filter(Boolean))) db.insert(recipeTags).values({ recipeId, tag }).run();
+    for (const tag of new Set(tags.map((t) => t.trim().toLowerCase()).filter(Boolean)))
+      db.insert(recipeTags).values({ recipeId, tag }).run();
   };
 
   /** Links equipment to a recipe; unknown items are created as "not owned". Step appliances are included. */
   const insertEquipment = (recipeId: number, names: string[], steps: Steps) => {
     const wanted = new Map<string, { name: string; kind: 'appliance' | 'utensil' }>();
     for (const name of names) wanted.set(name.trim().toLowerCase(), { name: name.trim(), kind: 'utensil' });
-    for (const step of steps) if (step.appliance) wanted.set(step.appliance.trim().toLowerCase(), { name: step.appliance.trim(), kind: 'appliance' });
+    for (const step of steps)
+      if (step.appliance) wanted.set(step.appliance.trim().toLowerCase(), { name: step.appliance.trim(), kind: 'appliance' });
     for (const { name, kind } of wanted.values()) {
       const item = equipmentService.findOrCreate(name, kind);
       db.insert(recipeEquipment).values({ recipeId, equipmentId: item.id }).onConflictDoNothing().run();
@@ -110,7 +139,9 @@ export function createRecipeService(db: Db, hid: number, productService: Product
             mine,
             favorite ? eq(recipes.favorite, true) : undefined,
             minRating ? gte(recipes.rating, minRating) : undefined,
-            tag?.trim() ? sql`exists (select 1 from recipe_tags rt where rt.recipe_id = recipes.id and rt.tag = ${tag.trim().toLowerCase()})` : undefined,
+            tag?.trim()
+              ? sql`exists (select 1 from recipe_tags rt where rt.recipe_id = recipes.id and rt.tag = ${tag.trim().toLowerCase()})`
+              : undefined,
             search?.trim()
               ? or(
                   like(recipes.name, pattern),
@@ -124,11 +155,19 @@ export function createRecipeService(db: Db, hid: number, productService: Product
         .all();
       const tags = db.select().from(recipeTags).all();
       const conflicts = dietConflicts();
-      return rows.map((r) => ({ ...r, tags: tags.filter((t) => t.recipeId === r.id).map((t) => t.tag), dietConflicts: conflicts.get(r.id) ?? [] }));
+      return rows.map((r) => ({
+        ...r,
+        tags: tags.filter((t) => t.recipeId === r.id).map((t) => t.tag),
+        dietConflicts: conflicts.get(r.id) ?? [],
+      }));
     },
 
     get(id: number) {
-      const recipe = db.select().from(recipes).where(and(mine, eq(recipes.id, id))).get();
+      const recipe = db
+        .select()
+        .from(recipes)
+        .where(and(mine, eq(recipes.id, id)))
+        .get();
       if (!recipe) throw new NotFoundError('Recipe', id);
       const ingredients = db
         .select({
@@ -200,7 +239,11 @@ export function createRecipeService(db: Db, hid: number, productService: Product
       const recipeId = id as number;
       svc.get(recipeId);
       db.transaction(() => {
-        if (Object.keys(patch).length) db.update(recipes).set(patch).where(and(mine, eq(recipes.id, recipeId))).run();
+        if (Object.keys(patch).length)
+          db.update(recipes)
+            .set(patch)
+            .where(and(mine, eq(recipes.id, recipeId)))
+            .run();
         if (ingredients) {
           db.delete(recipeIngredients).where(eq(recipeIngredients.recipeId, recipeId)).run();
           insertIngredients(recipeId, ingredients);
@@ -216,7 +259,11 @@ export function createRecipeService(db: Db, hid: number, productService: Product
         }
         if (equipment) {
           db.delete(recipeEquipment).where(eq(recipeEquipment.recipeId, recipeId)).run();
-          insertEquipment(recipeId, equipment, steps ?? svc.get(recipeId).steps.map((st) => ({ text: st.text, appliance: st.appliance ?? undefined })));
+          insertEquipment(
+            recipeId,
+            equipment,
+            steps ?? svc.get(recipeId).steps.map((st) => ({ text: st.text, appliance: st.appliance ?? undefined })),
+          );
         }
       });
       return svc.get(recipeId);
@@ -224,7 +271,9 @@ export function createRecipeService(db: Db, hid: number, productService: Product
 
     remove(id: number) {
       svc.get(id);
-      db.delete(recipes).where(and(mine, eq(recipes.id, id))).run();
+      db.delete(recipes)
+        .where(and(mine, eq(recipes.id, id)))
+        .run();
     },
 
     /**
@@ -277,7 +326,9 @@ export function createRecipeService(db: Db, hid: number, productService: Product
           const inSeason = recipe.ingredients.filter((i) => !i.toTaste && seasons.statusOf(i.name)?.inSeason);
           const uses = recipe.ingredients.filter((i) => !i.toTaste && targets.has(i.productId)).map((i) => targets.get(i.productId)!);
           const availability = svc.availability({ id: recipe.id, servings: servingsToUse });
-          const missing = availability.ingredients.filter((i) => i.missing > 0).map((i) => ({ name: i.name, unit: i.unit, missing: i.missing }));
+          const missing = availability.ingredients
+            .filter((i) => i.missing > 0)
+            .map((i) => ({ name: i.name, unit: i.unit, missing: i.missing }));
           return {
             recipeId: recipe.id,
             name: recipe.name,

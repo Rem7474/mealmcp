@@ -94,13 +94,14 @@ export const useT = () => useI18n().t;
 /** Server error messages are English; the common ones shown to people are translated here. */
 const SERVER_ERRORS: [match: string, key: MessageKey][] = [
   ['Invalid email or password', 'err.invalidLogin'],
-  ['An account with this email already exists', 'err.emailTaken'],
-  ['This invite code is invalid or has expired', 'err.inviteInvalid'],
-  ['This invite code was already used', 'err.inviteUsed'],
+  ['This account could not be created', 'err.cannotRegister'],
+  ['This invite code is invalid', 'err.inviteInvalid'],
+  ['password is incorrect', 'err.wrongPassword'],
+  ['Remove the other members of the household first', 'err.ownerHasMembers'],
   ['Registration is closed', 'err.registrationClosed'],
   ['Too many attempts', 'err.tooMany'],
   ['Password must be at least 10 characters', 'err.passwordShort'],
-  ['Only the household owner can invite people', 'err.ownerOnly'],
+  ['Only the household owner can', 'err.ownerOnly'],
 ];
 
 export function localizeError(t: I18n['t'], message: string): string {

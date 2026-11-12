@@ -14,7 +14,10 @@ beforeAll(async () => {
   const port = (probe.address() as AddressInfo).port;
   await new Promise((r) => probe.close(r));
   base = `http://localhost:${port}`;
-  server = createApp(createDb(':memory:'), loadConfig({ PORT: String(port), DATABASE_PATH: ':memory:', PUBLIC_URL: base })).listen(port);
+  server = createApp(
+    createDb(':memory:'),
+    loadConfig({ PORT: String(port), DATABASE_PATH: ':memory:', PUBLIC_URL: base, LOG_LEVEL: 'silent' }),
+  ).listen(port);
   await new Promise((r) => server.once('listening', r));
 });
 afterAll(() => void server.close());
@@ -37,7 +40,11 @@ async function signUp(email: string, inviteCode?: string) {
   });
   expect(res.status).toBe(201);
   const cookie = res.headers.get('set-cookie')!.split(';')[0];
-  const tokenRes = await fetch(`${base}/api/tokens`, { method: 'POST', headers: { ...json, cookie }, body: JSON.stringify({ name: 'live' }) });
+  const tokenRes = await fetch(`${base}/api/tokens`, {
+    method: 'POST',
+    headers: { ...json, cookie },
+    body: JSON.stringify({ name: 'live' }),
+  });
   return { cookie, token: (await tokenRes.json()).token as string };
 }
 
@@ -88,7 +95,11 @@ it('pushes a change event to the open dashboard when the MCP server or the API m
   expect(await stream.until(() => stream.changes() === 1)).toBe(true);
 
   // ...and from the REST API.
-  await fetch(`${base}/api/shopping`, { method: 'POST', headers: { ...json, authorization: `Bearer ${token}` }, body: JSON.stringify({ name: 'Butter' }) });
+  await fetch(`${base}/api/shopping`, {
+    method: 'POST',
+    headers: { ...json, authorization: `Bearer ${token}` },
+    body: JSON.stringify({ name: 'Butter' }),
+  });
   expect(await stream.until(() => stream.changes() === 2)).toBe(true);
 
   await stream.close();

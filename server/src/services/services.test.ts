@@ -95,7 +95,12 @@ describe('plan -> shopping -> stock', () => {
 
     const { usage } = svc.planner.cook(meal.id);
     expect(usage.every((u) => u.missing === 0)).toBe(true);
-    expect(svc.stock.list().map((i) => [i.name, i.quantity]).sort()).toEqual([
+    expect(
+      svc.stock
+        .list()
+        .map((i) => [i.name, i.quantity])
+        .sort(),
+    ).toEqual([
       ['Coffee', 1],
       ['Flour', 500],
     ]);

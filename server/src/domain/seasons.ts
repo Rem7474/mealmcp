@@ -39,7 +39,14 @@ const ENTRIES: Entry[] = [
   { en: 'Aubergine / eggplant', fr: 'Aubergine', kind: 'vegetable', match: ['aubergine', 'eggplant'], eu: '6-9', na: '7-9' },
   { en: 'Beetroot', fr: 'Betterave', kind: 'vegetable', match: ['betterave', 'beetroot', 'beet'], eu: '6-12', na: '6-10' },
   { en: 'Broccoli', fr: 'Brocoli', kind: 'vegetable', match: ['brocoli', 'broccoli'], eu: '6-11', na: '9-11' },
-  { en: 'Brussels sprouts', fr: 'Chou de Bruxelles', kind: 'vegetable', match: ['chou de bruxelles', 'brussels sprout'], eu: '10-2', na: '10-12' },
+  {
+    en: 'Brussels sprouts',
+    fr: 'Chou de Bruxelles',
+    kind: 'vegetable',
+    match: ['chou de bruxelles', 'brussels sprout'],
+    eu: '10-2',
+    na: '10-12',
+  },
   { en: 'Cabbage', fr: 'Chou', kind: 'vegetable', match: ['chou', 'cabbage'], eu: '10-3', na: '6-10' },
   { en: 'Carrot', fr: 'Carotte', kind: 'vegetable', match: ['carotte', 'carrot'], eu: '5-11', na: '6-11' },
   { en: 'Cauliflower', fr: 'Chou-fleur', kind: 'vegetable', match: ['chou fleur', 'cauliflower'], eu: '9-12', na: '9-11' },
@@ -51,16 +58,37 @@ const ENTRIES: Entry[] = [
   { en: 'Fennel', fr: 'Fenouil', kind: 'vegetable', match: ['fenouil', 'fennel'], eu: '6-10', na: '9-11' },
   { en: 'Broad beans', fr: 'Fève', kind: 'vegetable', match: ['feve', 'broad bean', 'fava'], eu: '5-7', na: '5-7' },
   { en: 'Green beans', fr: 'Haricot vert', kind: 'vegetable', match: ['haricot vert', 'green bean'], eu: '6-9', na: '7-9' },
-  { en: 'Jerusalem artichoke', fr: 'Topinambour', kind: 'vegetable', match: ['topinambour', 'jerusalem artichoke'], eu: '10-3', na: '10-3' },
+  {
+    en: 'Jerusalem artichoke',
+    fr: 'Topinambour',
+    kind: 'vegetable',
+    match: ['topinambour', 'jerusalem artichoke'],
+    eu: '10-3',
+    na: '10-3',
+  },
   { en: 'Kale', fr: 'Chou kale', kind: 'vegetable', match: ['kale', 'chou kale', 'chou frise'], eu: '10-3', na: '10-3' },
   { en: 'Lamb’s lettuce', fr: 'Mâche', kind: 'vegetable', match: ['mache', 'lamb s lettuce', 'corn salad'], eu: '10-3', na: '10-3' },
   { en: 'Leek', fr: 'Poireau', kind: 'vegetable', match: ['poireau', 'leek'], eu: '9-4', na: '9-11' },
-  { en: 'Lettuce', fr: 'Salade / laitue', kind: 'vegetable', match: ['salade', 'laitue', 'lettuce', 'batavia', 'romaine'], eu: '4-10', na: '5-10' },
+  {
+    en: 'Lettuce',
+    fr: 'Salade / laitue',
+    kind: 'vegetable',
+    match: ['salade', 'laitue', 'lettuce', 'batavia', 'romaine'],
+    eu: '4-10',
+    na: '5-10',
+  },
   { en: 'Parsnip', fr: 'Panais', kind: 'vegetable', match: ['panais', 'parsnip'], eu: '10-3', na: '10-3' },
   { en: 'Peas', fr: 'Petit pois', kind: 'vegetable', match: ['petit pois', 'pea'], eu: '5-7', na: '5-7' },
   { en: 'Bell pepper', fr: 'Poivron', kind: 'vegetable', match: ['poivron', 'bell pepper'], eu: '6-9', na: '7-10' },
   { en: 'Potato', fr: 'Pomme de terre', kind: 'vegetable', match: ['pomme de terre', 'patate', 'potato'], eu: '5-10', na: '7-10' },
-  { en: 'Pumpkin / squash', fr: 'Potiron / courge', kind: 'vegetable', match: ['potiron', 'citrouille', 'courge', 'butternut', 'potimarron', 'pumpkin', 'squash'], eu: '9-12', na: '9-12' },
+  {
+    en: 'Pumpkin / squash',
+    fr: 'Potiron / courge',
+    kind: 'vegetable',
+    match: ['potiron', 'citrouille', 'courge', 'butternut', 'potimarron', 'pumpkin', 'squash'],
+    eu: '9-12',
+    na: '9-12',
+  },
   { en: 'Radish', fr: 'Radis', kind: 'vegetable', match: ['radis', 'radish'], eu: '4-9', na: '4-6,9-10' },
   { en: 'Rhubarb', fr: 'Rhubarbe', kind: 'vegetable', match: ['rhubarbe', 'rhubarb'], eu: '4-6', na: '4-6' },
   { en: 'Spinach', fr: 'Épinard', kind: 'vegetable', match: ['epinard', 'spinach'], eu: '3-5,9-11', na: '4-6,9-10' },
@@ -72,11 +100,25 @@ const ENTRIES: Entry[] = [
   { en: 'Apple', fr: 'Pomme', kind: 'fruit', match: ['pomme', 'apple'], eu: '9-3', na: '9-11' },
   { en: 'Apricot', fr: 'Abricot', kind: 'fruit', match: ['abricot', 'apricot'], eu: '6-8', na: '6-8' },
   { en: 'Blackberry', fr: 'Mûre', kind: 'fruit', match: ['mure', 'blackberry'], eu: '8-9', na: '7-9' },
-  { en: 'Blackcurrant / redcurrant', fr: 'Cassis / groseille', kind: 'fruit', match: ['cassis', 'groseille', 'blackcurrant', 'redcurrant'], eu: '6-8', na: '6-8' },
+  {
+    en: 'Blackcurrant / redcurrant',
+    fr: 'Cassis / groseille',
+    kind: 'fruit',
+    match: ['cassis', 'groseille', 'blackcurrant', 'redcurrant'],
+    eu: '6-8',
+    na: '6-8',
+  },
   { en: 'Blueberry', fr: 'Myrtille', kind: 'fruit', match: ['myrtille', 'blueberry'], eu: '6-9', na: '6-8' },
   { en: 'Cherry', fr: 'Cerise', kind: 'fruit', match: ['cerise', 'cherry'], eu: '5-7', na: '6-7' },
   { en: 'Chestnut', fr: 'Châtaigne', kind: 'fruit', match: ['chataigne', 'marron', 'chestnut'], eu: '10-12', na: '10-12' },
-  { en: 'Clementine / mandarin', fr: 'Clémentine / mandarine', kind: 'fruit', match: ['clementine', 'mandarine', 'mandarin', 'tangerine'], eu: '11-2', na: '11-2' },
+  {
+    en: 'Clementine / mandarin',
+    fr: 'Clémentine / mandarine',
+    kind: 'fruit',
+    match: ['clementine', 'mandarine', 'mandarin', 'tangerine'],
+    eu: '11-2',
+    na: '11-2',
+  },
   { en: 'Cranberry', fr: 'Canneberge', kind: 'fruit', match: ['canneberge', 'cranberry'], eu: '10-12', na: '10-12' },
   { en: 'Fig', fr: 'Figue', kind: 'fruit', match: ['figue', 'fig'], eu: '8-10', na: '8-10' },
   { en: 'Grape', fr: 'Raisin', kind: 'fruit', match: ['raisin', 'grape'], eu: '8-10', na: '8-10' },
@@ -111,10 +153,12 @@ const normalize = (s: string) =>
     .trim();
 
 // Longest keyword first so "patate douce" wins over "patate", "chou de bruxelles" over "chou".
-const matchers = ENTRIES.flatMap((entry, index) => entry.match.map((word) => ({ index, word, re: new RegExp(`(^| )${word}(s|x)?( |$)`) })))
-  .sort((a, b) => b.word.length - a.word.length);
+const matchers = ENTRIES.flatMap((entry, index) =>
+  entry.match.map((word) => ({ index, word, re: new RegExp(`(^| )${word}(s|x)?( |$)`) })),
+).sort((a, b) => b.word.length - a.word.length);
 
-const shift = (list: number[], hemisphere: Hemisphere) => (hemisphere === 'south' ? list.map((m) => ((m + 5) % 12) + 1).sort((a, b) => a - b) : list);
+const shift = (list: number[], hemisphere: Hemisphere) =>
+  hemisphere === 'south' ? list.map((m) => ((m + 5) % 12) + 1).sort((a, b) => a - b) : list;
 
 export type Produce = {
   id: string;

@@ -2,11 +2,11 @@ import { and, eq } from 'drizzle-orm';
 import type { z } from 'zod';
 import type { Db } from '../db/index.js';
 import { productAliases, products } from '../db/schema.js';
-import { NotFoundError, ValidationError } from '../domain/errors.js';
-import type { aliasAdd, productUpdate } from '../domain/schemas.js';
 import { guessCategory } from '../domain/categories.js';
 import type { Allergen } from '../domain/diet.js';
+import { NotFoundError, ValidationError } from '../domain/errors.js';
 import type { ProductNutrition } from '../domain/nutrition.js';
+import type { aliasAdd, productUpdate } from '../domain/schemas.js';
 import { normalizeUnit } from '../domain/units.js';
 
 const key = (name: string) => name.trim().toLowerCase();
@@ -52,9 +52,17 @@ export function createProductService(db: Db, hid: number) {
     },
 
     get(id: number) {
-      const p = db.select().from(products).where(and(mine, eq(products.id, id))).get();
+      const p = db
+        .select()
+        .from(products)
+        .where(and(mine, eq(products.id, id)))
+        .get();
       if (!p) throw new NotFoundError('Product', id);
-      const aliases = db.select({ alias: productAliases.alias }).from(productAliases).where(and(myAliases, eq(productAliases.productId, id))).all();
+      const aliases = db
+        .select({ alias: productAliases.alias })
+        .from(productAliases)
+        .where(and(myAliases, eq(productAliases.productId, id)))
+        .all();
       return shapeProduct(
         p,
         aliases.map((a) => a.alias),
@@ -64,14 +72,24 @@ export function createProductService(db: Db, hid: number) {
     /** Looks a product up by its name or by one of its aliases (case-insensitive). */
     findByName(name: string) {
       const k = key(name);
-      const direct = db.select().from(products).where(and(mine, eq(products.nameKey, k))).get();
+      const direct = db
+        .select()
+        .from(products)
+        .where(and(mine, eq(products.nameKey, k)))
+        .get();
       if (direct) return direct;
       const viaAlias = db
         .select({ productId: productAliases.productId })
         .from(productAliases)
         .where(and(myAliases, eq(productAliases.aliasKey, k)))
         .get();
-      return viaAlias ? db.select().from(products).where(and(mine, eq(products.id, viaAlias.productId))).get() : undefined;
+      return viaAlias
+        ? db
+            .select()
+            .from(products)
+            .where(and(mine, eq(products.id, viaAlias.productId)))
+            .get()
+        : undefined;
     },
 
     /** Products are created on the fly the first time a name is used. */
@@ -112,12 +130,18 @@ export function createProductService(db: Db, hid: number) {
       const clash = svc.findByName(alias);
       if (clash && clash.id !== product.id) throw new ValidationError(`"${alias}" already refers to "${clash.name}"`);
       if (!clash)
-        db.insert(productAliases).values({ householdId: hid, productId: product.id, alias: alias.trim(), aliasKey: key(alias) }).run();
+        db.insert(productAliases)
+          .values({ householdId: hid, productId: product.id, alias: alias.trim(), aliasKey: key(alias) })
+          .run();
       return svc.get(product.id);
     },
 
     removeAlias(alias: string) {
-      const removed = db.delete(productAliases).where(and(myAliases, eq(productAliases.aliasKey, key(alias)))).returning().get();
+      const removed = db
+        .delete(productAliases)
+        .where(and(myAliases, eq(productAliases.aliasKey, key(alias))))
+        .returning()
+        .get();
       if (!removed) throw new NotFoundError('Alias', alias);
     },
   };

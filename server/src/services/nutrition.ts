@@ -8,9 +8,9 @@ import {
   addInto,
   emptyTotals,
   fromOpenFoodFacts,
+  NUTRIENTS,
   type Nutrient,
   type NutrientValues,
-  NUTRIENTS,
   type ProductNutrition,
   roundTotals,
   scale,
@@ -66,7 +66,8 @@ async function getJson(fetchImpl: Fetch, url: string): Promise<unknown> {
   }
   if (res.status === 404) return null;
   const type = res.headers.get('content-type') ?? '';
-  if (!res.ok || !type.includes('json')) throw new ValidationError('Open Food Facts is not available right now. Try again later, or type the values by hand.');
+  if (!res.ok || !type.includes('json'))
+    throw new ValidationError('Open Food Facts is not available right now. Try again later, or type the values by hand.');
   return res.json();
 }
 
@@ -86,7 +87,8 @@ export function createNutritionService(
 ) {
   const mine = eq(products.householdId, hid);
   const requireOn = () => {
-    if (!settings.get().nutrition?.enabled) throw new ValidationError('The nutrition module is off. Turn it on in the household settings (nutrition.enabled).');
+    if (!settings.get().nutrition?.enabled)
+      throw new ValidationError('The nutrition module is off. Turn it on in the household settings (nutrition.enabled).');
   };
 
   /** Weight in grams of a quantity of a product; 1 ml counts as 1 g when the density is not known. */
@@ -103,12 +105,19 @@ export function createNutritionService(
     async search({ query }: z.infer<typeof nutritionSearch>): Promise<NutritionHit[]> {
       requireOn();
       const url = `${SEARCH_URL}?q=${encodeURIComponent(query)}&page_size=8&fields=code,product_name,brands,nutriments`;
-      const body = (await getJson(fetchImpl, url)) as { hits?: { code?: string; product_name?: string; brands?: string[] | string; nutriments?: unknown }[] } | null;
+      const body = (await getJson(fetchImpl, url)) as {
+        hits?: { code?: string; product_name?: string; brands?: string[] | string; nutriments?: unknown }[];
+      } | null;
       const hits: NutritionHit[] = [];
       for (const h of body?.hits ?? []) {
         const per100 = fromOpenFoodFacts(h.nutriments);
         if (!per100 || !h.code || !h.product_name) continue;
-        hits.push({ code: h.code, name: h.product_name, brands: Array.isArray(h.brands) ? h.brands.join(', ') || null : (h.brands ?? null), per100 });
+        hits.push({
+          code: h.code,
+          name: h.product_name,
+          brands: Array.isArray(h.brands) ? h.brands.join(', ') || null : (h.brands ?? null),
+          per100,
+        });
       }
       return hits;
     },
@@ -116,7 +125,10 @@ export function createNutritionService(
     /** One product by barcode. */
     async lookup(code: string): Promise<NutritionHit | null> {
       requireOn();
-      const body = (await getJson(fetchImpl, `${PRODUCT_URL}/${encodeURIComponent(code)}.json?fields=code,product_name,brands,nutriments`)) as {
+      const body = (await getJson(
+        fetchImpl,
+        `${PRODUCT_URL}/${encodeURIComponent(code)}.json?fields=code,product_name,brands,nutriments`,
+      )) as {
         product?: { code?: string; product_name?: string; brands?: string; nutriments?: unknown };
       } | null;
       const p = body?.product;
@@ -137,7 +149,10 @@ export function createNutritionService(
       } else if (per100) {
         value = { per100, source: 'manual' };
       }
-      db.update(products).set({ nutrition: value ? JSON.stringify(value) : null }).where(and(mine, eq(products.id, id))).run();
+      db.update(products)
+        .set({ nutrition: value ? JSON.stringify(value) : null })
+        .where(and(mine, eq(products.id, id)))
+        .run();
       return productService.get(id);
     },
 
@@ -163,8 +178,17 @@ export function createNutritionService(
         }
         const hit = closestHit(product.name, hits);
         if (!hit) continue;
-        const value: ProductNutrition = { per100: hit.per100, source: 'openfoodfacts', code: hit.code, label: [hit.name, hit.brands].filter(Boolean).join(' · '), auto: true };
-        db.update(products).set({ nutrition: JSON.stringify(value) }).where(and(mine, eq(products.id, product.id))).run();
+        const value: ProductNutrition = {
+          per100: hit.per100,
+          source: 'openfoodfacts',
+          code: hit.code,
+          label: [hit.name, hit.brands].filter(Boolean).join(' · '),
+          auto: true,
+        };
+        db.update(products)
+          .set({ nutrition: JSON.stringify(value) })
+          .where(and(mine, eq(products.id, product.id)))
+          .run();
         filled += 1;
       }
       return filled;
@@ -212,7 +236,14 @@ export function createNutritionService(
     plan({ from, to }: z.infer<typeof nutritionPlan>) {
       requireOn();
       const cache = new Map<number, ReturnType<typeof svc.recipe>>();
-      const days = new Map<string, { date: string; meals: { id: number; mealType: string; name: string; perServing: Record<Nutrient, number>; complete: boolean }[]; perPerson: Record<Nutrient, number> }>();
+      const days = new Map<
+        string,
+        {
+          date: string;
+          meals: { id: number; mealType: string; name: string; perServing: Record<Nutrient, number>; complete: boolean }[];
+          perPerson: Record<Nutrient, number>;
+        }
+      >();
       let skipped = 0;
       for (const meal of planner.list({ from, to })) {
         if (!meal.recipeId) {

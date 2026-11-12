@@ -16,7 +16,10 @@ export function createSettingsService(db: Db, hid: number) {
     /** Merges the given fields into the current settings; `plannedMeals` replaces the whole pattern when given. */
     set(patch: HouseholdSettings): HouseholdSettings {
       const next: HouseholdSettings = { ...svc.get(), ...patch };
-      db.update(households).set({ settings: JSON.stringify(next) }).where(eq(households.id, hid)).run();
+      db.update(households)
+        .set({ settings: JSON.stringify(next) })
+        .where(eq(households.id, hid))
+        .run();
       return next;
     },
   };

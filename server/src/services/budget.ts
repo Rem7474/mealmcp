@@ -2,9 +2,9 @@ import { and, asc, desc, eq, gte, lte, sql } from 'drizzle-orm';
 import type { z } from 'zod';
 import type { Db } from '../db/index.js';
 import { expenseItems, expenses, households, products } from '../db/schema.js';
+import { toNetFrame } from '../domain/convert.js';
 import { today } from '../domain/dates.js';
 import { NotFoundError, ValidationError } from '../domain/errors.js';
-import { toNetFrame } from '../domain/convert.js';
 import { costCents, toCents } from '../domain/pricing.js';
 import type { budgetSet, expenseList, expenseRecord, productPrice, recipeAvailability, spendingSummary } from '../domain/schemas.js';
 import { toBase } from '../domain/units.js';
@@ -15,9 +15,17 @@ import type { StockService } from './stock.js';
 
 const monthOf = (isoDate: string) => isoDate.slice(0, 7);
 
-export function createBudgetService(db: Db, hid: number, productService: ProductService, stock: StockService, recipes: RecipeService, planner: PlannerService) {
+export function createBudgetService(
+  db: Db,
+  hid: number,
+  productService: ProductService,
+  stock: StockService,
+  recipes: RecipeService,
+  planner: PlannerService,
+) {
   const mine = eq(expenses.householdId, hid);
-  const inRange = (from?: string, to?: string) => and(mine, from ? gte(expenses.date, from) : undefined, to ? lte(expenses.date, to) : undefined);
+  const inRange = (from?: string, to?: string) =>
+    and(mine, from ? gte(expenses.date, from) : undefined, to ? lte(expenses.date, to) : undefined);
 
   const svc = {
     household() {
@@ -73,7 +81,11 @@ export function createBudgetService(db: Db, hid: number, productService: Product
     },
 
     getExpense(id: number) {
-      const expense = db.select().from(expenses).where(and(mine, eq(expenses.id, id))).get();
+      const expense = db
+        .select()
+        .from(expenses)
+        .where(and(mine, eq(expenses.id, id)))
+        .get();
       if (!expense) throw new NotFoundError('Expense', id);
       const items = db.select().from(expenseItems).where(eq(expenseItems.expenseId, id)).orderBy(asc(expenseItems.id)).all();
       return { ...expense, items };
@@ -97,7 +109,9 @@ export function createBudgetService(db: Db, hid: number, productService: Product
 
     deleteExpense(id: number) {
       svc.getExpense(id);
-      db.delete(expenses).where(and(mine, eq(expenses.id, id))).run();
+      db.delete(expenses)
+        .where(and(mine, eq(expenses.id, id)))
+        .run();
     },
 
     // --- Summaries and budget ---------------------------------------------------
@@ -140,7 +154,17 @@ export function createBudgetService(db: Db, hid: number, productService: Product
           .from(expenses)
           .where(and(where, sql`not exists (select 1 from expense_items ei where ei.expense_id = expenses.id)`))
           .get()?.total ?? 0;
-      return { from, to, currency: svc.household().currency, totalCents: totalRow.total, expenseCount: totalRow.count, byStore, byMonth, byCategory, notItemisedCents };
+      return {
+        from,
+        to,
+        currency: svc.household().currency,
+        totalCents: totalRow.total,
+        expenseCount: totalRow.count,
+        byStore,
+        byMonth,
+        byCategory,
+        notItemisedCents,
+      };
     },
 
     /** Spending this month against the monthly budget, with a straight-line projection to month end. */
@@ -172,7 +196,10 @@ export function createBudgetService(db: Db, hid: number, productService: Product
 
     setBudget({ monthly, currency }: z.infer<typeof budgetSet>) {
       db.update(households)
-        .set({ ...(monthly !== undefined ? { monthlyBudgetCents: monthly === null ? null : toCents(monthly) } : {}), ...(currency ? { currency } : {}) })
+        .set({
+          ...(monthly !== undefined ? { monthlyBudgetCents: monthly === null ? null : toCents(monthly) } : {}),
+          ...(currency ? { currency } : {}),
+        })
         .where(eq(households.id, hid))
         .run();
       return svc.budgetStatus();
@@ -221,7 +248,17 @@ export function createBudgetService(db: Db, hid: number, productService: Product
 
     planCost(range: { from: string; to: string }) {
       const meals = planner.list(range).map((meal) => {
-        if (!meal.recipeId) return { id: meal.id, date: meal.date, name: meal.title ?? '', costCents: null as number | null, unpricedIngredients: [] as string[], canCook: null as boolean | null, missing: [] as string[], missingEquipment: [] as string[] };
+        if (!meal.recipeId)
+          return {
+            id: meal.id,
+            date: meal.date,
+            name: meal.title ?? '',
+            costCents: null as number | null,
+            unpricedIngredients: [] as string[],
+            canCook: null as boolean | null,
+            missing: [] as string[],
+            missingEquipment: [] as string[],
+          };
         const cost = svc.recipeCost({ id: meal.recipeId, servings: meal.servings });
         // Stock status of this meal on its own (other planned meals are not subtracted).
         const availability = recipes.availability({ id: meal.recipeId, servings: meal.servings });

@@ -16,6 +16,8 @@ export function createDb(path: string) {
   sqlite.pragma('foreign_keys = ON');
   const db = drizzle(sqlite, { schema });
   migrate(db, { migrationsFolder });
+  // Lines emptied before stock reads became side-effect free: nothing else removes them.
+  sqlite.prepare('DELETE FROM stock_items WHERE quantity <= 0 AND approximate = 0').run();
   return db;
 }
 

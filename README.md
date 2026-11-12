@@ -48,7 +48,11 @@ UI on http://localhost:5173, backend on http://localhost:3000.
 
 | Command | Effect |
 | --- | --- |
-| `npm test` | service and auth/OAuth tests |
+| `npm test` | server tests (services, auth, OAuth, security, config) and web tests (components, i18n, service worker) |
+| `npm run test:coverage` | same, and fails if coverage falls under the thresholds |
+| `npm run lint` | Biome: lint and formatting (`npm run format` fixes what it can) |
+| `npm run typecheck` | TypeScript on server (tests included) and web |
+| `npm run release -- patch` | bump the version everywhere, commit and tag (push with `git push --follow-tags`) |
 | `npm run build` | build web + server |
 | `npm start` | serve the built app on port 3000 |
 | `npm run db:generate` | generate a migration after changing `server/src/db/schema.ts` |
@@ -57,9 +61,19 @@ To add a UI language, add a file next to `web/src/i18n/fr.ts` (it must define ev
 
 ## CI/CD
 
-- `ci.yml`: on every push and pull request, build (type-checks web + server), tests, then builds the Docker image and smoke-tests the container (access refused without an account, OAuth discovery, account creation).
-- `release.yml`: after the tests, publishes the image to GitHub Container Registry; for a `vX.Y.Z` tag it also creates a GitHub Release. To release: `git tag -a v0.2.0 -m v0.2.0 && git push origin v0.2.0`.
-- Dependabot updates npm dependencies, GitHub Actions and the base image.
+- `_checks.yml` (reusable, shared by CI and releases): Biome lint/format, typecheck, build, tests with coverage thresholds, and `npm audit` on production dependencies.
+- `ci.yml`: those checks on every push and pull request, then builds the Docker image, smoke-tests the container (health check, access refused without an account, OAuth discovery, `no-store` on the API, JSON logs without secrets, clean shutdown on SIGTERM) and scans it with Trivy.
+- `codeql.yml`: CodeQL static analysis on pushes, pull requests and weekly.
+- `release.yml`: after the same checks, publishes the multi-arch image to GitHub Container Registry with an SBOM, build provenance and a cosign signature. For a `vX.Y.Z` tag it first checks that the tag matches the version in the `package.json` files, then creates a GitHub Release. To release: `npm run release -- minor && git push --follow-tags`.
+- Dependabot updates npm dependencies, GitHub Actions and the base image. Actions and the base image are pinned by digest.
+
+Verify a published image:
+
+```bash
+cosign verify ghcr.io/rem7474/mealmcp:0.4.5 \
+  --certificate-identity-regexp '^https://github.com/Rem7474/mealmcp/' \
+  --certificate-oidc-issuer https://token.actions.githubusercontent.com
+```
 
 ## Docker deployment
 
@@ -77,11 +91,16 @@ The image (amd64 and arm64) is published on every push to `main` (tag `main`) an
 
 The SQLite database lives in the `mealmcp-data` volume. If the app is exposed beyond your local network, put it behind an HTTPS reverse proxy and set `PUBLIC_URL` and `TRUST_PROXY` (see `.env.example`).
 
+The configuration is checked at startup: a wrong value (`PORT=abc`, `PUBLIC_URL` without `https://`...) stops the app with every problem listed. Logs go to stdout, one JSON object per line in production (`LOG_FORMAT=json`), with a request id (`X-Request-Id`) and secrets masked; `LOG_LEVEL` is `debug`, `info`, `warn`, `error` or `silent`. The container has a health check on `/health` and stops cleanly on `SIGTERM`.
+
+**Backups**: copy the database while the app runs with `docker compose exec mealmcp node -e "require('better-sqlite3')('/data/mealmcp.db').backup('/data/backup.db').then(()=>console.log('ok'))"` and fetch `/data/backup.db` from the volume.
+
 ## Accounts and households
 
 - A **household** groups recipes, meal plan, shopping list and stock. Every row belongs to a household and the services always filter on it, so two households never see each other's data.
 - The first account creates a household and owns it. The owner then invites others (**Account** tab) with a single-use code valid for 7 days. `ALLOW_REGISTRATION=true` also lets strangers create their own households.
-- Passwords are hashed with scrypt, sessions use `HttpOnly`/`SameSite=Lax` cookies, tokens and codes are stored hashed, and login attempts are rate-limited.
+- Passwords are hashed with scrypt, sessions use `HttpOnly`/`SameSite=Lax` cookies, tokens and codes are stored hashed, and login attempts are rate-limited per IP and per email. Signing up never reveals whether an email is already used.
+- In the **Account** tab you can change your password (other devices are signed out), see the devices signed in and sign any of them out, remove a household member (owner), delete your account (the household too when you are alone in it), and create personal tokens with an optional expiry date.
 - **No password reset by email**: the app does not send mail. If someone forgets their password, delete their user row from the database and have them sign up again.
 
 ## Connecting an AI (MCP)
@@ -96,7 +115,7 @@ Endpoint: `POST /mcp` (Streamable HTTP transport, stateless). It always acts on 
 claude mcp add --transport http mealmcp http://localhost:3000/mcp --header "Authorization: Bearer mmcp_YOUR_TOKEN"
 ```
 
-The same token works on the REST API (`/api`). To try the OAuth flow locally, use the built app (`npm run build && npm start`) rather than `npm run dev`.
+The same token (or an OAuth access token) works on the REST API (`/api`) for everything in the kitchen, but cannot manage the account (password, devices, tokens, invitations, members): that needs the browser session. To try the OAuth flow locally, use the built app (`npm run build && npm start`) rather than `npm run dev`.
 
 Money: amounts you send are decimals in the household currency (`2.49`), amounts you receive are integers in cents (`249`). Writes made through MCP (or the API) are pushed to open dashboards over Server-Sent Events (`GET /api/events`), so there is nothing to refresh.
 

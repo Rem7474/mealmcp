@@ -1,7 +1,18 @@
 import { useQuery } from '@tanstack/react-query';
 import { type FormEvent, useState } from 'react';
 import { api, useAction } from '../api';
-import { addDays, CURRENCIES, currencyLabel, currencySymbol, formatDate, formatMoney, formatMonth, formatQty, monthStart, today } from '../format';
+import {
+  addDays,
+  CURRENCIES,
+  currencyLabel,
+  currencySymbol,
+  formatDate,
+  formatMoney,
+  formatMonth,
+  formatQty,
+  monthStart,
+  today,
+} from '../format';
 import { type MessageKey, useT } from '../i18n';
 import type { BudgetStatus, Expense, ExpenseSummary, Product, SpendingSummary, User } from '../types';
 import { Button, Card, Empty, Input, Select } from '../ui';
@@ -78,8 +89,15 @@ function MonthCard({ currency }: { currency: string }) {
     e.preventDefault();
     const data = new FormData(e.currentTarget);
     const monthly = parseQty(String(data.get('monthly') ?? ''));
-    const code = String(data.get('currency') ?? '').trim().toUpperCase();
-    void run(() => api.put('/budget', { monthly: monthly === undefined || Number.isNaN(monthly) ? null : monthly, currency: /^[A-Z]{3}$/.test(code) ? code : undefined }));
+    const code = String(data.get('currency') ?? '')
+      .trim()
+      .toUpperCase();
+    void run(() =>
+      api.put('/budget', {
+        monthly: monthly === undefined || Number.isNaN(monthly) ? null : monthly,
+        currency: /^[A-Z]{3}$/.test(code) ? code : undefined,
+      }),
+    );
   };
 
   return (
@@ -93,7 +111,11 @@ function MonthCard({ currency }: { currency: string }) {
             tone={over ? 'danger' : undefined}
           />
         )}
-        <Stat label={t('budget.projected')} value={formatMoney(status.projectedCents, currency)} tone={status.budgetCents !== null && status.projectedCents > status.budgetCents ? 'danger' : undefined} />
+        <Stat
+          label={t('budget.projected')}
+          value={formatMoney(status.projectedCents, currency)}
+          tone={status.budgetCents !== null && status.projectedCents > status.budgetCents ? 'danger' : undefined}
+        />
       </div>
       {status.budgetCents !== null ? (
         <div className="mt-3">
@@ -102,44 +124,58 @@ function MonthCard({ currency }: { currency: string }) {
             aria-valuemin={0}
             aria-valuemax={100}
             aria-valuenow={Math.round(pct)}
-            aria-label={t('budget.progress', { spent: formatMoney(status.spentCents, currency), budget: formatMoney(status.budgetCents, currency) })}
+            aria-label={t('budget.progress', {
+              spent: formatMoney(status.spentCents, currency),
+              budget: formatMoney(status.budgetCents, currency),
+            })}
             className="h-2 rounded-full bg-line"
           >
-            <div className={`h-2 rounded-full ${over ? 'bg-danger' : 'bg-accent shadow-[0_0_10px_var(--glow)]'}`} style={{ width: `${pct}%` }} />
+            <div
+              className={`h-2 rounded-full ${over ? 'bg-danger' : 'bg-accent shadow-[0_0_10px_var(--glow)]'}`}
+              style={{ width: `${pct}%` }}
+            />
           </div>
-          <p className="mt-1 text-xs text-muted">{t('budget.progress', { spent: formatMoney(status.spentCents, currency), budget: formatMoney(status.budgetCents, currency) })}</p>
+          <p className="mt-1 text-xs text-muted">
+            {t('budget.progress', { spent: formatMoney(status.spentCents, currency), budget: formatMoney(status.budgetCents, currency) })}
+          </p>
         </div>
       ) : (
         <p className="mt-3 text-sm text-muted">{t('budget.noBudget')}</p>
       )}
       <details className="mt-4 border-t border-line pt-3" open={status.budgetCents === null}>
         <summary className="cursor-pointer text-sm text-muted">{t('budget.edit')}</summary>
-      <form onSubmit={save} className="mt-3 flex flex-wrap items-center gap-2">
-        <Input
-          key={`${status.budgetCents}-${currency}`}
-          name="monthly"
-          inputMode="decimal"
-          defaultValue={status.budgetCents !== null ? status.budgetCents / 100 : ''}
-          placeholder={t('budget.set.label')}
-          aria-label={t('budget.set.label')}
-          className="w-36"
-        />
-        <Select key={currency} name="currency" defaultValue={currency} aria-label={t('budget.set.currency')} className="max-w-full min-w-0">
-          {(CURRENCIES.includes(currency) ? CURRENCIES : [currency, ...CURRENCIES]).map((c) => (
-            <option key={c} value={c}>
-              {currencyLabel(c)}
-            </option>
-          ))}
-        </Select>
-        <Button type="submit" disabled={pending}>
-          {t('budget.set.save')}
-        </Button>
-        {status.budgetCents !== null && (
-          <Button variant="ghost" disabled={pending} onClick={() => run(() => api.put('/budget', { monthly: null }))}>
-            {t('budget.set.clear')}
+        <form onSubmit={save} className="mt-3 flex flex-wrap items-center gap-2">
+          <Input
+            key={`${status.budgetCents}-${currency}`}
+            name="monthly"
+            inputMode="decimal"
+            defaultValue={status.budgetCents !== null ? status.budgetCents / 100 : ''}
+            placeholder={t('budget.set.label')}
+            aria-label={t('budget.set.label')}
+            className="w-36"
+          />
+          <Select
+            key={currency}
+            name="currency"
+            defaultValue={currency}
+            aria-label={t('budget.set.currency')}
+            className="max-w-full min-w-0"
+          >
+            {(CURRENCIES.includes(currency) ? CURRENCIES : [currency, ...CURRENCIES]).map((c) => (
+              <option key={c} value={c}>
+                {currencyLabel(c)}
+              </option>
+            ))}
+          </Select>
+          <Button type="submit" disabled={pending}>
+            {t('budget.set.save')}
           </Button>
-        )}
-      </form>
+          {status.budgetCents !== null && (
+            <Button variant="ghost" disabled={pending} onClick={() => run(() => api.put('/budget', { monthly: null }))}>
+              {t('budget.set.clear')}
+            </Button>
+          )}
+        </form>
       </details>
     </Card>
   );
@@ -155,7 +191,10 @@ function SummaryCard({ currency }: { currency: string }) {
   };
   const [preset, setPreset] = useState<keyof typeof presets>('month');
   const { from, to } = presets[preset];
-  const { data } = useQuery({ queryKey: ['budget', 'summary', from, to], queryFn: () => api.get<SpendingSummary>(`/budget/summary?from=${from}&to=${to}`) });
+  const { data } = useQuery({
+    queryKey: ['budget', 'summary', from, to],
+    queryFn: () => api.get<SpendingSummary>(`/budget/summary?from=${from}&to=${to}`),
+  });
 
   return (
     <Card
@@ -174,12 +213,24 @@ function SummaryCard({ currency }: { currency: string }) {
         <Empty>{t('budget.noData')}</Empty>
       ) : (
         <div className="space-y-4">
-          <p className="font-semibold">{t('budget.summary.total', { total: formatMoney(data.totalCents, currency), n: data.expenseCount })}</p>
+          <p className="font-semibold">
+            {t('budget.summary.total', { total: formatMoney(data.totalCents, currency), n: data.expenseCount })}
+          </p>
           <div className="grid gap-6 md:grid-cols-3">
             <section>
               <h3 className="mb-2 text-sm font-semibold text-muted">{t('budget.byCategory')}</h3>
-              <Bars currency={currency} rows={[
-                  ...data.byCategory.map((c) => ({ label: c.category === null ? t('budget.uncategorised') : AISLES.includes(c.category) ? t(`aisle.${c.category}` as MessageKey) : c.category, cents: c.totalCents })),
+              <Bars
+                currency={currency}
+                rows={[
+                  ...data.byCategory.map((c) => ({
+                    label:
+                      c.category === null
+                        ? t('budget.uncategorised')
+                        : AISLES.includes(c.category)
+                          ? t(`aisle.${c.category}` as MessageKey)
+                          : c.category,
+                    cents: c.totalCents,
+                  })),
                   ...(data.notItemisedCents > 0 ? [{ label: t('budget.notItemised'), cents: data.notItemisedCents }] : []),
                 ]}
               />
@@ -210,7 +261,12 @@ function AddExpense() {
   const submit = async (e: FormEvent) => {
     e.preventDefault();
     await run(() =>
-      api.post('/expenses', { date: form.date, store: form.store.trim() || undefined, total: parseQty(form.total), note: form.note.trim() || undefined }),
+      api.post('/expenses', {
+        date: form.date,
+        store: form.store.trim() || undefined,
+        total: parseQty(form.total),
+        note: form.note.trim() || undefined,
+      }),
     );
     set({ store: '', total: '', note: '' });
   };
@@ -220,9 +276,29 @@ function AddExpense() {
       <summary className="cursor-pointer font-semibold">{t('budget.add.title')}</summary>
       <form onSubmit={submit} className="mt-3 flex flex-wrap gap-2">
         <Input type="date" required aria-label={t('budget.add.date')} value={form.date} onChange={(e) => set({ date: e.target.value })} />
-        <Input placeholder={t('budget.add.store')} aria-label={t('budget.add.store')} value={form.store} onChange={(e) => set({ store: e.target.value })} className="flex-1 basis-36" />
-        <Input required inputMode="decimal" placeholder={t('budget.add.total')} aria-label={t('budget.add.total')} value={form.total} onChange={(e) => set({ total: e.target.value })} className="w-28" />
-        <Input placeholder={t('budget.add.note')} aria-label={t('budget.add.note')} value={form.note} onChange={(e) => set({ note: e.target.value })} className="flex-1 basis-36" />
+        <Input
+          placeholder={t('budget.add.store')}
+          aria-label={t('budget.add.store')}
+          value={form.store}
+          onChange={(e) => set({ store: e.target.value })}
+          className="flex-1 basis-36"
+        />
+        <Input
+          required
+          inputMode="decimal"
+          placeholder={t('budget.add.total')}
+          aria-label={t('budget.add.total')}
+          value={form.total}
+          onChange={(e) => set({ total: e.target.value })}
+          className="w-28"
+        />
+        <Input
+          placeholder={t('budget.add.note')}
+          aria-label={t('budget.add.note')}
+          value={form.note}
+          onChange={(e) => set({ note: e.target.value })}
+          className="flex-1 basis-36"
+        />
         <Button type="submit" variant="primary" disabled={pending}>
           {t('budget.add.submit')}
         </Button>
@@ -261,17 +337,23 @@ function ExpenseRow({ expense, currency }: { expense: ExpenseSummary; currency: 
   const t = useT();
   const { run } = useAction();
   const [open, setOpen] = useState(false);
-  const { data: detail } = useQuery({ queryKey: ['budget', 'expense', expense.id], queryFn: () => api.get<Expense>(`/expenses/${expense.id}`), enabled: open });
+  const { data: detail } = useQuery({
+    queryKey: ['budget', 'expense', expense.id],
+    queryFn: () => api.get<Expense>(`/expenses/${expense.id}`),
+    enabled: open,
+  });
 
   return (
     <li className="py-2">
       <div className="flex items-center gap-2">
-        <button className="min-w-0 flex-1 cursor-pointer text-left" aria-expanded={open} onClick={() => setOpen(!open)}>
+        <button type="button" className="min-w-0 flex-1 cursor-pointer text-left" aria-expanded={open} onClick={() => setOpen(!open)}>
           <div className="font-medium">
             {expense.store ?? t('budget.noStore')} <span className="font-normal text-muted">· {formatDate(expense.date)}</span>
           </div>
           <div className="truncate text-muted">
-            {[expense.itemCount > 0 ? t('budget.expenses.lines', { n: expense.itemCount }) : null, expense.note].filter(Boolean).join(' · ')}
+            {[expense.itemCount > 0 ? t('budget.expenses.lines', { n: expense.itemCount }) : null, expense.note]
+              .filter(Boolean)
+              .join(' · ')}
           </div>
         </button>
         <span className="font-semibold tabular-nums">{formatMoney(expense.totalCents, currency)}</span>
@@ -302,13 +384,16 @@ function ExpenseRow({ expense, currency }: { expense: ExpenseSummary; currency: 
 }
 
 /** Price of 1 kg / 1 l / 1 piece, the units people think in. */
-const displayUnit = (unit: string) => (unit === 'g' ? { unit: 'kg', factor: 1000 } : unit === 'ml' ? { unit: 'l', factor: 1000 } : { unit, factor: 1 });
+const displayUnit = (unit: string) =>
+  unit === 'g' ? { unit: 'kg', factor: 1000 } : unit === 'ml' ? { unit: 'l', factor: 1000 } : { unit, factor: 1 };
 
 function PricesCard({ currency }: { currency: string }) {
   const t = useT();
   const { run } = useAction();
   const { data: products = [] } = useProducts();
-  const priced = products.filter((p): p is Product & { unitPrice: number; priceUnit: string } => p.unitPrice !== null && p.priceUnit !== null);
+  const priced = products.filter(
+    (p): p is Product & { unitPrice: number; priceUnit: string } => p.unitPrice !== null && p.priceUnit !== null,
+  );
 
   const save = (product: Product, shown: { unit: string; factor: number }, value: string) => {
     const price = parseQty(value);

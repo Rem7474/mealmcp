@@ -45,7 +45,9 @@ export interface Drainable {
 const hasRatio = (p: Drainable, unit: string) => unit === 'g' && !!p.drainedRatio && p.drainedRatio > 0;
 
 /** Recipe frame -> stock frame: grams of drained food need more grams on the label (125 g drained = 200 g net). */
-export const toNetFrame = (p: Drainable, quantity: number, unit: string) => (hasRatio(p, unit) ? quantity / (p.drainedRatio as number) : quantity);
+export const toNetFrame = (p: Drainable, quantity: number, unit: string) =>
+  hasRatio(p, unit) ? quantity / (p.drainedRatio as number) : quantity;
 
 /** Stock frame -> recipe frame: 200 g net of beans are 125 g drained. */
-export const toDrainedFrame = (p: Drainable, quantity: number, unit: string) => (hasRatio(p, unit) ? quantity * (p.drainedRatio as number) : quantity);
+export const toDrainedFrame = (p: Drainable, quantity: number, unit: string) =>
+  hasRatio(p, unit) ? quantity * (p.drainedRatio as number) : quantity;

@@ -1,4 +1,4 @@
-import { and, count, desc, eq, gt, isNull, lt } from 'drizzle-orm';
+import { and, count, desc, eq, gt, isNull, like, lt, ne } from 'drizzle-orm';
 import { z } from 'zod';
 import type { Config } from '../config.js';
 import type { Db } from '../db/index.js';
@@ -18,6 +18,24 @@ export const registerInput = z.object({
   inviteCode: z.string().trim().min(1).optional(),
   householdName: z.string().trim().min(1).max(80).optional(),
 });
+
+export const passwordChangeInput = z.object({
+  currentPassword: z.string().min(1).max(200),
+  newPassword: registerInput.shape.password,
+});
+
+export const accountDeleteInput = z.object({ password: z.string().min(1).max(200) });
+
+export const tokenInput = z.object({
+  name: z.string().trim().min(1).max(80),
+  /** Days until the token stops working; omitted or null for a token that never expires. */
+  expiresInDays: z.number().int().min(1).max(3650).nullish(),
+});
+
+/** One message for every way an invite can be unusable, so it does not say which invites exist. */
+const BAD_INVITE = 'This invite code is invalid, expired or already used';
+/** Same wording whether or not the email is taken, so sign-up is not an oracle for existing accounts. */
+const CANNOT_REGISTER = 'This account could not be created. Check your details, or sign in if you already have an account';
 
 export const loginInput = z.object({
   email: z.string().trim().toLowerCase(),
@@ -73,20 +91,22 @@ export function createAccountService(db: Db, config: Config) {
 
     async register(input: z.infer<typeof registerInput>): Promise<CurrentUser> {
       const email = input.email;
-      if (db.select({ id: users.id }).from(users).where(eq(users.email, email)).get())
-        throw new ValidationError('An account with this email already exists');
 
       const invite = input.inviteCode
-        ? db.select().from(invites).where(eq(invites.codeHash, sha256(input.inviteCode))).get()
+        ? db
+            .select()
+            .from(invites)
+            .where(eq(invites.codeHash, sha256(input.inviteCode)))
+            .get()
         : undefined;
-      if (input.inviteCode && (!invite || invite.usedAt || invite.expiresAt < Date.now()))
-        throw new ValidationError('This invite code is invalid or has expired');
-      if (!invite && !svc.registrationOpen())
-        throw new ForbiddenError('Registration is closed: ask a household member for an invite code');
+      if (input.inviteCode && (!invite || invite.usedAt || invite.expiresAt < Date.now())) throw new ValidationError(BAD_INVITE);
+      if (!invite && !svc.registrationOpen()) throw new ForbiddenError('Registration is closed: ask a household member for an invite code');
 
+      // Hash before looking the email up: a taken address costs the same time as a free one.
       const passwordHash = await hashPassword(input.password);
       const now = Date.now();
       const id = db.transaction(() => {
+        if (db.select({ id: users.id }).from(users).where(eq(users.email, email)).get()) throw new ValidationError(CANNOT_REGISTER);
         let householdId: number;
         let role: 'owner' | 'member';
         if (invite) {
@@ -97,7 +117,7 @@ export function createAccountService(db: Db, config: Config) {
             .where(and(eq(invites.id, invite.id), isNull(invites.usedAt)))
             .returning()
             .get();
-          if (!claimed) throw new ValidationError('This invite code was already used');
+          if (!claimed) throw new ValidationError(BAD_INVITE);
           householdId = invite.householdId;
           role = 'member';
         } else {
@@ -108,11 +128,7 @@ export function createAccountService(db: Db, config: Config) {
             .get().id;
           role = 'owner';
         }
-        return db
-          .insert(users)
-          .values({ email, name: input.name, passwordHash, householdId, role, createdAt: now })
-          .returning()
-          .get().id;
+        return db.insert(users).values({ email, name: input.name, passwordHash, householdId, role, createdAt: now }).returning().get().id;
       });
       return svc.getUser(id);
     },
@@ -133,10 +149,18 @@ export function createAccountService(db: Db, config: Config) {
 
     // --- Browser sessions -------------------------------------------------
 
-    createSession(userId: number): string {
+    createSession(userId: number, userAgent?: string): string {
       const token = randomToken();
+      const now = Date.now();
       db.insert(sessions)
-        .values({ tokenHash: sha256(token), userId, expiresAt: Date.now() + SESSION_TTL })
+        .values({
+          tokenHash: sha256(token),
+          userId,
+          expiresAt: now + SESSION_TTL,
+          createdAt: now,
+          lastSeenAt: now,
+          userAgent: userAgent?.slice(0, 200) || null,
+        })
         .run();
       // Housekeeping: drop expired sessions whenever a new one is created.
       db.delete(sessions).where(lt(sessions.expiresAt, Date.now())).run();
@@ -149,11 +173,101 @@ export function createAccountService(db: Db, config: Config) {
         .from(sessions)
         .where(and(eq(sessions.tokenHash, sha256(token)), gt(sessions.expiresAt, Date.now())))
         .get();
-      return session ? svc.getUser(session.userId) : null;
+      if (!session) return null;
+      const now = Date.now();
+      if (now - session.lastSeenAt > 60_000)
+        db.update(sessions).set({ lastSeenAt: now }).where(eq(sessions.tokenHash, session.tokenHash)).run();
+      return svc.getUser(session.userId);
+    },
+
+    /** The signed-in devices of a user. `id` is a public handle (the start of the stored hash), never the cookie. */
+    listSessions(userId: number, currentToken?: string) {
+      const current = currentToken ? sha256(currentToken) : null;
+      return db
+        .select()
+        .from(sessions)
+        .where(and(eq(sessions.userId, userId), gt(sessions.expiresAt, Date.now())))
+        .orderBy(desc(sessions.lastSeenAt))
+        .all()
+        .map((r) => ({
+          id: r.tokenHash.slice(0, 16),
+          createdAt: r.createdAt || null,
+          lastSeenAt: r.lastSeenAt || null,
+          expiresAt: r.expiresAt,
+          userAgent: r.userAgent,
+          current: r.tokenHash === current,
+        }));
+    },
+
+    revokeSession(userId: number, handle: string) {
+      if (!/^[0-9a-f]{16}$/.test(handle)) throw new NotFoundError('Session', handle);
+      const removed = db
+        .delete(sessions)
+        .where(and(eq(sessions.userId, userId), like(sessions.tokenHash, `${handle}%`)))
+        .returning()
+        .all();
+      if (!removed.length) throw new NotFoundError('Session', handle);
+    },
+
+    /** Signs the user out everywhere except on the device that asks. */
+    revokeOtherSessions(userId: number, currentToken: string) {
+      db.delete(sessions)
+        .where(and(eq(sessions.userId, userId), ne(sessions.tokenHash, sha256(currentToken))))
+        .run();
+    },
+
+    // --- Password and account ----------------------------------------------
+
+    /** Changes the password after checking the current one, and signs every other device out. */
+    async changePassword(userId: number, input: z.infer<typeof passwordChangeInput>, currentToken?: string) {
+      const row = db.select().from(users).where(eq(users.id, userId)).get();
+      if (!row) throw new NotFoundError('User', userId);
+      if (!(await verifyPassword(input.currentPassword, row.passwordHash))) throw new UnauthorizedError('Current password is incorrect');
+      const passwordHash = await hashPassword(input.newPassword);
+      db.transaction(() => {
+        db.update(users).set({ passwordHash }).where(eq(users.id, userId)).run();
+        const others = currentToken ? ne(sessions.tokenHash, sha256(currentToken)) : undefined;
+        db.delete(sessions)
+          .where(and(eq(sessions.userId, userId), others))
+          .run();
+      });
+    },
+
+    /**
+     * Deletes the account after checking the password. A member just leaves; the owner of a household
+     * that still has other members must remove them first, and an owner alone takes the household
+     * (and all its kitchen data) with them.
+     */
+    async deleteAccount(user: CurrentUser, password: string) {
+      const row = db.select().from(users).where(eq(users.id, user.id)).get();
+      if (!row || !(await verifyPassword(password, row.passwordHash))) throw new UnauthorizedError('Password is incorrect');
+      db.transaction(() => {
+        if (user.role === 'owner') {
+          if (svc.members(user.householdId).length > 1)
+            throw new ForbiddenError('Remove the other members of the household first, or they would lose their data');
+          db.delete(households).where(eq(households.id, user.householdId)).run();
+        } else {
+          db.delete(users).where(eq(users.id, user.id)).run();
+        }
+      });
+    },
+
+    /** Owner only: takes a member out of the household. Their sessions and tokens go with them. */
+    removeMember(owner: CurrentUser, memberId: number) {
+      if (owner.role !== 'owner') throw new ForbiddenError('Only the household owner can remove members');
+      if (memberId === owner.id) throw new ValidationError('You cannot remove yourself: delete your account instead');
+      const removed = db
+        .delete(users)
+        .where(and(eq(users.id, memberId), eq(users.householdId, owner.householdId)))
+        .returning()
+        .get();
+      if (!removed) throw new NotFoundError('Member', memberId);
     },
 
     destroySession(token: string) {
-      db.delete(sessions).where(eq(sessions.tokenHash, sha256(token))).run();
+      db.delete(sessions)
+        .where(eq(sessions.tokenHash, sha256(token)))
+        .run();
     },
 
     // --- Household --------------------------------------------------------
@@ -179,14 +293,16 @@ export function createAccountService(db: Db, config: Config) {
 
     // --- Bearer tokens (personal tokens and OAuth access tokens) ----------
 
-    createPersonalToken(userId: number, name: string) {
+    createPersonalToken(userId: number, name: string, expiresInDays?: number | null) {
       const token = PAT_PREFIX + randomToken();
+      const now = Date.now();
+      const expiresAt = expiresInDays ? now + expiresInDays * DAY : null;
       const row = db
         .insert(accessTokens)
-        .values({ tokenHash: sha256(token), userId, name, createdAt: Date.now() })
+        .values({ tokenHash: sha256(token), userId, name, createdAt: now, expiresAt })
         .returning()
         .get();
-      return { id: row.id, token };
+      return { id: row.id, token, expiresAt };
     },
 
     /** Everything that can act on behalf of the user: personal tokens and apps authorised through OAuth. */

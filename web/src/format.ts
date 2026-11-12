@@ -1,5 +1,5 @@
-import type { Location, MealType } from './types';
 import { locale } from './i18n';
+import type { Location, MealType } from './types';
 
 export const LOCATIONS: Location[] = ['fridge', 'freezer', 'pantry'];
 export const MEALS: MealType[] = ['breakfast', 'lunch', 'snack', 'dinner'];
@@ -15,8 +15,7 @@ export function formatQty(quantity: number | null, unit: string): string {
   return `${num(quantity)} ${unit}`;
 }
 
-export const toIso = (d: Date) =>
-  `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+export const toIso = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 
 export const fromIso = (iso: string) => {
   const [y, m, d] = iso.split('-').map(Number);
@@ -37,8 +36,7 @@ export function weekStart(iso: string): string {
   return addDays(iso, -((d.getDay() + 6) % 7));
 }
 
-export const formatDay = (iso: string) =>
-  fromIso(iso).toLocaleDateString(locale(), { weekday: 'long', day: 'numeric', month: 'short' });
+export const formatDay = (iso: string) => fromIso(iso).toLocaleDateString(locale(), { weekday: 'long', day: 'numeric', month: 'short' });
 
 export const formatDate = (iso: string) => fromIso(iso).toLocaleDateString(locale(), { day: 'numeric', month: 'short' });
 
@@ -58,7 +56,11 @@ export function formatMoney(cents: number, currency: string): string {
 /** "€" for EUR, "$" for USD, "CHF" where there is no short symbol, following the UI language. */
 export function currencySymbol(currency: string): string {
   try {
-    return new Intl.NumberFormat(locale(), { style: 'currency', currency, currencyDisplay: 'narrowSymbol' }).formatToParts(0).find((p) => p.type === 'currency')?.value ?? currency;
+    return (
+      new Intl.NumberFormat(locale(), { style: 'currency', currency, currencyDisplay: 'narrowSymbol' })
+        .formatToParts(0)
+        .find((p) => p.type === 'currency')?.value ?? currency
+    );
   } catch {
     return currency;
   }
@@ -66,7 +68,45 @@ export function currencySymbol(currency: string): string {
 
 /** Currencies offered in the budget settings (any other ISO 4217 code a household already uses is kept). */
 export const CURRENCIES = [
-  'EUR', 'USD', 'GBP', 'CHF', 'CAD', 'AUD', 'NZD', 'JPY', 'CNY', 'KRW', 'INR', 'SEK', 'NOK', 'DKK', 'PLN', 'CZK', 'HUF', 'RON', 'BGN', 'TRY', 'BRL', 'MXN', 'ARS', 'CLP', 'ZAR', 'MAD', 'TND', 'XOF', 'XAF', 'AED', 'SAR', 'ILS', 'SGD', 'HKD', 'THB', 'IDR', 'MYR', 'PHP', 'VND',
+  'EUR',
+  'USD',
+  'GBP',
+  'CHF',
+  'CAD',
+  'AUD',
+  'NZD',
+  'JPY',
+  'CNY',
+  'KRW',
+  'INR',
+  'SEK',
+  'NOK',
+  'DKK',
+  'PLN',
+  'CZK',
+  'HUF',
+  'RON',
+  'BGN',
+  'TRY',
+  'BRL',
+  'MXN',
+  'ARS',
+  'CLP',
+  'ZAR',
+  'MAD',
+  'TND',
+  'XOF',
+  'XAF',
+  'AED',
+  'SAR',
+  'ILS',
+  'SGD',
+  'HKD',
+  'THB',
+  'IDR',
+  'MYR',
+  'PHP',
+  'VND',
 ];
 
 /** "Euro (€)", "US Dollar ($)": the currency's name in the UI language with its symbol. */
@@ -81,10 +121,9 @@ export function currencyLabel(currency: string): string {
   return `${currency} · ${name ? `${name} ` : ''}${symbol !== currency ? `(${symbol})` : ''}`.trim();
 }
 
-export const isoMonth =(iso: string) => iso.slice(0, 7);
+export const isoMonth = (iso: string) => iso.slice(0, 7);
 export const monthStart = (iso: string) => `${isoMonth(iso)}-01`;
 export const formatMonth = (month: string) => fromIso(`${month}-01`).toLocaleDateString(locale(), { month: 'long', year: 'numeric' });
-
 
 /** Short weekday name for a JavaScript weekday number (0 = Sunday), in the UI language. */
 export const weekdayName = (weekday: number) => new Date(2023, 0, 1 + weekday).toLocaleDateString(locale(), { weekday: 'short' });

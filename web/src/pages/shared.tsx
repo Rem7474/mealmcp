@@ -2,10 +2,10 @@ import { useQuery } from '@tanstack/react-query';
 import type { SelectHTMLAttributes } from 'react';
 import { api } from '../api';
 import { LOCATIONS } from '../format';
-import { fetchMe, meKey } from './AuthPage';
 import { useT } from '../i18n';
 import type { Product } from '../types';
 import { Select } from '../ui';
+import { fetchMe, meKey } from './AuthPage';
 
 export const useProducts = () => useQuery({ queryKey: ['products'], queryFn: () => api.get<Product[]>('/products') });
 
