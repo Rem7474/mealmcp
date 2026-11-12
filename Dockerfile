@@ -20,7 +20,10 @@ COPY --from=build /app/server/package.json server/package.json
 COPY --from=build /app/server/dist server/dist
 COPY --from=build /app/server/drizzle server/drizzle
 COPY --from=build /app/web/dist web/dist
-RUN mkdir /data && chown node:node /data
+# The app only needs `node`. npm and corepack (bundled in the base image) are never used at runtime,
+# and their own dependencies are a recurring source of image scan findings.
+RUN rm -rf /usr/local/lib/node_modules /usr/local/bin/npm /usr/local/bin/npx /usr/local/bin/corepack \
+    && mkdir /data && chown node:node /data
 USER node
 VOLUME /data
 EXPOSE 3000
