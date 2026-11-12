@@ -126,6 +126,14 @@ describe('service worker', () => {
     expect(sw.fetchEvent('/icon.png')).toBeUndefined();
   });
 
+  it('ignores clear requests that do not come from its own origin', async () => {
+    const sw = load();
+    sw.store.set('mealmcp-shell-v2', new Map());
+    sw.listeners.message({ data: 'clear-caches', origin: 'https://evil.test', waitUntil: () => {} });
+    await sw.settle();
+    expect(sw.store.size).toBe(1);
+  });
+
   it('wipes every cache when the page asks on sign-out, and old versions on activate', async () => {
     const sw = load();
     sw.store.set('old', new Map());
@@ -141,6 +149,7 @@ describe('service worker', () => {
 
     sw.listeners.message({
       data: 'clear-caches',
+      origin: 'https://meals.test',
       waitUntil: (p: Promise<unknown>) => {
         pending = p;
       },

@@ -19,6 +19,7 @@ self.addEventListener('activate', (event) => {
 
 // The page asks for this when someone signs out: nothing stays behind.
 self.addEventListener('message', (event) => {
+  if (event.origin !== self.location.origin) return; // only our own pages may ask
   if (event.data === 'clear-caches') event.waitUntil(caches.keys().then((keys) => Promise.all(keys.map((k) => caches.delete(k)))));
 });
 
