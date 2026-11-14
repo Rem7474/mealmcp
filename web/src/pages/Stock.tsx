@@ -5,7 +5,7 @@ import { api, useAction } from '../api';
 import { daysUntil, formatDate, formatMoney, formatQty, LOCATIONS } from '../format';
 import { useT } from '../i18n';
 import type { Product, StockAlerts, StockItem, WasteSummary } from '../types';
-import { Badge, Button, Card, Empty, Input } from '../ui';
+import { Accordion, Badge, Button, Card, Empty, Input } from '../ui';
 import { ProductNutritionCard } from './Nutrition';
 import { LocationSelect, ProductDatalist, parseQty, useCurrency, useProducts } from './shared';
 
@@ -126,8 +126,7 @@ function AddForm() {
   };
 
   return (
-    <details className="rounded-xl border border-line bg-surface p-4">
-      <summary className="cursor-pointer font-semibold">{t('stock.add.title')}</summary>
+    <Accordion summary={t('stock.add.title')}>
       <form onSubmit={submit} className="mt-3 flex flex-wrap gap-2">
         <Input
           required
@@ -188,7 +187,7 @@ function AddForm() {
           {t('common.add')}
         </Button>
       </form>
-    </details>
+    </Accordion>
   );
 }
 
@@ -392,8 +391,7 @@ function Thresholds({ products }: { products: Product[] }) {
   };
 
   return (
-    <details className="rounded-xl border border-line bg-surface p-4">
-      <summary className="cursor-pointer font-semibold">{t('stock.settings.title')}</summary>
+    <Accordion summary={t('stock.settings.title')}>
       <p className="mt-2 text-sm text-muted">{t('stock.settings.help')}</p>
       <ul className="mt-3 divide-y divide-line text-sm">
         {products.map((p) => (
@@ -452,6 +450,6 @@ function Thresholds({ products }: { products: Product[] }) {
           </li>
         ))}
       </ul>
-    </details>
+    </Accordion>
   );
 }

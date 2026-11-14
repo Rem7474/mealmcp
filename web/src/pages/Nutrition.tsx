@@ -3,7 +3,7 @@ import { type FormEvent, useEffect, useState } from 'react';
 import { api, useAction } from '../api';
 import { type MessageKey, useT } from '../i18n';
 import type { HouseholdSettings, NutrientValues, NutritionHit, Product, RecipeNutritionInfo } from '../types';
-import { Badge, Button, Input } from '../ui';
+import { Accordion, Badge, Button, Input } from '../ui';
 import { parseQty, useProducts } from './shared';
 
 /** The nutrition module is optional (household setting): nothing here shows or calls out until it is on. */
@@ -96,8 +96,7 @@ export function ProductNutritionCard() {
   const [open, setOpen] = useState<number | null>(null);
   if (!on || !products.data || products.data.length === 0) return null;
   return (
-    <details className="rounded-xl border border-line bg-surface p-4">
-      <summary className="cursor-pointer font-semibold">{t('nutrition.products.title')}</summary>
+    <Accordion summary={t('nutrition.products.title')}>
       <p className="mt-2 text-sm text-muted">{t('nutrition.products.help')}</p>
       <ul className="mt-3 max-h-[28rem] divide-y divide-line overflow-y-auto overscroll-contain text-sm">
         {products.data.map((p) => (
@@ -125,7 +124,7 @@ export function ProductNutritionCard() {
         ))}
       </ul>
       <p className="mt-3 text-xs text-muted">{t('nutrition.credit')}</p>
-    </details>
+    </Accordion>
   );
 }
 

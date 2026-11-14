@@ -15,7 +15,7 @@ import {
 } from '../format';
 import { type MessageKey, useT } from '../i18n';
 import type { BudgetStatus, Expense, ExpenseSummary, Product, SpendingSummary, User } from '../types';
-import { Button, Card, Empty, Input, Select } from '../ui';
+import { Accordion, Button, Card, Empty, Input, Select } from '../ui';
 import { parseQty, useProducts } from './shared';
 
 const AISLES = ['produce', 'dairy', 'meat_fish', 'bakery', 'pantry', 'frozen', 'drinks', 'household', 'other'];
@@ -209,7 +209,7 @@ function SummaryCard({ currency }: { currency: string }) {
         </div>
       }
     >
-      {!data || data.expenseCount === 0 ? (
+      {!data ? null : data.expenseCount === 0 ? (
         <Empty>{t('budget.noData')}</Empty>
       ) : (
         <div className="space-y-4">
@@ -272,8 +272,7 @@ function AddExpense() {
   };
 
   return (
-    <details className="rounded-xl border border-line bg-surface p-4">
-      <summary className="cursor-pointer font-semibold">{t('budget.add.title')}</summary>
+    <Accordion summary={t('budget.add.title')}>
       <form onSubmit={submit} className="mt-3 flex flex-wrap gap-2">
         <Input type="date" required aria-label={t('budget.add.date')} value={form.date} onChange={(e) => set({ date: e.target.value })} />
         <Input
@@ -303,7 +302,7 @@ function AddExpense() {
           {t('budget.add.submit')}
         </Button>
       </form>
-    </details>
+    </Accordion>
   );
 }
 
@@ -404,8 +403,7 @@ function PricesCard({ currency }: { currency: string }) {
   };
 
   return (
-    <details className="rounded-xl border border-line bg-surface p-4">
-      <summary className="cursor-pointer font-semibold">{t('budget.prices.title')}</summary>
+    <Accordion summary={t('budget.prices.title')}>
       <p className="mt-2 text-sm text-muted">{t('budget.prices.help')}</p>
       {priced.length === 0 ? (
         <Empty>{t('budget.prices.empty')}</Empty>
@@ -433,6 +431,6 @@ function PricesCard({ currency }: { currency: string }) {
           })}
         </ul>
       )}
-    </details>
+    </Accordion>
   );
 }

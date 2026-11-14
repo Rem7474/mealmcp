@@ -2,7 +2,7 @@ import { Star } from '@phosphor-icons/react';
 import type { ButtonHTMLAttributes, InputHTMLAttributes, ReactNode, SelectHTMLAttributes } from 'react';
 
 const field =
-  'h-9 min-w-0 rounded-lg border border-line bg-surface px-3 text-sm text-ink placeholder:text-muted hover:border-muted focus:border-accent focus-visible:outline-2 disabled:opacity-45';
+  'h-9 min-w-0 rounded-lg border border-control bg-surface px-3 text-sm text-ink placeholder:text-muted hover:border-muted focus:border-accent focus-visible:outline-2 disabled:opacity-45';
 
 export function Input({ className = '', ...props }: InputHTMLAttributes<HTMLInputElement>) {
   return <input className={`${field} ${className}`} {...props} />;
@@ -16,7 +16,7 @@ type Variant = 'primary' | 'secondary' | 'ghost' | 'danger';
 // Outlined, never filled: the accent shows as a line and a tint on hover.
 const variants: Record<Variant, string> = {
   primary: 'border border-accent text-ink hover:bg-accent/15 active:bg-accent/25',
-  secondary: 'border border-line text-ink hover:border-muted hover:bg-ink/5 active:bg-ink/10',
+  secondary: 'border border-control text-ink hover:border-muted hover:bg-ink/5 active:bg-ink/10',
   ghost: 'text-muted hover:bg-ink/5 hover:text-ink',
   danger: 'border border-transparent text-danger hover:bg-danger/10',
 };
@@ -46,6 +46,16 @@ export function Card({ title, actions, children }: { title?: ReactNode; actions?
       )}
       {children}
     </section>
+  );
+}
+
+/** A card whose body folds away behind its title: the one pattern for optional forms and settings. */
+export function Accordion({ summary, children }: { summary: ReactNode; children: ReactNode }) {
+  return (
+    <details className="rounded-xl bg-surface p-4 shadow-[0_0_0_1px_var(--line)]">
+      <summary className="cursor-pointer py-0.5 font-medium">{summary}</summary>
+      {children}
+    </details>
   );
 }
 

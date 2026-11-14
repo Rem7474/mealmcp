@@ -13,12 +13,12 @@ import {
   X,
 } from '@phosphor-icons/react';
 import { useQuery } from '@tanstack/react-query';
-import { type FormEvent, useState } from 'react';
+import { type FormEvent, useEffect, useRef, useState } from 'react';
 import { api, useAction } from '../api';
 import { addDays, formatDate, formatDay, formatMoney, fromIso, MEALS, monthStart, today, weekStart } from '../format';
 import { locale, useT } from '../i18n';
 import type { BudgetStatus, HouseholdSettings, MealType, PlanCost, PlannedMeal, PlanSlot, RecipeSummary, Suggestions } from '../types';
-import { Button, Card, Input, Select } from '../ui';
+import { Accordion, Button, Card, Input, Select } from '../ui';
 import { useCurrency } from './shared';
 
 type Composer = { date: string; mealType: MealType } | null;
@@ -48,6 +48,8 @@ export function Planning() {
   // The add-a-meal form opens from the toolbar, or from the "+" of an empty cell with that cell preselected.
   const [composer, setComposer] = useState<Composer>(null);
 
+  const toggleComposer = () => setComposer(composer ? null : { date: days.includes(today()) ? today() : start, mealType: 'dinner' });
+
   const generate = async () => {
     await run(() => api.post('/shopping/generate', { from: start, to: end }));
     setGenerated(true);
@@ -75,7 +77,7 @@ export function Planning() {
         <span className="order-1 h-0 basis-full lg:hidden" />
         {cost && cost.totalCents > 0 && (
           <div className="order-1 min-w-0 flex-1 lg:order-none lg:mr-2 lg:flex-none lg:text-right">
-            <div className="text-[11px] tracking-wider text-muted uppercase">{t('plan.weekEstimate')}</div>
+            <div className="text-xs tracking-wider text-muted uppercase">{t('plan.weekEstimate')}</div>
             <div className="text-base tabular-nums">
               {formatMoney(cost.totalCents, currency)}
               {cost.incompleteMeals > 0 && (
@@ -85,13 +87,9 @@ export function Planning() {
           </div>
         )}
         {generated && <span className="order-1 text-sm text-accent lg:order-none">{t('plan.listUpdated')}</span>}
-        <Button
-          aria-label={t('plan.add.title')}
-          className="w-9 px-0 sm:w-auto sm:px-3"
-          onClick={() => setComposer(composer ? null : { date: days.includes(today()) ? today() : start, mealType: 'dinner' })}
-        >
+        <Button className="max-sm:hidden" onClick={toggleComposer}>
           <Plus size={16} />
-          <span className="hidden sm:inline">{t('plan.add.title')}</span>
+          {t('plan.add.title')}
         </Button>
         <Button variant="primary" className="order-1 lg:order-none" disabled={pending} onClick={generate}>
           <ShoppingCart size={16} />
@@ -113,29 +111,35 @@ export function Planning() {
               key={day}
               className={`rounded-xl bg-surface p-3 ${day === today() ? 'shadow-[0_0_0_1px_var(--accent)]' : 'shadow-[0_0_0_1px_var(--line)]'}`}
             >
-              <h2 className="mb-2 text-sm font-medium first-letter:uppercase">{formatDay(day)}</h2>
               {dayMeals.length === 0 && daySlots.length === 0 ? (
-                <p className="text-sm text-muted">{t('plan.nothing')}</p>
+                // An empty day takes one line: six of them should not push the week's meals off the screen.
+                <div className="flex items-baseline justify-between gap-3 text-sm">
+                  <h2 className="font-medium first-letter:uppercase">{formatDay(day)}</h2>
+                  <p className="text-muted">{t('plan.nothing')}</p>
+                </div>
               ) : (
-                <ul className="space-y-3">
-                  {dayMeals.map((meal) => (
-                    <li key={meal.id}>
-                      <div className="mb-0.5 text-xs text-muted">{t(`meal.${meal.mealType}`)}</div>
-                      <MealCard meal={meal} insight={insights.get(meal.id)} />
-                    </li>
-                  ))}
-                  {daySlots.map((slot) => (
-                    <li key={slot.mealType}>
-                      <button
-                        type="button"
-                        onClick={() => setComposer({ date: day, mealType: slot.mealType })}
-                        className="w-full cursor-pointer rounded-lg border border-dashed border-line px-2 py-1.5 text-left text-sm text-muted hover:border-accent hover:text-accent"
-                      >
-                        {t('plan.slot', { meal: t(`meal.${slot.mealType}`) })}
-                      </button>
-                    </li>
-                  ))}
-                </ul>
+                <>
+                  <h2 className="mb-2 text-sm font-medium first-letter:uppercase">{formatDay(day)}</h2>
+                  <ul className="space-y-3">
+                    {dayMeals.map((meal) => (
+                      <li key={meal.id}>
+                        <div className="mb-0.5 text-xs text-muted">{t(`meal.${meal.mealType}`)}</div>
+                        <MealCard meal={meal} insight={insights.get(meal.id)} />
+                      </li>
+                    ))}
+                    {daySlots.map((slot) => (
+                      <li key={slot.mealType}>
+                        <button
+                          type="button"
+                          onClick={() => setComposer({ date: day, mealType: slot.mealType })}
+                          className="min-h-11 w-full cursor-pointer rounded-lg border border-dashed border-control px-2 py-1.5 text-left text-sm text-muted hover:border-accent hover:text-accent"
+                        >
+                          {t('plan.slot', { meal: t(`meal.${slot.mealType}`) })}
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                </>
               )}
             </section>
           );
@@ -143,6 +147,17 @@ export function Planning() {
       </div>
 
       <BudgetStrip />
+
+      {/* Phones: the main action floats within thumb reach, above the tab bar. */}
+      <button
+        type="button"
+        aria-label={t('plan.add.title')}
+        title={t('plan.add.title')}
+        onClick={toggleComposer}
+        className="fixed right-4 bottom-[calc(4.75rem+env(safe-area-inset-bottom))] z-10 grid size-14 cursor-pointer place-items-center rounded-full border border-accent bg-surface text-accent-soft shadow-[0_4px_16px_rgba(0,0,0,0.5),0_0_14px_var(--glow)] active:bg-accent/25 sm:hidden"
+      >
+        {composer ? <X size={24} /> : <Plus size={24} />}
+      </button>
     </>
   );
 }
@@ -250,7 +265,7 @@ function WeekMatrix({
                     onClick={() => onAdd(day, mealType)}
                     aria-label={t('plan.slot', { meal: t(`meal.${mealType}`) })}
                     title={t('plan.slot', { meal: t(`meal.${mealType}`) })}
-                    className={`grid flex-1 cursor-pointer place-items-center rounded-lg border border-dashed text-line hover:border-accent hover:text-accent ${expected ? 'border-muted text-muted' : 'border-line'}`}
+                    className={`grid flex-1 cursor-pointer place-items-center rounded-lg border border-dashed text-muted hover:border-accent hover:text-accent ${expected ? 'border-muted' : 'border-control'}`}
                   >
                     <Plus size={16} />
                   </button>
@@ -307,21 +322,7 @@ function MealCard({ meal, insight }: { meal: PlannedMeal; insight?: MealInsight 
     </div>
   );
 
-  // A free-text meal ("Leftovers", "Restaurant") has no recipe, cost or stock status: one line is enough.
-  if (!meal.recipeId)
-    return (
-      <div className="flex items-center gap-2 text-sm">
-        <span className={`min-w-0 flex-1 truncate text-[13px] font-medium ${meal.cooked ? 'text-muted line-through' : ''}`}>
-          {meal.title}
-        </span>
-        <span className="inline-flex items-center gap-1 text-[11px] text-muted tabular-nums">
-          <Users size={12} />
-          {meal.servings}
-        </span>
-        {actions}
-      </div>
-    );
-
+  // A free-text meal ("Leftovers", "Restaurant") has no recipe, cost or stock status, but its title wraps like any other.
   return (
     <div className="flex h-full flex-col gap-1 text-sm">
       <div className={`text-[13px] leading-tight font-medium text-pretty ${meal.cooked ? 'text-muted line-through' : ''}`}>
@@ -334,26 +335,26 @@ function MealCard({ meal, insight }: { meal: PlannedMeal; insight?: MealInsight 
         )}
       </div>
       {meal.cooked ? (
-        <div className="flex items-center gap-1 text-[11px] text-muted">
+        <div className="flex items-center gap-1 text-xs text-muted">
           <CheckCircle size={13} />
           {t('plan.cooked')}
         </div>
       ) : (
         <>
           {insight?.canCook === false && (
-            <div className="flex items-center gap-1 text-[11px] text-warn" title={insight.missing.join(', ')}>
+            <div className="flex items-center gap-1 text-xs text-warn" title={insight.missing.join(', ')}>
               <WarningCircle size={13} />
               {t('plan.missing', { n: missing })}
             </div>
           )}
           {insight?.canCook === true && missingEquipment.length === 0 && (
-            <div className="flex items-center gap-1 text-[11px] text-accent-soft">
+            <div className="flex items-center gap-1 text-xs text-accent-soft">
               <Check size={13} />
               {t('plan.inStock')}
             </div>
           )}
           {missingEquipment.length > 0 && (
-            <div className="flex items-center gap-1 text-[11px] text-warn">
+            <div className="flex items-center gap-1 text-xs text-warn">
               <WarningCircle size={13} />
               {t('recipes.equipment.missing', { names: missingEquipment.join(', ') })}
             </div>
@@ -361,7 +362,7 @@ function MealCard({ meal, insight }: { meal: PlannedMeal; insight?: MealInsight 
         </>
       )}
       <div className="mt-auto flex items-center justify-between gap-2">
-        <div className="flex gap-2.5 text-[11px] text-muted tabular-nums">
+        <div className="flex gap-2.5 text-xs text-muted tabular-nums">
           <span className="inline-flex items-center gap-1">
             <Users size={12} />
             {meal.servings}
@@ -398,62 +399,68 @@ function AddMeal({ preset, onClose }: { preset: { date: string; mealType: MealTy
     onClose();
   };
 
+  // On a phone the form opens at the top while the user is scrolled down: bring it into view.
+  const top = useRef<HTMLDivElement>(null);
+  useEffect(() => top.current?.scrollIntoView?.({ block: 'start', behavior: 'smooth' }), []);
+
   return (
-    <Card
-      title={t('plan.add.title')}
-      actions={
-        <Button variant="ghost" className="w-9 px-0" aria-label={t('app.close')} onClick={onClose}>
-          <X size={16} />
-        </Button>
-      }
-    >
-      <form onSubmit={submit} className="flex flex-wrap gap-2">
-        <Input type="date" required aria-label={t('plan.add.date')} value={form.date} onChange={(e) => set({ date: e.target.value })} />
-        <Select aria-label={t('plan.add.meal')} value={form.mealType} onChange={(e) => set({ mealType: e.target.value as MealType })}>
-          {MEALS.map((value) => (
-            <option key={value} value={value}>
-              {t(`meal.${value}`)}
-            </option>
-          ))}
-        </Select>
-        <Select
-          aria-label={t('plan.add.recipe')}
-          value={form.recipeId}
-          onChange={(e) => set({ recipeId: e.target.value })}
-          className="flex-1 basis-40"
-        >
-          <option value="">{t('plan.add.freeText')}</option>
-          {recipes.map((r) => (
-            <option key={r.id} value={r.id}>
-              {r.name}
-            </option>
-          ))}
-        </Select>
-        {!form.recipeId && (
-          <Input
-            required
-            autoFocus
-            placeholder={t('plan.add.titlePlaceholder')}
-            aria-label={t('plan.add.titleAria')}
-            value={form.title}
-            onChange={(e) => set({ title: e.target.value })}
+    <div ref={top} className="scroll-mt-16">
+      <Card
+        title={t('plan.add.title')}
+        actions={
+          <Button variant="ghost" className="w-9 px-0" aria-label={t('app.close')} onClick={onClose}>
+            <X size={16} />
+          </Button>
+        }
+      >
+        <form onSubmit={submit} className="flex flex-wrap gap-2">
+          <Input type="date" required aria-label={t('plan.add.date')} value={form.date} onChange={(e) => set({ date: e.target.value })} />
+          <Select aria-label={t('plan.add.meal')} value={form.mealType} onChange={(e) => set({ mealType: e.target.value as MealType })}>
+            {MEALS.map((value) => (
+              <option key={value} value={value}>
+                {t(`meal.${value}`)}
+              </option>
+            ))}
+          </Select>
+          <Select
+            aria-label={t('plan.add.recipe')}
+            value={form.recipeId}
+            onChange={(e) => set({ recipeId: e.target.value })}
             className="flex-1 basis-40"
+          >
+            <option value="">{t('plan.add.freeText')}</option>
+            {recipes.map((r) => (
+              <option key={r.id} value={r.id}>
+                {r.name}
+              </option>
+            ))}
+          </Select>
+          {!form.recipeId && (
+            <Input
+              required
+              autoFocus
+              placeholder={t('plan.add.titlePlaceholder')}
+              aria-label={t('plan.add.titleAria')}
+              value={form.title}
+              onChange={(e) => set({ title: e.target.value })}
+              className="flex-1 basis-40"
+            />
+          )}
+          <Input
+            type="number"
+            min={1}
+            placeholder={t('plan.add.servings')}
+            aria-label={t('plan.add.servingsAria')}
+            value={form.servings}
+            onChange={(e) => set({ servings: e.target.value })}
+            className="w-24"
           />
-        )}
-        <Input
-          type="number"
-          min={1}
-          placeholder={t('plan.add.servings')}
-          aria-label={t('plan.add.servingsAria')}
-          value={form.servings}
-          onChange={(e) => set({ servings: e.target.value })}
-          className="w-24"
-        />
-        <Button type="submit" variant="primary" disabled={pending}>
-          {t('plan.add.submit')}
-        </Button>
-      </form>
-    </Card>
+          <Button type="submit" variant="primary" disabled={pending}>
+            {t('plan.add.submit')}
+          </Button>
+        </form>
+      </Card>
+    </div>
   );
 }
 
@@ -467,11 +474,14 @@ function UseItUp() {
   if (!data || data.expiring.length === 0) return null;
 
   return (
-    <details className="rounded-xl bg-surface p-4 shadow-[0_0_0_1px_var(--line)]">
-      <summary className="cursor-pointer font-medium">
-        <ArrowsClockwise size={14} className="mr-1.5 inline text-accent" />
-        {t('plan.useUp.title')} <span className="font-normal text-muted">({data.expiring.map((e) => e.name).join(', ')})</span>
-      </summary>
+    <Accordion
+      summary={
+        <>
+          <ArrowsClockwise size={14} className="mr-1.5 inline text-accent" />
+          {t('plan.useUp.title')} <span className="font-normal text-muted">({data.expiring.map((e) => e.name).join(', ')})</span>
+        </>
+      }
+    >
       {data.suggestions.length === 0 ? (
         <p className="mt-2 text-sm text-muted">{t('plan.useUp.none')}</p>
       ) : (
@@ -490,6 +500,6 @@ function UseItUp() {
           ))}
         </ul>
       )}
-    </details>
+    </Accordion>
   );
 }

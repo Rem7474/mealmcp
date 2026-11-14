@@ -5,7 +5,7 @@ import { api, useAction } from '../api';
 import { formatDate, formatMoney, formatQty } from '../format';
 import { locale, type MessageKey, useI18n, useT } from '../i18n';
 import type { Availability, Produce, Recipe, RecipeCost, RecipeSummary, Seasonal } from '../types';
-import { Badge, Button, Card, Empty, Input, Select, Stars } from '../ui';
+import { Accordion, Badge, Button, Card, Empty, Input, Select, Stars } from '../ui';
 import { RecipeNutrition } from './Nutrition';
 import { ProductDatalist, parseQty, useCurrency } from './shared';
 
@@ -42,6 +42,9 @@ export function Recipes() {
   if (view.mode === 'edit')
     return <RecipeForm recipe={view.recipe} onDone={(id) => setView(id ? { mode: 'detail', id } : { mode: 'list' })} />;
   const selected = view.mode === 'detail' ? view.id : null;
+  // Wide screens never show an empty detail pane: the first recipe of the list is previewed until one is chosen.
+  const wide = typeof window !== 'undefined' && typeof window.matchMedia === 'function' && window.matchMedia('(min-width: 1024px)').matches;
+  const shown = selected ?? (wide ? (recipes[0]?.id ?? null) : null);
 
   const list = (
     <div className="min-w-0 space-y-3">
@@ -101,7 +104,7 @@ export function Recipes() {
               <button
                 type="button"
                 onClick={() => setView({ mode: 'detail', id: r.id })}
-                className={`h-full w-full cursor-pointer rounded-xl bg-surface p-3.5 text-left hover:shadow-[0_0_0_1px_var(--muted)] ${selected === r.id ? 'shadow-[0_0_0_1px_var(--accent)]' : 'shadow-[0_0_0_1px_var(--line)]'}`}
+                className={`h-full w-full cursor-pointer rounded-xl bg-surface p-3.5 text-left hover:shadow-[0_0_0_1px_var(--muted)] ${shown === r.id ? 'shadow-[0_0_0_1px_var(--accent)]' : 'shadow-[0_0_0_1px_var(--line)]'}`}
               >
                 <div className="flex items-center gap-2">
                   <span className="line-clamp-2 min-w-0 flex-1 font-medium">{r.name}</span>
@@ -137,12 +140,12 @@ export function Recipes() {
     <div className="grid grid-cols-[minmax(0,1fr)] gap-5 lg:grid-cols-[22rem_minmax(0,1fr)]">
       <div className={selected === null ? '' : 'hidden lg:block'}>{list}</div>
       <div className={selected === null ? 'hidden lg:block' : ''}>
-        {selected === null ? (
+        {shown === null ? (
           <Empty>{t('recipes.pick')}</Empty>
         ) : (
           <RecipeDetail
-            key={selected}
-            id={selected}
+            key={shown}
+            id={shown}
             onBack={() => setView({ mode: 'list' })}
             onEdit={(recipe) => setView({ mode: 'edit', recipe })}
           />
@@ -161,8 +164,7 @@ function SeasonCard() {
   const name = (p: Produce) => p[lang];
   const monthName = (m: number) => new Intl.DateTimeFormat(locale(), { month: 'long' }).format(new Date(2024, m - 1, 1));
   return (
-    <details className="rounded-xl bg-surface p-3.5 shadow-[0_0_0_1px_var(--line)]">
-      <summary className="cursor-pointer text-sm font-semibold">{t('season.title')}</summary>
+    <Accordion summary={t('season.title')}>
       <div className="mt-3 space-y-3 text-sm">
         <label className="flex flex-wrap items-center gap-2 text-muted">
           {t('season.help', { month: monthName(month) })}
@@ -197,7 +199,7 @@ function SeasonCard() {
           <p className="text-muted">{t('season.next', { list: data.startingNextMonth.map(name).join(', ') })}</p>
         )}
       </div>
-    </details>
+    </Accordion>
   );
 }
 
