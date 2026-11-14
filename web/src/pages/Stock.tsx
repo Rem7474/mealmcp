@@ -56,7 +56,7 @@ export function Stock() {
         </Card>
       )}
       <AddForm />
-      <div className="grid gap-4 md:grid-cols-3">
+      <div className="grid gap-4 lg:grid-cols-3">
         {LOCATIONS.map((location) => {
           const here = items.filter((i) => i.location === location);
           return (
@@ -232,8 +232,9 @@ function StockRow({ item }: { item: StockItem }) {
   });
 
   return (
-    <li className="flex items-center gap-x-2 py-2 text-sm">
-      <div className="min-w-0 flex-1">
+    <li className="flex flex-wrap items-center gap-x-2 gap-y-1 py-2 text-sm">
+      {/* min-w keeps the name readable in a narrow column: the controls wrap to the next line instead of squeezing it. */}
+      <div className="min-w-32 flex-1">
         <div className="font-medium wrap-break-word">{item.name}</div>
         {item.opened && item.openedOn && (
           <div className="text-xs text-accent">{t('stock.openedBadge', { date: formatDate(item.openedOn) })}</div>
