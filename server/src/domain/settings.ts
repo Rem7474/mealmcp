@@ -58,6 +58,13 @@ export const householdSettings = z.object({
     .enum(['none', 'aisle', 'meal'])
     .optional()
     .describe('How the shopping list is organised in the web UI: one flat list, by store aisle, or by the meal each item is for.'),
+  ai: z
+    .object({
+      model: z.string().trim().min(1).max(200).optional(),
+      visionModel: z.string().trim().min(1).max(200).optional(),
+    })
+    .optional()
+    .describe('Models of the local AI server this household uses. Chosen by the household owner in the web UI, not settable here.'),
 });
 
 export type HouseholdSettings = z.infer<typeof householdSettings>;

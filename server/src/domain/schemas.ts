@@ -399,7 +399,8 @@ export const aliasAdd = z.object({
 
 export const aliasRemove = z.object({ alias: productName });
 
-export const settingsSet = householdSettings;
+/** What an API or MCP caller may change: the AI model is the owner's choice, made through its own route. */
+export const settingsSet = householdSettings.omit({ ai: true });
 
 export const planSlots = z.object({
   from: isoDate.describe('First day, inclusive'),

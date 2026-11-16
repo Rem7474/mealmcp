@@ -19,6 +19,7 @@ import {
   type User,
 } from '../types';
 import { Badge, Button, Card, Empty, Fold, Input, Select } from '../ui';
+import { AiCard } from './AiCard';
 import { resetSession } from './AuthPage';
 import { DeleteAccountCard, DevicesCard, PasswordCard } from './Security';
 import { useProducts } from './shared';
@@ -65,6 +66,7 @@ export function Account({ user }: { user: User }) {
           </Fold>
         </div>
         <div className="min-w-0 space-y-4">
+          <AiCard user={user} />
           <Fold title={t('tokens.title')}>
             <TokensCard />
           </Fold>
