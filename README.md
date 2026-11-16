@@ -95,6 +95,15 @@ The configuration is checked at startup: a wrong value (`PORT=abc`, `PUBLIC_URL`
 
 **Backups**: copy the database while the app runs with `docker compose exec mealmcp node -e "require('better-sqlite3')('/data/mealmcp.db').backup('/data/backup.db').then(()=>console.log('ok'))"` and fetch `/data/backup.db` from the volume.
 
+## Optional local AI
+
+MealMCP works fully without AI. If you run a model server on your own machines (Ollama, LM Studio, llama.cpp: anything that speaks the OpenAI API), set `LLM_BASE_URL` (for example `http://localhost:11434/v1`) and the app can use it for guided flows. The model only **proposes**: a person reviews and validates before anything is written, and it never calls tools or fetches anything. Everything stays between this app and your model server.
+
+- `LLM_BASE_URL` empty means the AI features are off. It is set by whoever deploys the server and cannot be changed from the app. Inside Docker, `localhost` is the container: use `http://host.docker.internal:11434/v1` for a server on the host.
+- `LLM_API_KEY` (optional) is sent as a bearer token and never reaches the browser or the logs. `LLM_MODEL` and `LLM_VISION_MODEL` are defaults; the household owner picks the models in **Account > AI assistant**, from the list the server reports.
+- `LLM_VISION` is `auto` (use what the server reports for a model: Ollama, LM Studio and llama.cpp are recognised, anything else is `unknown`), `true` or `false`. `LLM_TIMEOUT_MS` and `LLM_MAX_CONCURRENT` bound the load: one request at a time per household, `LLM_MAX_CONCURRENT` in all.
+- A **Test** button in the same screen checks that the server answers, the model exists, it returns valid JSON and, when it reads images, accepts one.
+
 ## Accounts and households
 
 - A **household** groups recipes, meal plan, shopping list and stock. Every row belongs to a household and the services always filter on it, so two households never see each other's data.

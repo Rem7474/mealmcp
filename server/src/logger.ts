@@ -16,7 +16,7 @@ export interface Logger {
 }
 
 /** Keys whose values must never reach the logs, whatever calls the logger. */
-const SECRET = /pass(word)?|token|secret|authorization|cookie|code(_verifier)?$|client_secret/i;
+const SECRET = /pass(word)?|api_?key|token|secret|authorization|cookie|code(_verifier)?$|client_secret/i;
 
 /** Errors become plain objects, secrets are masked, and long strings are cut. */
 function clean(value: unknown, depth = 0): unknown {

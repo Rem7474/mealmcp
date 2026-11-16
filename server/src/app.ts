@@ -5,6 +5,7 @@ import { requireBearerAuth } from '@modelcontextprotocol/sdk/server/auth/middlew
 import { getOAuthProtectedResourceMetadataUrl, mcpAuthRouter } from '@modelcontextprotocol/sdk/server/auth/router.js';
 import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/streamableHttp.js';
 import express, { type NextFunction, type Request, type RequestHandler, type Response } from 'express';
+import { createLlmClient } from './ai/client.js';
 import { createApiRouter } from './api/router.js';
 import { createAccountService } from './auth/accounts.js';
 import { OAuthProvider, SCOPES } from './auth/oauth.js';
@@ -21,6 +22,7 @@ export function createApp(db: Db, config: Config, logger: Logger = loggerFor(con
   const accounts = createAccountService(db, config);
   const oauth = new OAuthProvider(db, config, accounts);
   const hub = createHub();
+  const llm = createLlmClient(config.llm);
   const mcpUrl = new URL('/mcp', config.publicUrl);
 
   const app = express();
@@ -54,7 +56,7 @@ export function createApp(db: Db, config: Config, logger: Logger = loggerFor(con
     }),
   );
 
-  app.use('/api', createApiRouter({ db, config, accounts, oauth, hub }));
+  app.use('/api', createApiRouter({ db, config, accounts, oauth, hub, llm }));
 
   // MCP over stateless Streamable HTTP: a fresh server per request, bound to the caller's household.
   const bearer = requireBearerAuth({ verifier: oauth, resourceMetadataUrl: getOAuthProtectedResourceMetadataUrl(mcpUrl) });
