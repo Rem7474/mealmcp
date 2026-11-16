@@ -1,6 +1,6 @@
 # Plan: completing the stock model
 
-Status: phase 0 in progress. Each phase is one pull request, stacked on the previous one.
+Status: phase 0 done (`shelfLife.ts`, MCP tools split by domain); splitting `domain/schemas.ts` is left for the first phase that adds fields. Each phase is one pull request, stacked on the previous one.
 
 ## Where we are
 
