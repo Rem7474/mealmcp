@@ -450,3 +450,24 @@ export interface Suggestions {
   expiring: { name: string; expiresOn: string | null }[];
   suggestions: Suggestion[];
 }
+
+export interface StarterProduct {
+  key: string;
+  name: string;
+  staple: boolean;
+  /** Already at home (in stock, or flagged as always there). */
+  added: boolean;
+}
+export interface StarterRecipe {
+  key: string;
+  name: string;
+  servings: number;
+  minutes: number;
+  tags: string[];
+  ingredients: string[];
+  imported: boolean;
+}
+export interface StarterOverview {
+  aisles: { aisle: string; products: StarterProduct[] }[];
+  recipes: StarterRecipe[];
+}
