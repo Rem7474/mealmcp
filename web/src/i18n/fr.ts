@@ -659,6 +659,9 @@ export const fr: Messages = {
   'purchase.read': 'Vérifier ma liste',
   'purchase.readAi': 'Lire avec l’IA',
   'purchase.aiHint': 'L’IA comprend des phrases entières (« j’ai pris deux laits et un poulet »). Vous vérifiez toujours chaque ligne.',
+  'purchase.receipt': 'Ou un ticket de caisse',
+  'purchase.receiptHint':
+    'Un ticket en PDF (le texte est lu) ou sa photo. Le fichier est lu puis oublié. Un PDF qui est un scan : envoyez plutôt une photo.',
   'purchase.empty': 'Rien de lisible dans ce texte.',
   'purchase.back': 'Modifier le texte',
   'purchase.apply': 'Ranger {n} article(s)',

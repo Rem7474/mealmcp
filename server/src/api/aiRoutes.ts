@@ -1,14 +1,15 @@
-import { Router } from 'express';
+import express, { Router } from 'express';
 import type { LlmClient } from '../ai/client.js';
 import { sessionOnly } from '../auth/http.js';
 import { createRateLimiter } from '../auth/rateLimit.js';
 import type { Db } from '../db/index.js';
-import { ForbiddenError } from '../domain/errors.js';
+import { ForbiddenError, ValidationError } from '../domain/errors.js';
 import { aiWeekPlanStart, purchaseText } from '../domain/schemas.js';
 import { createAiService } from '../services/ai.js';
 import { createAiPurchase } from '../services/aiPurchase.js';
 import { createAiWeekPlan } from '../services/aiWeekPlan.js';
 import { createServices } from '../services/index.js';
+import { MAX_RECEIPT_BYTES, pdfText, RECEIPT_MIME, sniff } from '../services/receipt.js';
 
 /**
  * The optional local AI server: what it offers and which models this household uses. These routes are for a person
@@ -49,6 +50,35 @@ export function createAiRoutes(db: Db, llm: LlmClient) {
     const services = createServices(db, householdId);
     res.json(await createAiPurchase(llm, ai(householdId), services.purchase, householdId).parse(purchaseText.parse(req.body).text));
   });
+
+  // A receipt, sent as the raw file (a PDF or a picture). Read in memory and never stored; the answer is the same list
+  // to review as for typed text. A PDF goes through its text layer; a scanned PDF must be sent as a picture instead.
+  r.post(
+    '/shopping/receipt',
+    sessionOnly,
+    express.raw({ type: Object.values(RECEIPT_MIME), limit: MAX_RECEIPT_BYTES }),
+    async (req, res) => {
+      const { householdId } = req.user!;
+      limit.hit(`receipt:${householdId}`);
+      const body: unknown = req.body;
+      if (!Buffer.isBuffer(body) || body.length === 0)
+        throw new ValidationError('Send a PDF or a picture (JPEG, PNG or WebP) as the request body');
+      const kind = sniff(body);
+      if (!kind || req.headers['content-type']?.split(';')[0] !== RECEIPT_MIME[kind])
+        throw new ValidationError('That file is not a PDF or a JPEG, PNG or WebP picture');
+      const reader = createAiPurchase(llm, ai(householdId), createServices(db, householdId).purchase, householdId);
+      if (kind === 'pdf') {
+        const read = await pdfText(body);
+        if ('scan' in read) {
+          res.status(422).json({ error: 'This PDF has no text, it is a scan: send a photo of it instead', scan: true });
+          return;
+        }
+        res.json(await reader.receiptText(read.text));
+        return;
+      }
+      res.json(await reader.receiptPhoto(`data:${RECEIPT_MIME[kind]};base64,${body.toString('base64')}`));
+    },
+  );
 
   // The AI plan answers at once with the rules' plan, then fills the slots in the background: the page polls GET /plan/week/:id.
   r.post('/plan/week/ai', sessionOnly, async (req, res) => {

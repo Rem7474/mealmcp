@@ -1,6 +1,6 @@
 import { screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { beforeEach, describe, expect, it } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { mockApi, renderApp } from '../test/utils';
 import { PurchaseFromText } from './PurchaseFromText';
 
@@ -88,5 +88,40 @@ describe('PurchaseFromText with AI', () => {
     renderApp(<PurchaseFromText onClose={() => {}} />);
     await screen.findByRole('button', { name: 'Check my list' });
     expect(screen.queryByRole('button', { name: 'Read it with AI' })).toBeNull();
+  });
+});
+
+describe('PurchaseFromText with a receipt', () => {
+  const on = { status: 200, body: { enabled: true, reachable: true, text: true, textModel: 'm', visionModel: null, vision: 'unknown' } };
+
+  it('sends the file as it is, fills the review and the shop, and never stores it', async () => {
+    const { calls } = mockApi({
+      'GET /ai/status': on,
+      'POST /shopping/receipt': {
+        status: 200,
+        body: {
+          total: 3.1,
+          store: 'Shop',
+          lines: [{ text: 'rice', name: 'Rice', quantity: 2, unit: 'kg', price: 3.1, match: 'new', onList: false, include: true }],
+        },
+      },
+    });
+    renderApp(<PurchaseFromText onClose={() => {}} />);
+    const file = new File(['%PDF-1.4'], 'ticket.pdf', { type: 'application/pdf' });
+    await userEvent.upload(await screen.findByLabelText(/Or a receipt/), file);
+    expect(await screen.findByDisplayValue('Rice')).toBeInTheDocument();
+    expect(screen.getByDisplayValue('Shop')).toBeInTheDocument();
+    expect(calls.find((c) => c.path === '/shopping/receipt')).toBeTruthy();
+  });
+
+  it('stays on the text step when the server refuses the file (a scanned PDF)', async () => {
+    const { calls } = mockApi({
+      'GET /ai/status': on,
+      'POST /shopping/receipt': { status: 422, body: { error: 'This PDF has no text, it is a scan: send a photo of it instead' } },
+    });
+    renderApp(<PurchaseFromText onClose={() => {}} />);
+    await userEvent.upload(await screen.findByLabelText(/Or a receipt/), new File(['x'], 'scan.pdf', { type: 'application/pdf' }));
+    await vi.waitFor(() => expect(calls.some((c) => c.path === '/shopping/receipt')).toBe(true));
+    expect(screen.getByRole('button', { name: 'Check my list' })).toBeInTheDocument();
   });
 });
