@@ -93,6 +93,15 @@ La configuration est vérifiée au démarrage : une valeur erronée (`PORT=abc`,
 
 **Sauvegarde** : copiez la base à chaud avec `docker compose exec mealmcp node -e "require('better-sqlite3')('/data/mealmcp.db').backup('/data/backup.db').then(()=>console.log('ok'))"` puis récupérez `/data/backup.db` dans le volume.
 
+## IA locale facultative
+
+MealMCP fonctionne entièrement sans IA. Si vous faites tourner un serveur de modèles chez vous (Ollama, LM Studio, llama.cpp : tout ce qui parle l'API OpenAI), renseignez `LLM_BASE_URL` (par exemple `http://localhost:11434/v1`) et l'app pourra s'en servir pour des parcours guidés. Le modèle ne fait que **proposer** : une personne relit et valide avant toute écriture, et il n'appelle aucun outil et ne récupère rien. Tout reste entre cette app et votre serveur de modèles.
+
+- `LLM_BASE_URL` vide signifie que les fonctions IA sont désactivées. Elle est fixée par la personne qui déploie le serveur et ne se change pas depuis l'app. Dans Docker, `localhost` est le conteneur : utilisez `http://host.docker.internal:11434/v1` pour un serveur sur la machine hôte.
+- `LLM_API_KEY` (facultative) est envoyée en jeton Bearer et n'atteint jamais le navigateur ni les logs. `LLM_MODEL` et `LLM_VISION_MODEL` sont des valeurs par défaut ; le propriétaire du foyer choisit les modèles dans **Compte > Assistant IA**, parmi la liste que le serveur annonce.
+- `LLM_VISION` vaut `auto` (on se fie à ce que le serveur annonce pour un modèle : Ollama, LM Studio et llama.cpp sont reconnus, le reste est `unknown`), `true` ou `false`. `LLM_TIMEOUT_MS` et `LLM_MAX_CONCURRENT` bornent la charge : une requête à la fois par foyer, `LLM_MAX_CONCURRENT` en tout.
+- Un bouton **Tester** du même écran vérifie que le serveur répond, que le modèle existe, qu'il renvoie du JSON valide et, s'il lit les images, qu'il en accepte une.
+
 ## Comptes et foyers
 
 - Un **foyer** regroupe recettes, planning, courses et stock ; chaque donnée appartient à un foyer et les services filtrent systématiquement dessus (deux foyers ne voient jamais les données l'un de l'autre).

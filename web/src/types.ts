@@ -451,6 +451,26 @@ export interface Suggestions {
   suggestions: Suggestion[];
 }
 
+export type Capability = 'yes' | 'no' | 'unknown';
+export interface AiStatus {
+  enabled: boolean;
+  reachable: boolean;
+  textModel: string | null;
+  visionModel: string | null;
+  text: boolean;
+  vision: Capability;
+}
+export interface AiModel {
+  id: string;
+  vision: Capability;
+}
+export interface AiTest {
+  reachable: boolean;
+  model: boolean;
+  json: boolean;
+  vision: 'skipped' | 'ok' | 'failed';
+}
+
 export interface StarterProduct {
   key: string;
   name: string;
