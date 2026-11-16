@@ -1,7 +1,7 @@
 import * as s from '../../domain/schemas.js';
 import type { ToolContext } from './context.js';
 
-export function registerBudgetTools({ budget, prices, shopping, tool, ro, rw, del }: ToolContext) {
+export function registerBudgetTools({ budget, prices, products, shopping, tool, ro, rw, del }: ToolContext) {
   // --- Budget ----------------------------------------------------------------
   tool(
     'record_expense',
@@ -47,10 +47,10 @@ export function registerBudgetTools({ budget, prices, shopping, tool, ro, rw, de
   );
   tool(
     'get_price_history',
-    'Price history of a product (id from list_products): latest, average, lowest and highest price in cents per kg, per litre or per piece (see per), the trend (up, down or stable against the earlier prices), the price per shop and the last observations. Prices come from record_expense lines that have a quantity, and from set_product_price.',
-    s.idParam.shape,
+    'Price history of a product (its id from list_products, or its name): latest, average, lowest and highest price in cents per kg, per litre or per piece (see per), the trend (up, down or stable against the earlier prices), the price per shop and the last observations. Prices come from record_expense lines that have a quantity, and from set_product_price.',
+    s.productRefParam.shape,
     ro,
-    (a) => prices.history(a.id),
+    (a) => prices.history(products.idOf(a)),
   );
   tool(
     'estimate_recipe_cost',

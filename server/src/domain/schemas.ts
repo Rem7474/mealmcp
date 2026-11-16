@@ -404,6 +404,30 @@ export const suggestRecipes = z.object({
     .describe('Also return recipes that break the household diet, allergens or dislikes (they are left out by default)'),
 });
 
+// MCP callers know names better than ids: wherever an id is asked, a name can be given instead.
+const lineRef = {
+  id: id.optional().describe('Stock line id from list_stock'),
+  name: productName
+    .optional()
+    .describe('Or the product name (or an alias) when it has one line that applies; with several, the answer lists them to pick from'),
+};
+export const stockLineRef = z.object(lineRef);
+export const stockOpenByRef = stockOpen.omit({ id: true }).extend(lineRef);
+export const stockUpdateByRef = stockUpdate.omit({ id: true }).extend(lineRef);
+export const stockFreezeByRef = stockFreeze.omit({ id: true }).extend(lineRef);
+export const stockUpdateMany = z.object({ items: z.array(stockUpdateByRef).min(1).max(100) });
+
+const productRef = {
+  id: id.optional().describe('Product id from list_products'),
+  product: productName.optional().describe('Or the product name (or an alias); "name" then renames it'),
+};
+export const productUpdateByRef = productUpdate.omit({ id: true }).extend(productRef);
+export const productUpdateMany = z.object({ items: z.array(productUpdateByRef).min(1).max(100) });
+export const productRefParam = z.object({
+  id: id.optional().describe('Product id from list_products'),
+  name: productName.optional().describe('Or the product name (or an alias)'),
+});
+
 export const stockAddMany = z.object({ items: z.array(stockAdd).min(1).max(200) });
 export const recipeCreateMany = z.object({ recipes: z.array(recipeCreate).min(1).max(50) });
 export const planAddMany = z.object({ meals: z.array(planAdd).min(1).max(100) });

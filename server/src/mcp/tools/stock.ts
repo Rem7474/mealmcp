@@ -21,38 +21,48 @@ export function registerStockTools({ stock, tool, ro, rw, del }: ToolContext) {
   );
   tool(
     'update_stock_item',
-    'Correct a stock line: quantity (or packCount for sealed packs), location, expiry date, dateKind (use_by or best_before), or the opening date of an opened pack (the expiry is then recomputed). Use the id from list_stock. A quantity of 0 deletes the line: the answer says { removed: true }.',
-    s.stockUpdate.shape,
+    'Correct a stock line: quantity (or packCount for sealed packs), location, expiry date, dateKind (use_by or best_before), or the opening date of an opened pack (the expiry is then recomputed). Give the line id from list_stock, or the product name when it has a single line. A quantity of 0 deletes the line: the answer says { removed: true }. Several lines to change: update_stock_bulk.',
+    s.stockUpdateByRef.shape,
     rw,
-    (a) => stock.update(a) ?? { removed: true, id: a.id },
+    ({ name, id, ...patch }) => {
+      const line = stock.resolve({ id, name });
+      return stock.update({ ...patch, id: line }) ?? { removed: true, id: line };
+    },
+  );
+  tool(
+    'update_stock_bulk',
+    'Correct several stock lines in one call (all or nothing): each item is a line id or product name plus what to change, as in update_stock_item. Moving lines to the freezer freezes them, out of it thaws them. Use it to put away a whole freezer shelf or fix many dates at once.',
+    s.stockUpdateMany.shape,
+    rw,
+    (a) => stock.updateMany(a.items),
   );
   tool(
     'open_stock_item',
     'Open one pack of a stock line (a jar, a carton, a can). It becomes its own line with an opening date, what is left, and an expiry from the product opened shelf life (set it with update_product openedShelfLifeDays or the shelfLifeDays argument). Opened packs are used first and listed in get_stock_alerts.',
-    s.stockOpen.shape,
+    s.stockOpenByRef.shape,
     rw,
-    (a) => stock.open(a),
+    ({ name, id, ...rest }) => stock.open({ ...rest, id: stock.resolve({ id, name }, (l) => !l.opened) }),
   );
   tool(
     'freeze_stock_item',
     'Put a stock line in the freezer. The freezing date replaces the printed date as the clock: it keeps the product frozen shelf life (update_product frozenShelfLifeDays; a default per category otherwise). Refuses a line that was already thawed unless refreeze=true. Moving a line to the freezer with update_stock_item location does the same.',
-    s.stockFreeze.shape,
+    s.stockFreezeByRef.shape,
     rw,
-    (a) => stock.freeze(a),
+    ({ name, id, ...rest }) => stock.freeze({ ...rest, id: stock.resolve({ id, name }, (l) => !l.frozen) }),
   );
   tool(
     'thaw_stock_item',
     'Take a line out of the freezer (it moves to the fridge). It must now be used within the product thawed shelf life (update_product thawedShelfLifeDays, 2 days by default for meat, fish and bread) and is flagged use-by.',
-    s.idParam.shape,
+    s.stockLineRef.shape,
     rw,
-    (a) => stock.thaw(a.id),
+    (a) => stock.thaw(stock.resolve(a, (l) => l.frozen || l.location === 'freezer')),
   );
   tool(
     'unopen_stock_item',
     'Undo a mistaken open_stock_item: a pack that is still full becomes sealed again. Fails if part of it was already used.',
-    s.idParam.shape,
+    s.stockLineRef.shape,
     rw,
-    (a) => stock.unopen(a.id),
+    (a) => stock.unopen(stock.resolve(a, (l) => l.opened)),
   );
   tool(
     'consume_stock',
