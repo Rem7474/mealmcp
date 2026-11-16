@@ -1,5 +1,14 @@
 import { Plus, Star, X } from '@phosphor-icons/react';
-import { type ButtonHTMLAttributes, type InputHTMLAttributes, type ReactNode, type SelectHTMLAttributes, useEffect, useRef } from 'react';
+import {
+  type ButtonHTMLAttributes,
+  type InputHTMLAttributes,
+  type ReactNode,
+  type RefObject,
+  type SelectHTMLAttributes,
+  type TouchEvent,
+  useEffect,
+  useRef,
+} from 'react';
 import { useT } from './i18n';
 
 const field =
@@ -148,6 +157,57 @@ export function Stars({
   );
 }
 
+/** Dragged further than this (px) or faster than this (px/ms), a released sheet closes. */
+const SWIPE_DISTANCE = 100;
+const SWIPE_SPEED = 0.6;
+
+/**
+ * Swipe down to close a bottom sheet on a phone: from the grab handle and the title, or from the content when it is
+ * scrolled to the top. The sheet follows the finger, then closes or springs back.
+ */
+function useSwipeToClose(dialog: RefObject<HTMLDialogElement | null>, body: RefObject<HTMLDivElement | null>, onClose: () => void) {
+  const drag = useRef<{ y: number; at: number; dy: number; from: 'top' | 'body' } | null>(null);
+  const media = (query: string) => typeof window.matchMedia === 'function' && window.matchMedia(query).matches;
+  const move = (dy: number, animate: boolean) => {
+    const d = dialog.current;
+    if (!d) return;
+    d.style.transition = animate ? 'transform 0.2s ease-out' : 'none';
+    d.style.transform = dy ? `translateY(${dy}px)` : '';
+  };
+  return {
+    onTouchStart(e: TouchEvent) {
+      const target = e.target as HTMLElement;
+      if (media('(min-width: 640px)') || e.touches.length !== 1 || target.closest('input[type="range"]')) return;
+      const inTop = !body.current?.contains(target);
+      if (!inTop && (body.current?.scrollTop ?? 0) > 0) return;
+      drag.current = { y: e.touches[0]?.clientY ?? 0, at: Date.now(), dy: 0, from: inTop ? 'top' : 'body' };
+    },
+    onTouchMove(e: TouchEvent) {
+      const g = drag.current;
+      if (!g) return;
+      g.dy = (e.touches[0]?.clientY ?? g.y) - g.y;
+      // Dragged upwards, or the content started scrolling: it is a scroll, not a swipe.
+      if (g.dy <= 0 || (g.from === 'body' && (body.current?.scrollTop ?? 0) > 0)) return move(0, false);
+      move(g.dy, false);
+    },
+    onTouchEnd() {
+      const g = drag.current;
+      drag.current = null;
+      if (!g || g.dy <= 0) return;
+      const speed = g.dy / Math.max(1, Date.now() - g.at);
+      if (g.dy > SWIPE_DISTANCE || speed > SWIPE_SPEED) {
+        if (media('(prefers-reduced-motion: reduce)')) return onClose();
+        move(dialog.current?.offsetHeight ?? 600, true);
+        setTimeout(onClose, 180);
+      } else move(0, true);
+    },
+    onTouchCancel() {
+      drag.current = null;
+      move(0, true);
+    },
+  };
+}
+
 /**
  * A form in its own layer instead of a fold in the page: a sheet that slides up from the bottom on a phone and a
  * centred dialog on a wide screen. It is a native <dialog>, so focus is trapped, Escape closes it and the page
@@ -156,6 +216,8 @@ export function Stars({
 export function Sheet({ title, onClose, children }: { title: ReactNode; onClose: () => void; children: ReactNode }) {
   const t = useT();
   const ref = useRef<HTMLDialogElement>(null);
+  const body = useRef<HTMLDivElement>(null);
+  const swipe = useSwipeToClose(ref, body, onClose);
   useEffect(() => {
     const d = ref.current;
     if (!d || d.open) return;
@@ -169,16 +231,19 @@ export function Sheet({ title, onClose, children }: { title: ReactNode; onClose:
       onClose={onClose}
       onClick={(e) => e.target === e.currentTarget && onClose()}
       onKeyDown={(e) => e.key === 'Escape' && onClose()}
+      {...swipe}
       className="sheet m-0 mt-auto max-h-[92dvh] w-full max-w-none flex-col overflow-hidden rounded-t-3xl border border-line bg-surface p-0 text-ink open:flex sm:m-auto sm:max-w-lg sm:rounded-2xl"
     >
-      <div className="mx-auto mt-2 h-1 w-10 rounded-full bg-control sm:hidden" aria-hidden="true" />
-      <header className="flex items-center justify-between gap-3 px-5 pt-3 pb-2">
+      <div className="mx-auto mt-2 h-1 w-10 shrink-0 touch-none rounded-full bg-control sm:hidden" aria-hidden="true" />
+      <header className="flex touch-none items-center justify-between gap-3 px-5 pt-3 pb-2">
         <h2 className="text-2xl">{title}</h2>
         <Button variant="ghost" className="-mr-2 w-11 px-0 sm:w-9" aria-label={t('app.close')} onClick={onClose}>
           <X size={18} />
         </Button>
       </header>
-      <div className="overflow-y-auto px-5 pb-[max(1.25rem,env(safe-area-inset-bottom))]">{children}</div>
+      <div ref={body} className="overscroll-contain overflow-y-auto px-5 pb-[max(1.25rem,env(safe-area-inset-bottom))]">
+        {children}
+      </div>
     </dialog>
   );
 }
