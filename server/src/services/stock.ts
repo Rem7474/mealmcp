@@ -6,7 +6,16 @@ import { type Conversions, convertQuantity, type Drainable, toDrainedFrame, toNe
 import { addDays, today } from '../domain/dates.js';
 import { NotFoundError, ValidationError } from '../domain/errors.js';
 import { costCents } from '../domain/pricing.js';
-import type { stockAdd, stockConsume, stockDiscard, stockList, stockOpen, stockUpdate, wasteSummary } from '../domain/schemas.js';
+import type {
+  stockAdd,
+  stockConsume,
+  stockDiscard,
+  stockList,
+  stockOpen,
+  stockUpdate,
+  stockUpdateByRef,
+  wasteSummary,
+} from '../domain/schemas.js';
 import { shownPrice } from '../domain/unitPrice.js';
 import { round, toBase } from '../domain/units.js';
 import type { ProductService } from './products.js';
@@ -416,6 +425,47 @@ export function createStockService(db: Db, hid: number, productService: ProductS
           .where(and(mine, eq(stockItems.id, id)))
           .run();
       return svc.get(id);
+    },
+
+    /**
+     * The stock line a caller means: its id, or the product name when that product has a single line that applies
+     * (`want` narrows several lines down, e.g. sealed ones to open). With several left, the error lists them.
+     */
+    resolve({ id, name }: { id?: number; name?: string }, want?: (line: ReturnType<typeof shape>) => boolean): number {
+      if (id !== undefined) return id;
+      if (!name) throw new ValidationError('Give a stock line id or a product name');
+      const product = productService.findByName(name);
+      if (!product) throw new NotFoundError('Product', name);
+      const all = view()
+        .where(and(mine, eq(stockItems.productId, product.id)))
+        .orderBy(...fifo)
+        .all()
+        .map(shape);
+      const narrowed = want ? all.filter(want) : all;
+      const lines = narrowed.length > 0 ? narrowed : all;
+      if (lines.length === 0) throw new ValidationError(`There is no ${product.name} in stock`);
+      if (lines.length === 1) return (lines[0] as { id: number }).id;
+      const list = lines
+        .map(
+          (l) =>
+            `#${l.id} (${l.approximate ? 'some' : `${l.quantity} ${l.unit}`}, ${l.location}${l.expiresOn ? `, expires ${l.expiresOn}` : ''}${l.opened ? ', opened' : ''})`,
+        )
+        .join('; ');
+      throw new ValidationError(`${product.name} has several stock lines: ${list}. Call again with the id of the one you mean.`);
+    },
+
+    /** Updates several lines in one go (all or nothing); each is given by id or by product name. */
+    updateMany(items: z.infer<typeof stockUpdateByRef>[]) {
+      return db.transaction(() =>
+        items.map(({ name, id, ...patch }, i) => {
+          try {
+            const line = svc.resolve({ id, name });
+            return svc.update({ ...patch, id: line }) ?? { removed: true, id: line };
+          } catch (e) {
+            throw new ValidationError(`Item ${i + 1}: ${e instanceof Error ? e.message : 'failed'}`);
+          }
+        }),
+      );
     },
 
     /** Puts a line in the freezer. A line that was already thawed is only refrozen on purpose (refreeze). */

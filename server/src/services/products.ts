@@ -6,7 +6,7 @@ import { guessCategory } from '../domain/categories.js';
 import type { Allergen } from '../domain/diet.js';
 import { NotFoundError, ValidationError } from '../domain/errors.js';
 import type { ProductNutrition } from '../domain/nutrition.js';
-import type { aliasAdd, productUpdate } from '../domain/schemas.js';
+import type { aliasAdd, productUpdate, productUpdateByRef } from '../domain/schemas.js';
 import { shownPrice } from '../domain/unitPrice.js';
 import { normalizeUnit } from '../domain/units.js';
 
@@ -137,6 +137,28 @@ export function createProductService(db: Db, hid: number) {
         .where(and(mine, eq(products.id, id)))
         .run();
       return svc.get(id);
+    },
+
+    /** The id of the product a caller means, by id or by name (or alias). */
+    idOf({ id, name }: { id?: number; name?: string }): number {
+      if (id !== undefined) return id;
+      if (!name) throw new ValidationError('Give a product id or a product name');
+      const found = svc.findByName(name);
+      if (!found) throw new NotFoundError('Product', name);
+      return found.id;
+    },
+
+    /** Updates several products in one go (all or nothing); each is given by id or, in `product`, by name. */
+    updateMany(items: z.infer<typeof productUpdateByRef>[]) {
+      return db.transaction(() =>
+        items.map(({ product, id, ...patch }, i) => {
+          try {
+            return svc.update({ ...patch, id: svc.idOf({ id, name: product }) });
+          } catch (e) {
+            throw new ValidationError(`Item ${i + 1}: ${e instanceof Error ? e.message : 'failed'}`);
+          }
+        }),
+      );
     },
 
     /** Teaches the app another name for a product, so receipts and recipes using it resolve to the same item. */
