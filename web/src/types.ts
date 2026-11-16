@@ -451,27 +451,10 @@ export interface Suggestions {
   suggestions: Suggestion[];
 }
 
-/** What the landing page shows (see server/src/services/nextActions.ts): facts only, the page words them. */
-export type ActionCard =
-  | { id: 'getting-started'; target: string; steps: { id: 'stock' | 'recipes' | 'plan'; done: boolean }[] }
-  | {
-      id: 'cook-today';
-      target: string;
-      meals: { id: number; name: string; mealType: string; recipeId: number | null; canCook: boolean | null }[];
-    }
-  | {
-      id: 'expiring';
-      target: string;
-      items: { name: string; expiresOn: string | null; expiryState: string }[];
-      total: number;
-      recipe: { id: number; name: string; canCook: boolean } | null;
-    }
-  | { id: 'discard'; target: string; items: { name: string }[]; total: number }
-  | { id: 'shopping-put-away'; target: string; count: number }
-  | { id: 'open-slots'; target: string; count: number; first: { date: string; mealType: string } }
-  | { id: 'shopping-generate'; target: string; meals: number }
-  | { id: 'shopping-open'; target: string; count: number }
-  | { id: 'low-stock'; target: string; items: { name: string }[]; total: number };
+/** What the landing page shows: facts only, the page words them. Shared with the server, which builds it. */
+export type { ActionCard } from '../../server/src/domain/actionCard';
+
+import type { ActionCard } from '../../server/src/domain/actionCard';
 
 export interface NextActions {
   today: string;
