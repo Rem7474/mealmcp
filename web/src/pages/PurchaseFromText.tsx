@@ -1,9 +1,10 @@
 import { CheckCircle } from '@phosphor-icons/react';
+import { useQuery } from '@tanstack/react-query';
 import { useState } from 'react';
 import { api, useAction } from '../api';
 import { LOCATIONS } from '../format';
 import { useT } from '../i18n';
-import type { Location } from '../types';
+import type { AiStatus, Location } from '../types';
 import { Badge, Button, Field, Input, Select, Sheet } from '../ui';
 
 interface ParsedPurchaseLine {
@@ -47,10 +48,14 @@ export function PurchaseFromText({ onClose }: { onClose: () => void }) {
   const [meta, setMeta] = useState<{ location: Location; store: string; total: string }>({ location: 'pantry', store: '', total: '' });
   const [done, setDone] = useState<{ added: number; removed: number } | null>(null);
 
-  const read = async () => {
-    const { lines } = (await run(() => api.post<{ lines: ParsedPurchaseLine[] }>('/shopping/from-text', { text }))) as {
-      lines: ParsedPurchaseLine[];
-    };
+  // Offered only when the household's AI server answers and has a model.
+  const { data: ai } = useQuery({ queryKey: ['ai', 'status'], queryFn: () => api.get<AiStatus>('/ai/status'), retry: false });
+
+  const read = async (withAi = false) => {
+    const { lines, total } = (await run(() =>
+      api.post<{ lines: ParsedPurchaseLine[]; total?: number | null }>(withAi ? '/shopping/from-text/ai' : '/shopping/from-text', { text }),
+    )) as { lines: ParsedPurchaseLine[]; total?: number | null };
+    if (total != null) setMeta((m) => ({ ...m, total: String(total) }));
     setDrafts(
       lines.map((l) => ({
         name: l.name,
@@ -107,9 +112,17 @@ export function PurchaseFromText({ onClose }: { onClose: () => void }) {
               maxLength={5000}
             />
           </Field>
-          <Button variant="primary" disabled={pending || !text.trim()} onClick={read}>
-            {t('purchase.read')}
-          </Button>
+          <div className="flex flex-wrap gap-2">
+            <Button variant="primary" disabled={pending || !text.trim()} onClick={() => read(false)}>
+              {t('purchase.read')}
+            </Button>
+            {ai?.text && (
+              <Button disabled={pending || !text.trim()} onClick={() => read(true)}>
+                {t('purchase.readAi')}
+              </Button>
+            )}
+          </div>
+          {ai?.text && <p className="text-xs text-muted">{t('purchase.aiHint')}</p>}
         </div>
       ) : (
         <>

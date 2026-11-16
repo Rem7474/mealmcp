@@ -2,7 +2,7 @@ import type { z } from 'zod';
 import type { Db } from '../db/index.js';
 import { ValidationError } from '../domain/errors.js';
 import { fold } from '../domain/names.js';
-import { parseLine, splitLines } from '../domain/purchaseText.js';
+import { type ParsedLine, parseLine, splitLines } from '../domain/purchaseText.js';
 import type { purchaseApply } from '../domain/schemas.js';
 import { normalizeUnit, toBase } from '../domain/units.js';
 import type { BudgetService } from './budget.js';
@@ -31,14 +31,18 @@ export function createPurchaseService(
     parse(text: string) {
       const raw = splitLines(text);
       if (raw.length > MAX_LINES) throw new ValidationError(`Too many lines (at most ${MAX_LINES})`);
+      return this.match(raw.flatMap((line) => parseLine(line) ?? []));
+    },
+
+    /** Matches already structured lines (read by rules or by a model) to the household's products. A pure read too. */
+    match(parsedLines: ParsedLine[]) {
+      if (parsedLines.length > MAX_LINES) throw new ValidationError(`Too many lines (at most ${MAX_LINES})`);
       const all = products.list();
       const byFold = new Map<string, (typeof all)[number]>();
       for (const p of all) if (!byFold.has(fold(p.name))) byFold.set(fold(p.name), p);
       const onList = new Set(shopping.list().map((i) => i.productId));
 
-      const lines = raw.flatMap((line) => {
-        const parsed = parseLine(line);
-        if (!parsed) return [];
+      const lines = parsedLines.map((parsed) => {
         let product = parsed.barcode ? products.findByBarcode(parsed.barcode)?.product : undefined;
         let match: PurchaseMatch = product ? 'barcode' : 'new';
         if (!product && parsed.name) {
@@ -51,21 +55,19 @@ export function createPurchaseService(
         }
         // A barcode nobody knows and no name to go with it: shown, but not kept unless the person names it.
         if (!product && !parsed.name) match = 'unknown';
-        return [
-          {
-            text: parsed.text,
-            name: product?.name ?? parsed.name,
-            quantity: parsed.quantity ?? 1,
-            // "2 milk" is two bottles, not two millilitres: a bare number only borrows the product's unit when it is a countable one.
-            unit: parsed.unit ?? (product && !['g', 'ml'].includes(product.defaultUnit) ? product.defaultUnit : 'piece'),
-            price: parsed.price,
-            match,
-            productId: product?.id ?? null,
-            onList: product ? onList.has(product.id) : false,
-            include: match !== 'unknown',
-            ...(match === 'unknown' ? { barcode: parsed.barcode } : {}),
-          },
-        ];
+        return {
+          text: parsed.text,
+          name: product?.name ?? parsed.name,
+          quantity: parsed.quantity ?? 1,
+          // "2 milk" is two bottles, not two millilitres: a bare number only borrows the product's unit when it is a countable one.
+          unit: parsed.unit ?? (product && !['g', 'ml'].includes(product.defaultUnit) ? product.defaultUnit : 'piece'),
+          price: parsed.price,
+          match,
+          productId: product?.id ?? null,
+          onList: product ? onList.has(product.id) : false,
+          include: match !== 'unknown',
+          ...(match === 'unknown' ? { barcode: parsed.barcode } : {}),
+        };
       });
       return { lines };
     },
