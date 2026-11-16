@@ -68,7 +68,7 @@ describe('budget', () => {
     expect(svc.budget.recipeCost({ id: salty.id })).toMatchObject({ totalCents: 20, unpricedIngredients: ['Salt'] });
 
     // A price set by hand overrides the learned one.
-    svc.budget.setProductPrice({ name: 'Flour', price: 3, quantity: 1, unit: 'kg' });
+    svc.budget.setProductPrice({ name: 'Flour', date: '2030-02-01', price: 3, quantity: 1, unit: 'kg' });
     expect(svc.budget.recipeCost({ id: recipe.id }).totalCents).toBe(255);
   });
 

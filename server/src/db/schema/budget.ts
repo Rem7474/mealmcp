@@ -32,3 +32,29 @@ export const expenseItems = sqliteTable('expense_items', {
   /** Line total in cents. */
   priceCents: integer('price_cents').notNull(),
 });
+
+export const PRICE_SOURCES = ['receipt', 'manual'] as const;
+export type PriceSource = (typeof PRICE_SOURCES)[number];
+
+/**
+ * Every price seen for a product, as cents per 1 `priceUnit` (g, ml, piece). `products.unitPrice` is the latest of
+ * them; the history lets trends and shop comparisons be computed. Deleting an expense keeps what it taught.
+ */
+export const priceObservations = sqliteTable(
+  'price_observations',
+  {
+    id: integer('id').primaryKey({ autoIncrement: true }),
+    householdId: household(),
+    productId: integer('product_id')
+      .notNull()
+      .references(() => products.id, { onDelete: 'cascade' }),
+    unitPrice: real('unit_price').notNull(),
+    priceUnit: text('price_unit').notNull(),
+    /** ISO date YYYY-MM-DD. */
+    date: text('date').notNull(),
+    store: text('store'),
+    source: text('source', { enum: PRICE_SOURCES }).notNull(),
+    expenseId: integer('expense_id').references(() => expenses.id, { onDelete: 'set null' }),
+  },
+  (t) => [index('price_obs_product_idx').on(t.householdId, t.productId, t.date)],
+);

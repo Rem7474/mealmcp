@@ -373,6 +373,8 @@ export const productPrice = z.object({
   price: money.describe('Price paid for `quantity` `unit`'),
   quantity: z.number().positive().default(1).describe('How much that price buys, e.g. 1 with unit kg'),
   unit,
+  store: z.string().trim().min(1).max(80).optional().describe('Shop where that price was seen, to compare shops'),
+  date: isoDate.optional().describe('When that price was seen; defaults to today. The most recent price is the one estimates use'),
 });
 
 // --- Aliases, settings, suggestions, bulk -----------------------------------

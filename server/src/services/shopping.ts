@@ -7,6 +7,7 @@ import { toDrainedFrame, toNetFrame } from '../domain/convert.js';
 import { NotFoundError } from '../domain/errors.js';
 import { costCents, toCents } from '../domain/pricing.js';
 import type { shoppingAdd, shoppingComplete, shoppingGenerate } from '../domain/schemas.js';
+import { shownPrice } from '../domain/unitPrice.js';
 import { normalizeUnit, round, toBase } from '../domain/units.js';
 import type { BudgetService } from './budget.js';
 import type { PlannerService } from './planner.js';
@@ -57,6 +58,7 @@ export function createShoppingService(
       ...row,
       category: row.category ?? guessCategory(row.name),
       estimatedCents,
+      pricePer: shownPrice({ unitPrice, priceUnit, gramsPerPiece, gramsPerMl }),
       season: season ? (season.inSeason ? ('in' as const) : ('out' as const)) : null,
       seasonAlternatives: season && !season.inSeason ? seasons.alternativesTo(season.produce) : [],
     };

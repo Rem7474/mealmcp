@@ -1,9 +1,9 @@
 import { useQuery } from '@tanstack/react-query';
 import type { SelectHTMLAttributes } from 'react';
 import { api } from '../api';
-import { LOCATIONS } from '../format';
+import { formatDate, formatMoney, LOCATIONS } from '../format';
 import { useT } from '../i18n';
-import type { Product } from '../types';
+import type { PriceHistory, PricePer, Product } from '../types';
 import { Select } from '../ui';
 import { fetchMe, meKey } from './AuthPage';
 
@@ -51,4 +51,72 @@ export const parseQty = (value: string) => (value.trim() ? Number(value.replace(
 export function useCurrency(): string {
   const { data } = useQuery({ queryKey: meKey, queryFn: fetchMe });
   return data?.user?.currency ?? 'EUR';
+}
+
+/** "2,00 € / kg": a price per kg, litre or piece. */
+export function UnitPrice({ price, className }: { price: PricePer | null | undefined; className?: string }) {
+  const t = useT();
+  const currency = useCurrency();
+  if (!price) return null;
+  return (
+    <span className={className}>{t('price.per', { price: formatMoney(price.cents, currency), unit: t(`price.unit.${price.per}`) })}</span>
+  );
+}
+
+const TREND_TONE = { up: 'text-danger', down: 'text-herb', stable: 'text-muted' } as const;
+
+/** What a product has cost over time: latest, average, range, trend, shops and the last observations. */
+export function PriceHistoryView({ productId }: { productId: number }) {
+  const t = useT();
+  const currency = useCurrency();
+  const { data } = useQuery({ queryKey: ['prices', productId], queryFn: () => api.get<PriceHistory>(`/products/${productId}/prices`) });
+  if (!data) return null;
+  if (data.count === 0 || !data.per) return <p className="text-xs text-muted">{t('price.none')}</p>;
+  const unit = t(`price.unit.${data.per}`);
+  const money = (cents: number | null) => (cents === null ? '–' : `${formatMoney(cents, currency)} / ${unit}`);
+  return (
+    <div className="space-y-2 text-sm">
+      <dl className="grid grid-cols-2 gap-x-3 gap-y-1">
+        {(
+          [
+            ['price.latest', data.latestCents],
+            ['price.average', data.averageCents],
+            ['price.lowest', data.minCents],
+            ['price.highest', data.maxCents],
+          ] as const
+        ).map(([key, cents]) => (
+          <div key={key} className="flex justify-between gap-2">
+            <dt className="text-muted">{t(key)}</dt>
+            <dd className="tabular-nums">{money(cents)}</dd>
+          </div>
+        ))}
+      </dl>
+      {data.trend && <p className={`text-xs ${TREND_TONE[data.trend]}`}>{t(`price.trend.${data.trend}`)}</p>}
+      {data.alternative && <UnitPrice price={data.alternative} className="block text-xs text-muted" />}
+      {data.byStore.length > 1 && (
+        <div>
+          <p className="text-xs font-medium text-muted">{t('price.byStore')}</p>
+          <ul className="text-xs">
+            {data.byStore.map((s) => (
+              <li key={s.store} className="flex justify-between gap-2">
+                <span>{s.store}</span>
+                <span className="tabular-nums">{money(s.latestCents)}</span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+      <ul className="text-xs text-muted">
+        {data.observations.slice(0, 5).map((o) => (
+          <li key={o.id} className="flex justify-between gap-2">
+            <span>
+              {formatDate(o.date)}
+              {o.store ? ` · ${o.store}` : o.source === 'manual' ? ` · ${t('price.source.manual')}` : ''}
+            </span>
+            <span className="tabular-nums">{money(o.cents)}</span>
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
 }

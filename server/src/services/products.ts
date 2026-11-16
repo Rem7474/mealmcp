@@ -7,6 +7,7 @@ import type { Allergen } from '../domain/diet.js';
 import { NotFoundError, ValidationError } from '../domain/errors.js';
 import type { ProductNutrition } from '../domain/nutrition.js';
 import type { aliasAdd, productUpdate } from '../domain/schemas.js';
+import { shownPrice } from '../domain/unitPrice.js';
 import { normalizeUnit } from '../domain/units.js';
 
 const key = (name: string) => name.trim().toLowerCase();
@@ -26,11 +27,26 @@ const parseNutrition = (json: string | null): ProductNutrition | null => {
     return null;
   }
 };
-const shapeProduct = <T extends { allergens: string | null; nutrition: string | null; name: string }>(p: T, aliases: string[]) => ({
+const shapeProduct = <
+  T extends {
+    allergens: string | null;
+    nutrition: string | null;
+    name: string;
+    unitPrice: number | null;
+    priceUnit: string | null;
+    gramsPerPiece: number | null;
+    gramsPerMl: number | null;
+  },
+>(
+  p: T,
+  aliases: string[],
+) => ({
   ...p,
   allergens: parseAllergens(p.allergens),
   nutrition: parseNutrition(p.nutrition),
   suggestedCategory: guessCategory(p.name),
+  /** The last known price in the unit people read (per kg, litre or piece), plus an alternative when convertible. */
+  pricePer: shownPrice(p),
   aliases,
 });
 
