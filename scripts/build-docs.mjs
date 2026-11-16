@@ -39,6 +39,7 @@ const TOOLS = {
     'list_planning_slots',
     'get_meal_history',
     'get_meal_context',
+    'get_next_actions',
   ],
   shop: [
     'list_shopping_list',
