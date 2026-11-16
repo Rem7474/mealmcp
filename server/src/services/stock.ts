@@ -189,11 +189,20 @@ export function createStockService(db: Db, hid: number, productService: ProductS
         ({ quantity, unit } = toBase(input.quantity, rawUnit));
       }
       const packSize = pack?.quantity ?? null;
+      // Put straight into the freezer: the freezing date is the clock, as when an existing line is moved there.
+      const frozenAtOnce = (openedOn: string | null) =>
+        location === 'freezer'
+          ? freezeChanges(
+              { expiresOn, printedExpiresOn: expiresOn, openedOn, frozenOn: null, thawedOn: null, productId: product.id, location },
+              productService.get(product.id),
+            )
+          : null;
 
       if (input.opened) {
         // An opened pack is its own line: it is used first and expires on its own clock.
         if (packSize !== null && quantity > packSize + 1e-9) throw new ValidationError('An opened pack cannot hold more than its size');
         const openedOn = input.openedOn ?? today();
+        const frozen = frozenAtOnce(openedOn);
         const row = db
           .insert(stockItems)
           .values({
@@ -209,12 +218,15 @@ export function createStockService(db: Db, hid: number, productService: ProductS
             addedOn: today(),
             packSize,
             openedOn,
+            ...frozen,
           })
           .returning()
           .get();
         return svc.get(row.id);
       }
 
+      const frozen = frozenAtOnce(null);
+      const lineExpiry = frozen ? frozen.expiresOn : expiresOn;
       // Same product, unit, pack size, place and expiry: grow the existing line instead of duplicating it.
       const same = db
         .select()
@@ -228,9 +240,9 @@ export function createStockService(db: Db, hid: number, productService: ProductS
             eq(stockItems.approximate, false),
             isNull(stockItems.openedOn),
             packSize === null ? isNull(stockItems.packSize) : eq(stockItems.packSize, packSize),
-            expiresOn ? eq(stockItems.expiresOn, expiresOn) : isNull(stockItems.expiresOn),
+            lineExpiry ? eq(stockItems.expiresOn, lineExpiry) : isNull(stockItems.expiresOn),
             dateKind ? eq(stockItems.dateKind, dateKind) : isNull(stockItems.dateKind),
-            isNull(stockItems.frozenOn),
+            frozen ? eq(stockItems.frozenOn, frozen.frozenOn) : isNull(stockItems.frozenOn),
             isNull(stockItems.thawedOn),
             note ? eq(stockItems.note, note) : isNull(stockItems.note),
           ),
@@ -257,6 +269,7 @@ export function createStockService(db: Db, hid: number, productService: ProductS
           note,
           addedOn: today(),
           packSize,
+          ...frozen,
         })
         .returning()
         .get();
