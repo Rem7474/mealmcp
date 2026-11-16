@@ -99,7 +99,7 @@ describe('plan the week without a model', () => {
     for (const n of ['A', 'B', 'C']) recipe(n, `Ing ${n}`);
     const plan = svc.weekPlan.start(dinners(3), null);
     svc.weekPlan.acceptAll(plan.id);
-    svc.recipes.remove(plan.slots[0].recipe!.id);
+    svc.recipes.remove(plan.slots[0].recipe!.id as number);
     const other = recipe('Other', 'Corn');
     svc.planner.add({ date: plan.slots[1].date, mealType: 'dinner', recipeId: other.id });
     const result = svc.weekPlan.apply(plan.id);

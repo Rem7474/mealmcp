@@ -1,6 +1,7 @@
 import type { z } from 'zod';
 import type { LlmConfig } from '../config.js';
 import { TooManyRequestsError } from '../domain/errors.js';
+import { trimSlashes } from '../domain/names.js';
 
 /** Something is wrong with the AI server or its answer. The message is safe to show; the cause goes to the logs. */
 export class AiError extends Error {
@@ -35,8 +36,9 @@ const isRecord = (v: unknown): v is Record<string, unknown> => typeof v === 'obj
 /** The server root without the /v1 suffix, where the native (non OpenAI) endpoints of Ollama, LM Studio and llama.cpp live. */
 const rootOf = (base: URL) => {
   const root = new URL(base);
-  root.pathname = root.pathname.replace(/\/v1\/?$/, '').replace(/\/+$/, '');
-  return root.href.replace(/\/+$/, '');
+  const path = trimSlashes(root.pathname);
+  root.pathname = trimSlashes(path.endsWith('/v1') ? path.slice(0, -3) : path);
+  return trimSlashes(root.href);
 };
 
 /** A model can answer in a fenced block or add words around the JSON: take the first object or array. */

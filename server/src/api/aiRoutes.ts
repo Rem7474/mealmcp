@@ -4,7 +4,9 @@ import { sessionOnly } from '../auth/http.js';
 import { createRateLimiter } from '../auth/rateLimit.js';
 import type { Db } from '../db/index.js';
 import { ForbiddenError } from '../domain/errors.js';
+import { aiWeekPlanStart } from '../domain/schemas.js';
 import { createAiService } from '../services/ai.js';
+import { createAiWeekPlan } from '../services/aiWeekPlan.js';
 import { createServices } from '../services/index.js';
 
 /**
@@ -37,6 +39,19 @@ export function createAiRoutes(db: Db, llm: LlmClient) {
   r.post('/ai/test', sessionOnly, async (req, res) => {
     limit.hit(`test:${req.user!.householdId}`);
     res.json(await ai(req.user!.householdId).test(req.log));
+  });
+
+  // The AI plan answers at once with the rules' plan, then fills the slots in the background: the page polls GET /plan/week/:id.
+  r.post('/plan/week/ai', sessionOnly, async (req, res) => {
+    const { householdId, id } = req.user!;
+    limit.hit(`plan:${householdId}`);
+    const services = createServices(db, householdId);
+    const { plan } = await createAiWeekPlan(llm, ai(householdId), services, householdId).start(
+      aiWeekPlanStart.parse(req.body),
+      id,
+      req.log,
+    );
+    res.status(201).json(plan);
   });
 
   return r;
