@@ -7,6 +7,7 @@ import { addDays, today } from '../domain/dates.js';
 import { NotFoundError, ValidationError } from '../domain/errors.js';
 import { costCents } from '../domain/pricing.js';
 import type { stockAdd, stockConsume, stockDiscard, stockList, stockOpen, stockUpdate, wasteSummary } from '../domain/schemas.js';
+import { shownPrice } from '../domain/unitPrice.js';
 import { round, toBase } from '../domain/units.js';
 import type { ProductService } from './products.js';
 import { effectiveExpiry, expiryState, openedExpiry, printedDate } from './shelfLife.js';
@@ -24,6 +25,10 @@ export function createStockService(db: Db, hid: number, productService: ProductS
         name: products.name,
         category: products.category,
         brand: products.brand,
+        unitPrice: products.unitPrice,
+        priceUnit: products.priceUnit,
+        gramsPerPiece: products.gramsPerPiece,
+        gramsPerMl: products.gramsPerMl,
         quantity: stockItems.quantity,
         unit: stockItems.unit,
         location: stockItems.location,
@@ -46,8 +51,9 @@ export function createStockService(db: Db, hid: number, productService: ProductS
 
   type Row = ReturnType<ReturnType<typeof view>['all']>[number];
   /** Adds `opened`, `expiryState` and `packCount` (how many sealed packs a line holds, null when it is not kept in packs). */
-  const shape = (r: Row) => ({
+  const shape = ({ unitPrice, priceUnit, gramsPerPiece, gramsPerMl, ...r }: Row) => ({
     ...r,
+    pricePer: shownPrice({ unitPrice, priceUnit, gramsPerPiece, gramsPerMl }),
     opened: r.openedOn !== null,
     frozen: r.frozenOn !== null,
     thawed: r.thawedOn !== null,

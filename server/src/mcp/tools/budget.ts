@@ -1,11 +1,11 @@
 import * as s from '../../domain/schemas.js';
 import type { ToolContext } from './context.js';
 
-export function registerBudgetTools({ budget, shopping, tool, ro, rw, del }: ToolContext) {
+export function registerBudgetTools({ budget, prices, shopping, tool, ro, rw, del }: ToolContext) {
   // --- Budget ----------------------------------------------------------------
   tool(
     'record_expense',
-    'Record a purchase (e.g. from a receipt): optional receipt lines with their line totals, plus the amount actually paid. Lines with a quantity teach the product prices used for cost estimates; addToStock also puts them in the stock.',
+    'Record a purchase (e.g. from a receipt): optional receipt lines with their line totals, plus the amount actually paid. Lines with a quantity teach the product prices used for cost estimates and feed the price history (get_price_history); lines without one are kept but listed in linesWithoutUnitPrice. addToStock also puts them in the stock.',
     s.expenseRecord.shape,
     rw,
     (a) => budget.recordExpense(a),
@@ -40,10 +40,17 @@ export function registerBudgetTools({ budget, shopping, tool, ro, rw, del }: Too
   );
   tool(
     'set_product_price',
-    'Tell the app what a product costs, e.g. 2.49 for 1 kg of flour. Used for recipe, meal plan and shopping list cost estimates.',
+    'Tell the app what a product costs, e.g. 2.49 for 1 kg of flour (store: where you saw it). Used for recipe, meal plan and shopping list cost estimates; it is added to the price history.',
     s.productPrice.shape,
     rw,
     (a) => budget.setProductPrice(a),
+  );
+  tool(
+    'get_price_history',
+    'Price history of a product (id from list_products): latest, average, lowest and highest price in cents per kg, per litre or per piece (see per), the trend (up, down or stable against the earlier prices), the price per shop and the last observations. Prices come from record_expense lines that have a quantity, and from set_product_price.',
+    s.idParam.shape,
+    ro,
+    (a) => prices.history(a.id),
   );
   tool(
     'estimate_recipe_cost',

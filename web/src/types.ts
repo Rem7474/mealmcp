@@ -45,6 +45,29 @@ export interface TokenInfo {
   expiresAt: number | null;
 }
 
+/** A price in the unit people read: cents per kg, per litre or per piece. */
+export interface PricePer {
+  cents: number;
+  per: 'kg' | 'l' | 'piece';
+}
+/** The last known price, with the same price in another unit when the product has the conversion. */
+export type ShownPrice = { main: PricePer; alt: PricePer | null } | null;
+
+export interface PriceHistory {
+  productId: number;
+  name: string;
+  per: PricePer['per'] | null;
+  latestCents: number | null;
+  averageCents: number | null;
+  minCents: number | null;
+  maxCents: number | null;
+  trend: 'up' | 'down' | 'stable' | null;
+  count: number;
+  alternative: PricePer | null;
+  byStore: { store: string; latestCents: number | null; averageCents: number | null; count: number }[];
+  observations: { id: number; date: string; store: string | null; source: 'receipt' | 'manual'; cents: number | null }[];
+}
+
 export interface Product {
   id: number;
   name: string;
@@ -54,6 +77,8 @@ export interface Product {
   /** Cents per 1 priceUnit (g, ml, piece, ...), when a price is known. */
   unitPrice: number | null;
   priceUnit: string | null;
+  /** That price per kg, litre or piece. */
+  pricePer: ShownPrice;
   /** Always at home: kept in recipes but never bought, missing or used up. */
   isStaple: boolean;
   gramsPerPiece: number | null;
@@ -94,6 +119,7 @@ export interface RecipeNutritionInfo {
 
 export interface StockItem {
   id: number;
+  pricePer: ShownPrice;
   productId: number;
   name: string;
   category: string | null;
@@ -224,6 +250,7 @@ export interface ShoppingItem {
   priceCents: number | null;
   /** Entered price, else quantity x last known unit price, else null. */
   estimatedCents: number | null;
+  pricePer: ShownPrice;
   /** Planned meals this generated line is for, earliest first. */
   meals: { id: number; date: string; mealType: MealType; title: string; recipeId: number | null }[];
   /** Fruit and vegetables only: in season where the household lives, or not. */

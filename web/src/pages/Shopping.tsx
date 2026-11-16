@@ -7,7 +7,7 @@ import { type MessageKey, useI18n, useT } from '../i18n';
 import type { BudgetStatus, HouseholdSettings, ShoppingItem } from '../types';
 import { Badge, Button, Card, Disclose, Empty, Input, Select } from '../ui';
 import { deferDelete } from '../undo';
-import { LocationSelect, ProductDatalist, parseQty, useCurrency } from './shared';
+import { LocationSelect, ProductDatalist, parseQty, UnitPrice, useCurrency } from './shared';
 
 const AISLES = ['produce', 'dairy', 'meat_fish', 'bakery', 'pantry', 'frozen', 'drinks', 'household', 'other'];
 type GroupBy = NonNullable<HouseholdSettings['shoppingGroupBy']>;
@@ -198,6 +198,7 @@ export function Shopping() {
                               <span className="text-sm whitespace-nowrap text-muted tabular-nums">
                                 {formatQty(item.quantity, item.unit)}
                               </span>
+                              <UnitPrice price={item.pricePer?.main} className="text-xs whitespace-nowrap text-muted tabular-nums" />
                               {item.season === 'out' && !item.checked && (
                                 <span
                                   className="sm:hidden"

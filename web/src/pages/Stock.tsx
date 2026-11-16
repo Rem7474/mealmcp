@@ -7,7 +7,7 @@ import { useT } from '../i18n';
 import type { Product, StockAlerts, StockItem, WasteSummary } from '../types';
 import { Accordion, Badge, Button, Card, Empty, Fab, Field, Input, Select, Sheet } from '../ui';
 import { ProductNutritionCard } from './Nutrition';
-import { LocationSelect, ProductDatalist, parseQty, useCurrency, useProducts } from './shared';
+import { LocationSelect, PriceHistoryView, ProductDatalist, parseQty, UnitPrice, useCurrency, useProducts } from './shared';
 
 const LOCATION_ICON = {
   fridge: <Thermometer size={16} className="text-accent" />,
@@ -315,6 +315,7 @@ function StockRow({ item }: { item: StockItem }) {
           {item.brand && <span className="ml-1.5 text-xs font-normal text-muted">{item.brand}</span>}
         </div>
         {item.note && <div className="order-3 basis-full text-xs text-muted">{item.note}</div>}
+        {item.pricePer && <UnitPrice price={item.pricePer.main} className="order-3 basis-full text-xs text-muted" />}
         {item.opened && item.openedOn && (
           <div className="order-3 basis-full text-xs text-accent">{t('stock.openedBadge', { date: formatDate(item.openedOn) })}</div>
         )}
@@ -547,6 +548,10 @@ export function EditStock({ item, onClose }: { item: StockItem; onClose: () => v
                   className="w-full"
                 />
               </Field>
+            </div>
+            <div className="space-y-1">
+              <p className="text-xs font-medium text-muted">{t('price.history')}</p>
+              <PriceHistoryView productId={item.productId} />
             </div>
             <Field label={`${t('stock.minLabel')} (${item.unit === 'piece' ? '#' : item.unit})`}>
               <Input

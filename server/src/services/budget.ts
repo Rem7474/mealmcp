@@ -9,6 +9,7 @@ import { costCents, toCents } from '../domain/pricing.js';
 import type { budgetSet, expenseList, expenseRecord, productPrice, recipeAvailability, spendingSummary } from '../domain/schemas.js';
 import { toBase } from '../domain/units.js';
 import type { PlannerService } from './planner.js';
+import type { PriceService } from './prices.js';
 import type { ProductService } from './products.js';
 import type { RecipeService } from './recipes.js';
 import type { StockService } from './stock.js';
@@ -22,6 +23,7 @@ export function createBudgetService(
   stock: StockService,
   recipes: RecipeService,
   planner: PlannerService,
+  prices: PriceService,
 ) {
   const mine = eq(expenses.householdId, hid);
   const inRange = (from?: string, to?: string) =>
@@ -69,15 +71,24 @@ export function createBudgetService(
             })
             .run();
           if (base && base.quantity > 0 && priceCents > 0)
-            db.update(products)
-              .set({ unitPrice: priceCents / base.quantity, priceUnit: base.unit })
-              .where(and(eq(products.householdId, hid), eq(products.id, product.id)))
-              .run();
+            prices.record({
+              productId: product.id,
+              unitPrice: priceCents / base.quantity,
+              priceUnit: base.unit,
+              date,
+              store: input.store,
+              source: 'receipt',
+              expenseId: expense.id,
+            });
           if (addToStock && item.quantity !== undefined) stock.add({ name: item.name, quantity: item.quantity, unit: item.unit, location });
         }
         return expense.id;
       });
-      return svc.getExpense(id);
+      return {
+        ...svc.getExpense(id),
+        /** Lines kept without a quantity: they cannot give a unit price (add the quantity to track the price). */
+        linesWithoutUnitPrice: lines.filter((l) => !l.base || l.base.quantity <= 0 || l.priceCents <= 0).map((l) => l.product.name),
+      };
     },
 
     getExpense(id: number) {
@@ -211,10 +222,14 @@ export function createBudgetService(
     setProductPrice(input: z.infer<typeof productPrice>) {
       const product = productService.findOrCreate(input.name, input.unit);
       const base = toBase(input.quantity, input.unit ?? product.defaultUnit);
-      db.update(products)
-        .set({ unitPrice: toCents(input.price) / base.quantity, priceUnit: base.unit })
-        .where(and(eq(products.householdId, hid), eq(products.id, product.id)))
-        .run();
+      prices.record({
+        productId: product.id,
+        unitPrice: toCents(input.price) / base.quantity,
+        priceUnit: base.unit,
+        date: input.date ?? today(),
+        store: input.store,
+        source: 'manual',
+      });
       return productService.get(product.id);
     },
 
