@@ -1,5 +1,6 @@
 import { type ErrorRequestHandler, Router } from 'express';
 import { ZodError } from 'zod';
+import type { LlmClient } from '../ai/client.js';
 import type { AccountService } from '../auth/accounts.js';
 import { attachUser, requireUser, sameOriginOnly } from '../auth/http.js';
 import type { OAuthProvider } from '../auth/oauth.js';
@@ -8,6 +9,7 @@ import type { Db } from '../db/index.js';
 import { ForbiddenError, NotFoundError, TooManyRequestsError, UnauthorizedError, ValidationError } from '../domain/errors.js';
 import type { Hub } from '../realtime.js';
 import { createAccountRoutes, createPublicAuthRoutes } from './accountRoutes.js';
+import { createAiRoutes } from './aiRoutes.js';
 import { createKitchenRoutes } from './kitchenRoutes.js';
 
 interface Deps {
@@ -16,10 +18,11 @@ interface Deps {
   accounts: AccountService;
   oauth: OAuthProvider;
   hub: Hub;
+  llm: LlmClient;
 }
 
 /** REST adapter used by the web UI: accounts first, then the kitchen routes. */
-export function createApiRouter({ db, config, accounts, oauth, hub }: Deps) {
+export function createApiRouter({ db, config, accounts, oauth, hub, llm }: Deps) {
   const r = Router();
 
   // Nothing the API answers (a session, a household, a stock list) may be kept by a browser or a proxy:
@@ -63,6 +66,7 @@ export function createApiRouter({ db, config, accounts, oauth, hub }: Deps) {
   });
 
   r.use(createAccountRoutes({ accounts, oauth }));
+  r.use(createAiRoutes(db, llm));
   r.use(createKitchenRoutes(db));
 
   r.use((_req, res) => void res.status(404).json({ error: 'Not found' }));

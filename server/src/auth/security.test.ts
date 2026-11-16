@@ -214,7 +214,7 @@ describe('sign-up and sign-in hardening', () => {
 
   it('never lets a browser or proxy keep API answers', async () => {
     const { b } = await signUp();
-    for (const path of ['/api/auth/me', '/api/stock', '/api/household']) {
+    for (const path of ['/api/auth/me', '/api/stock', '/api/household', '/api/next-actions']) {
       expect((await b.call(path)).headers.get('cache-control'), path).toBe('no-store');
     }
   });

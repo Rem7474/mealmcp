@@ -3,6 +3,7 @@ import type { Db } from '../db/index.js';
 import * as c from '../domain/catalogSchemas.js';
 import * as s from '../domain/schemas.js';
 import { createServices } from '../services/index.js';
+import { starterQuery, starterRecipesAdd, starterStockAdd } from '../services/starter.js';
 
 /** REST routes for the kitchen itself (stock, recipes, plan, shopping, budget...), for a signed-in caller. */
 export function createKitchenRoutes(db: Db) {
@@ -11,6 +12,12 @@ export function createKitchenRoutes(db: Db) {
   /** Kitchen services bound to the caller's household. */
   const kitchen = (req: Request) => createServices(db, req.user!.householdId);
 
+  r.get('/starter', (req, res) => void res.json(kitchen(req).starter.overview(starterQuery.parse(req.query))));
+  r.post('/starter/stock', (req, res) => void res.status(201).json(kitchen(req).starter.addStock(starterStockAdd.parse(req.body))));
+  r.post(
+    '/starter/recipes',
+    (req, res) => void res.status(201).json(kitchen(req).starter.importRecipes(starterRecipesAdd.parse(req.body))),
+  );
   r.get('/equipment', (req, res) => void res.json(kitchen(req).equipment.list()));
   r.post('/equipment', (req, res) => void res.status(201).json(kitchen(req).equipment.add(s.equipmentAdd.parse(req.body))));
   r.patch(
@@ -108,6 +115,7 @@ export function createKitchenRoutes(db: Db) {
   r.get('/seasons', (req, res) => void res.json(kitchen(req).seasons.list(s.seasonList.parse(req.query))));
   r.get('/plan/history', (req, res) => void res.json(kitchen(req).planner.history(s.mealHistory.parse(req.query))));
   r.get('/context', (req, res) => void res.json(kitchen(req).context.get(s.mealContext.parse(req.query))));
+  r.get('/next-actions', (req, res) => void res.json(kitchen(req).nextActions.get()));
   r.get('/waste', (req, res) => void res.json(kitchen(req).stock.wasteSummary(s.wasteSummary.parse(req.query))));
   r.post(
     '/stock/:id/discard',

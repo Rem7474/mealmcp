@@ -16,6 +16,22 @@ export interface Config {
   logLevel: LogLevel;
   /** `json` (one object per line, for log collectors) or `pretty` (readable, for a terminal). */
   logFormat: 'json' | 'pretty';
+  /** The optional local AI server (any OpenAI-compatible one).  null means the AI features are off. */
+  llm: LlmConfig;
+}
+
+export interface LlmConfig {
+  /** Root of the OpenAI-compatible API, normally ending in /v1, e.g. http://localhost:11434/v1. Set by whoever deploys the server. */
+  baseUrl: URL | null;
+  apiKey?: string;
+  /** Defaults used when a household has not chosen a model. */
+  model?: string;
+  visionModel?: string;
+  /** "auto" trusts what the server reports about a model, true/false overrides it. */
+  vision: 'auto' | 'true' | 'false';
+  timeoutMs: number;
+  /** How many requests may run at once on the model server, all households together. */
+  maxConcurrent: number;
 }
 
 /** Raised when the environment is unusable; carries one readable line per problem. */
@@ -60,6 +76,25 @@ const schema = z.object({
     (v) => (typeof v === 'string' ? blank(v.trim().toLowerCase()) : v),
     z.enum(['json', 'pretty'], { message: 'LOG_FORMAT must be "json" or "pretty"' }).optional(),
   ),
+  LLM_BASE_URL: z.preprocess(
+    blank,
+    z.string().refine(isHttpUrl, 'LLM_BASE_URL must be an absolute http(s) URL such as http://localhost:11434/v1').optional(),
+  ),
+  LLM_API_KEY: z.preprocess(blank, z.string().optional()),
+  LLM_MODEL: z.preprocess(blank, z.string().max(200).optional()),
+  LLM_VISION_MODEL: z.preprocess(blank, z.string().max(200).optional()),
+  LLM_VISION: z.preprocess(
+    (v) => (typeof v === 'string' ? blank(v.trim().toLowerCase()) : v),
+    z.enum(['auto', 'true', 'false'], { message: 'LLM_VISION must be "auto", "true" or "false"' }).default('auto'),
+  ),
+  LLM_TIMEOUT_MS: z.preprocess(
+    blank,
+    z.coerce.number({ message: 'LLM_TIMEOUT_MS must be a number' }).int().min(1000).max(1_800_000).default(120_000),
+  ),
+  LLM_MAX_CONCURRENT: z.preprocess(
+    blank,
+    z.coerce.number({ message: 'LLM_MAX_CONCURRENT must be a number' }).int().min(1).max(16).default(2),
+  ),
   NODE_ENV: z.string().optional(),
 });
 
@@ -82,6 +117,15 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
     logLevel: e.LOG_LEVEL,
     // Readable by default in development, machine-readable in production.
     logFormat: e.LOG_FORMAT ?? (e.NODE_ENV === 'production' ? 'json' : 'pretty'),
+    llm: {
+      baseUrl: e.LLM_BASE_URL ? new URL(e.LLM_BASE_URL.replace(/\/+$/, '')) : null,
+      apiKey: e.LLM_API_KEY,
+      model: e.LLM_MODEL,
+      visionModel: e.LLM_VISION_MODEL,
+      vision: e.LLM_VISION,
+      timeoutMs: e.LLM_TIMEOUT_MS,
+      maxConcurrent: e.LLM_MAX_CONCURRENT,
+    },
   };
 }
 
