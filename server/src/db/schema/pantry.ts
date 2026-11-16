@@ -74,6 +74,8 @@ export const stockItems = sqliteTable(
     packSize: real('pack_size'),
     /** Set once a pack is opened (then `quantity` is what is left of that single pack). ISO date. */
     openedOn: text('opened_on'),
+    /** The date printed on the pack (ISO). `expiresOn` is what the rules make of it (opened shelf life); this one is kept so it can be recomputed. */
+    printedExpiresOn: text('printed_expires_on'),
   },
   (t) => [index('stock_household_idx').on(t.householdId)],
 );

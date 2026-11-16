@@ -21,7 +21,7 @@ export function registerStockTools({ stock, tool, ro, rw, del }: ToolContext) {
   );
   tool(
     'update_stock_item',
-    'Correct a stock line: quantity (or packCount for sealed packs), location or expiry date. Use the id from list_stock. A quantity of 0 deletes the line: the answer says { removed: true }.',
+    'Correct a stock line: quantity (or packCount for sealed packs), location, expiry date, or the opening date of an opened pack (the expiry is then recomputed). Use the id from list_stock. A quantity of 0 deletes the line: the answer says { removed: true }.',
     s.stockUpdate.shape,
     rw,
     (a) => stock.update(a) ?? { removed: true, id: a.id },

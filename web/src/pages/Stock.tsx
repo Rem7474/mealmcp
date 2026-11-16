@@ -333,11 +333,12 @@ function StockRow({ item }: { item: StockItem }) {
 }
 
 /** Where an item is kept, when it goes off and how many packs there are: what the list row does not let you change. */
-function EditStock({ item, onClose }: { item: StockItem; onClose: () => void }) {
+export function EditStock({ item, onClose }: { item: StockItem; onClose: () => void }) {
   const t = useT();
   const { run, pending } = useAction();
   const [location, setLocation] = useState<string>(item.location);
   const [expiresOn, setExpiresOn] = useState(item.expiresOn ?? '');
+  const [openedOn, setOpenedOn] = useState(item.openedOn ?? '');
   const [packs, setPacks] = useState(item.packCount === null ? '' : String(item.packCount));
   const product = useProducts().data?.find((p) => p.id === item.productId);
   const [shelfLife, setShelfLife] = useState<string | null>(null);
@@ -349,7 +350,9 @@ function EditStock({ item, onClose }: { item: StockItem; onClose: () => void }) 
     await run(() =>
       api.patch(`/stock/${item.id}`, {
         location,
-        expiresOn: expiresOn || null,
+        // The expiry is only sent when it was edited: otherwise a corrected opening date moves it by itself.
+        ...(expiresOn !== (item.expiresOn ?? '') ? { expiresOn: expiresOn || null } : {}),
+        ...(item.openedOn && openedOn && openedOn !== item.openedOn ? { openedOn } : {}),
         ...(item.packCount !== null && count !== undefined && !Number.isNaN(count) ? { packCount: count } : {}),
       }),
     );
@@ -379,6 +382,21 @@ function EditStock({ item, onClose }: { item: StockItem; onClose: () => void }) 
             className="w-full"
           />
         </Field>
+        {item.openedOn && (
+          <Field
+            label={t('stock.openedOnLabel')}
+            hint={item.printedExpiresOn ? t('stock.printedHint', { date: formatDate(item.printedExpiresOn) }) : undefined}
+          >
+            <Input
+              type="date"
+              aria-label={t('stock.openedOnLabel')}
+              max={new Date().toISOString().slice(0, 10)}
+              value={openedOn}
+              onChange={(e) => setOpenedOn(e.target.value)}
+              className="w-full"
+            />
+          </Field>
+        )}
         {item.packCount !== null && (
           <Field label={t('stock.packs')}>
             <Input

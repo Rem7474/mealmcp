@@ -134,6 +134,11 @@ export const stockUpdate = z.object({
   packCount: z.number().int().positive().optional().describe('For a line kept in packs: how many unopened packs there are now'),
   location: location.optional(),
   expiresOn: isoDate.nullable().optional(),
+  openedOn: isoDate
+    .optional()
+    .describe(
+      'Correct the opening date of an opened pack (not in the future); its expiry is recomputed from the product opened shelf life',
+    ),
 });
 
 export const stockConsume = z.object({

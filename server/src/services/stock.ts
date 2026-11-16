@@ -9,7 +9,7 @@ import { costCents } from '../domain/pricing.js';
 import type { stockAdd, stockConsume, stockDiscard, stockList, stockOpen, stockUpdate, wasteSummary } from '../domain/schemas.js';
 import { round, toBase } from '../domain/units.js';
 import type { ProductService } from './products.js';
-import { openedExpiry } from './shelfLife.js';
+import { effectiveExpiry, openedExpiry, printedDate } from './shelfLife.js';
 
 export const stockKey = (productId: number, unit: string) => `${productId}|${unit}`;
 
@@ -31,6 +31,7 @@ export function createStockService(db: Db, hid: number, productService: ProductS
         approximate: stockItems.approximate,
         packSize: stockItems.packSize,
         openedOn: stockItems.openedOn,
+        printedExpiresOn: stockItems.printedExpiresOn,
       })
       .from(stockItems)
       .innerJoin(products, eq(products.id, stockItems.productId));
@@ -95,7 +96,7 @@ export function createStockService(db: Db, hid: number, productService: ProductS
         if (marker) {
           if (input.expiresOn !== undefined)
             db.update(stockItems)
-              .set({ expiresOn })
+              .set({ expiresOn, printedExpiresOn: expiresOn })
               .where(and(mine, eq(stockItems.id, marker.id)))
               .run();
           return svc.get(marker.id);
@@ -109,6 +110,7 @@ export function createStockService(db: Db, hid: number, productService: ProductS
             unit: product.defaultUnit,
             location,
             expiresOn,
+            printedExpiresOn: expiresOn,
             addedOn: today(),
             approximate: true,
           })
@@ -150,6 +152,7 @@ export function createStockService(db: Db, hid: number, productService: ProductS
             unit,
             location,
             expiresOn: expiresOn ?? openedExpiry(product.openedShelfLifeDays, openedOn, null),
+            printedExpiresOn: expiresOn,
             addedOn: today(),
             packSize,
             openedOn,
@@ -185,7 +188,17 @@ export function createStockService(db: Db, hid: number, productService: ProductS
       }
       const row = db
         .insert(stockItems)
-        .values({ householdId: hid, productId: product.id, quantity, unit, location, expiresOn, addedOn: today(), packSize })
+        .values({
+          householdId: hid,
+          productId: product.id,
+          quantity,
+          unit,
+          location,
+          expiresOn,
+          printedExpiresOn: expiresOn,
+          addedOn: today(),
+          packSize,
+        })
         .returning()
         .get();
       return svc.get(row.id);
@@ -203,7 +216,8 @@ export function createStockService(db: Db, hid: number, productService: ProductS
       if (shelfLifeDays && !product.openedShelfLifeDays) productService.update({ id: product.id, openedShelfLifeDays: shelfLifeDays });
       const days = shelfLifeDays ?? product.openedShelfLifeDays;
       const openedOn = today();
-      const expiresOn = openedExpiry(days, openedOn, line.expiresOn);
+      const printed = printedDate(line, product);
+      const expiresOn = openedExpiry(days, openedOn, printed);
       const size = line.packSize ?? line.quantity;
       if (remaining !== undefined && remaining > size + 1e-9) throw new ValidationError('What is left cannot exceed the pack size');
       const left = remaining ?? size;
@@ -211,7 +225,7 @@ export function createStockService(db: Db, hid: number, productService: ProductS
       if (line.packSize === null) {
         // Not kept in packs: the line itself is the container.
         db.update(stockItems)
-          .set({ openedOn, expiresOn, quantity: left, packSize: line.quantity })
+          .set({ openedOn, expiresOn, printedExpiresOn: printed, quantity: left, packSize: line.quantity })
           .where(and(mine, eq(stockItems.id, id)))
           .run();
         return svc.get(id);
@@ -236,6 +250,7 @@ export function createStockService(db: Db, hid: number, productService: ProductS
           unit: line.unit,
           location: line.location,
           expiresOn,
+          printedExpiresOn: printed,
           addedOn: line.addedOn,
           packSize: size,
           openedOn,
@@ -256,8 +271,7 @@ export function createStockService(db: Db, hid: number, productService: ProductS
       if (line.packSize !== null && line.quantity < line.packSize - 1e-9)
         throw new ValidationError('Part of it was already used: it cannot be sealed again');
       const product = productService.get(line.productId);
-      const fromShelfLife = product.openedShelfLifeDays && line.expiresOn === addDays(line.openedOn, product.openedShelfLifeDays);
-      const expiresOn = fromShelfLife ? null : line.expiresOn;
+      const expiresOn = printedDate(line, product);
       const twin = db
         .select()
         .from(stockItems)
@@ -285,7 +299,7 @@ export function createStockService(db: Db, hid: number, productService: ProductS
         return svc.get(twin.id);
       }
       db.update(stockItems)
-        .set({ openedOn: null, expiresOn })
+        .set({ openedOn: null, expiresOn, printedExpiresOn: expiresOn })
         .where(and(mine, eq(stockItems.id, id)))
         .run();
       return svc.get(id);
@@ -309,7 +323,21 @@ export function createStockService(db: Db, hid: number, productService: ProductS
         return null;
       }
       // An exact quantity replaces the "plenty of it" marker.
-      const changes = patch.quantity !== undefined && current.approximate ? { ...patch, approximate: false } : patch;
+      const changes: Partial<typeof stockItems.$inferInsert> =
+        patch.quantity !== undefined && current.approximate ? { ...patch, approximate: false } : { ...patch };
+      if (patch.openedOn !== undefined) {
+        if (!current.openedOn) throw new ValidationError('Only an opened pack has an opening date');
+        if (patch.openedOn > today()) throw new ValidationError('A pack cannot be opened in the future');
+        // Moving the opening date moves the expiry the shelf life gives, unless the caller sets the expiry itself.
+        if (patch.expiresOn === undefined) {
+          const product = productService.get(current.productId);
+          const printed = printedDate(current, product);
+          changes.printedExpiresOn = printed;
+          changes.expiresOn = effectiveExpiry({ expiresOn: printed, printedExpiresOn: printed, openedOn: patch.openedOn }, product);
+        }
+      }
+      // On a sealed pack the expiry is the printed date.
+      if (patch.expiresOn !== undefined && !current.openedOn) changes.printedExpiresOn = patch.expiresOn;
       if (Object.keys(changes).length)
         db.update(stockItems)
           .set(changes)
@@ -462,6 +490,7 @@ export function createStockService(db: Db, hid: number, productService: ProductS
                   unit: line.unit,
                   location: line.location,
                   expiresOn: openedExpiry(product.openedShelfLifeDays, openedOn, line.expiresOn),
+                  printedExpiresOn: line.expiresOn,
                   addedOn: line.addedOn,
                   packSize: size,
                   openedOn,

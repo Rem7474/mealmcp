@@ -184,11 +184,22 @@ export function Sheet({ title, onClose, children }: { title: ReactNode; onClose:
 }
 
 /** A labelled form control: the label stays visible above the field, as in a native form. */
-export function Field({ label, children, className = '' }: { label: ReactNode; children: ReactNode; className?: string }) {
+export function Field({
+  label,
+  hint,
+  children,
+  className = '',
+}: {
+  label: ReactNode;
+  hint?: ReactNode;
+  children: ReactNode;
+  className?: string;
+}) {
   return (
     <label className={`block min-w-0 ${className}`}>
       <span className="mb-1 block text-xs font-medium text-muted">{label}</span>
       {children}
+      {hint && <span className="mt-1 block text-xs text-muted">{hint}</span>}
     </label>
   );
 }
