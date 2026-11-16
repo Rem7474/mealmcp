@@ -111,7 +111,7 @@ const t = {
       [
         '🧊',
         'Know what is in the fridge',
-        'See what expires first, tell use-by from best-before, freeze and thaw with the right clock, get an alert on opened jars, and cook what you already own before buying more.',
+        'See what expires first, tell use-by from best-before, freeze and thaw (even part of a pack) with the right clock, get an alert on opened jars, and cook what you already own before buying more.',
       ],
       [
         '📖',
@@ -121,7 +121,7 @@ const t = {
       [
         '💶',
         'Grocery budget under control',
-        'Log receipts, set a monthly budget and see where you will land before the month ends. Every receipt builds a price history per product, with the trend and the cheapest shop. In any currency.',
+        'Log receipts, set a monthly budget and see where you will land before the month ends. Every receipt builds a price history per product, with the trend and the cheapest shop, and a pricey item on your list is flagged. In any currency.',
       ],
       [
         '🍎',
@@ -252,7 +252,7 @@ const t = {
       [
         '🧊',
         'Savoir ce qu’il y a dans le frigo',
-        'Voyez ce qui expire en premier, distinguez DLC et DDM, congelez et décongelez avec la bonne horloge, soyez alerté pour les pots ouverts et cuisinez ce que vous avez avant d’en racheter.',
+        'Voyez ce qui expire en premier, distinguez DLC et DDM, congelez et décongelez (même une partie d’un paquet) avec la bonne horloge, soyez alerté pour les pots ouverts et cuisinez ce que vous avez avant d’en racheter.',
       ],
       [
         '📖',
@@ -262,7 +262,7 @@ const t = {
       [
         '💶',
         'Un budget courses maîtrisé',
-        'Enregistrez vos tickets, fixez un budget mensuel et voyez où vous allez finir avant la fin du mois. Chaque ticket construit un historique des prix par produit, avec la tendance et le magasin le moins cher. Dans la devise de votre choix.',
+        'Enregistrez vos tickets, fixez un budget mensuel et voyez où vous allez finir avant la fin du mois. Chaque ticket construit un historique des prix par produit, avec la tendance et le magasin le moins cher, et un article cher de votre liste est signalé. Dans la devise de votre choix.',
       ],
       [
         '🍎',
