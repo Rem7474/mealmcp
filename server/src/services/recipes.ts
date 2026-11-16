@@ -307,21 +307,21 @@ export function createRecipeService(
     },
 
     /**
-     * "What can I cook that uses up what is about to expire?" Ranks recipes by how many of the
-     * expiring (or explicitly requested) products they use, then by how little needs buying.
+     * Every recipe scored for the household right now (stock, taste, season, equipment), best first.
+     * `targets` are products to use up: each one a recipe uses adds to its score. Nothing is filtered on
+     * them, so a caller decides what to keep (see `suggest` and the week plan).
      */
-    suggest({ withinDays, products: wanted, tag, servings, limit, ignoreDiet }: z.input<typeof suggestRecipes>) {
-      const targets = new Map<number, { name: string; expiresOn: string | null }>();
-      // A line past its use-by date is not something to cook: it is for the bin.
-      for (const item of stock.list({ expiringWithinDays: withinDays ?? 5 }))
-        if (item.expiryState !== 'discard' && !targets.has(item.productId))
-          targets.set(item.productId, { name: item.name, expiresOn: item.expiresOn });
-      for (const name of wanted ?? []) {
-        const product = productService.findByName(name);
-        if (product && !targets.has(product.id)) targets.set(product.id, { name: product.name, expiresOn: null });
-      }
+    rank({
+      targets,
+      tag,
+      servings,
+    }: {
+      targets: Map<number, { name: string; expiresOn: string | null }>;
+      tag?: string;
+      servings?: number;
+    }) {
       const servingsToUse = servings ?? settings.get().defaultServings;
-      const suggestions = svc
+      return svc
         .list({ tag })
         .map((summary) => {
           const recipe = svc.get(summary.id);
@@ -359,8 +359,31 @@ export function createRecipeService(
               Math.min(inSeason.length, 3),
           };
         })
+        .sort((a, b) => b.score - a.score || a.name.localeCompare(b.name));
+    },
+
+    /** Products about to expire (a line past its use-by date is for the bin, not the pan). */
+    expiringTargets(withinDays: number) {
+      const targets = new Map<number, { name: string; expiresOn: string | null }>();
+      for (const item of stock.list({ expiringWithinDays: withinDays }))
+        if (item.expiryState !== 'discard' && !targets.has(item.productId))
+          targets.set(item.productId, { name: item.name, expiresOn: item.expiresOn });
+      return targets;
+    },
+
+    /**
+     * "What can I cook that uses up what is about to expire?" Ranks recipes by how many of the
+     * expiring (or explicitly requested) products they use, then by how little needs buying.
+     */
+    suggest({ withinDays, products: wanted, tag, servings, limit, ignoreDiet }: z.input<typeof suggestRecipes>) {
+      const targets = svc.expiringTargets(withinDays ?? 5);
+      for (const name of wanted ?? []) {
+        const product = productService.findByName(name);
+        if (product && !targets.has(product.id)) targets.set(product.id, { name: product.name, expiresOn: null });
+      }
+      const suggestions = svc
+        .rank({ targets, tag, servings })
         .filter((s) => s.usesExpiring.length > 0 && (ignoreDiet || s.dietConflicts.length === 0))
-        .sort((a, b) => b.score - a.score || a.name.localeCompare(b.name))
         .slice(0, limit ?? 5);
       return { expiring: [...targets.values()], suggestions };
     },

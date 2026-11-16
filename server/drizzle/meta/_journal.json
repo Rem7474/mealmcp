@@ -120,6 +120,13 @@
       "when": 1794841414950,
       "tag": "0016_tricky_princess_powerful",
       "breakpoints": true
+    },
+    {
+      "idx": 17,
+      "version": "6",
+      "when": 1794847593061,
+      "tag": "0017_overjoyed_vulture",
+      "breakpoints": true
     }
   ]
 }

@@ -505,3 +505,21 @@ export const productNutritionSet = z.object({
     .describe('Values typed by hand, per 100 g (or 100 ml): kcal and grams'),
 });
 export const nutritionPlan = z.object({ from: isoDate, to: isoDate });
+
+export const weekPlanStart = z.object({
+  meals: z
+    .array(z.object({ date: isoDate, mealType: z.enum(MEAL_TYPES) }))
+    .min(1)
+    .max(28)
+    .describe('The meals to plan, one entry per day and meal'),
+  tag: z.string().trim().max(60).optional().describe('Only consider recipes with this tag'),
+  maxMinutes: z.number().int().positive().max(600).optional().describe('Preparation plus cooking time ceiling, in minutes'),
+  servings: z.number().int().positive().max(50).optional().describe('Defaults to the household default servings'),
+  avoidRepeatDays: z.number().int().min(0).max(60).default(7).describe('Rank down recipes cooked within this many days'),
+});
+
+export const weekSlotParams = z.object({
+  id: z.coerce.number().int().positive(),
+  key: z.string().regex(/^\d{4}-\d{2}-\d{2}\|(breakfast|lunch|dinner|snack)$/),
+});
+export const weekPlanChoose = z.object({ recipeId: id });

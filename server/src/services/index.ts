@@ -14,6 +14,7 @@ import { createSettingsService } from './settings.js';
 import { createShoppingService } from './shopping.js';
 import { createStarterService } from './starter.js';
 import { createStockService } from './stock.js';
+import { createWeekPlanService } from './weekPlan.js';
 
 /**
  * The single place where kitchen business logic lives. The REST API and the MCP
@@ -34,6 +35,7 @@ export function createServices(db: Db, householdId: number) {
   const nutrition = createNutritionService(db, householdId, settings, products, recipes, planner);
   const prices = createPriceService(db, householdId, products);
   const budget = createBudgetService(db, householdId, products, stock, recipes, planner, prices);
+  const weekPlan = createWeekPlanService(db, householdId, recipes, planner, settings);
   const shopping = createShoppingService(db, householdId, products, stock, recipes, planner, budget, seasons);
   const catalog = createCatalogService(householdId, products, stock);
   const starter = createStarterService(products, stock, recipes);
@@ -41,6 +43,7 @@ export function createServices(db: Db, householdId: number) {
   const nextActions = createNextActionsService(stock, recipes, planner, shopping, budget);
   return {
     starter,
+    weekPlan,
     catalog,
     nutrition,
     context,

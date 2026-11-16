@@ -6,4 +6,5 @@ export * from './schema/budget.js';
 export * from './schema/common.js';
 export * from './schema/pantry.js';
 export * from './schema/planning.js';
+export * from './schema/proposals.js';
 export * from './schema/recipes.js';
