@@ -105,6 +105,8 @@ export interface StockItem {
   packCount: number | null;
   opened: boolean;
   openedOn: string | null;
+  /** The date printed on the pack; `expiresOn` is the one the opened shelf life makes of it. */
+  printedExpiresOn: string | null;
 }
 
 export interface StockAlerts {

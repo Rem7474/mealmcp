@@ -246,3 +246,44 @@ describe('waste tracking', () => {
     expect(summary.byProduct[0]).toMatchObject({ name: 'Milk', quantity: 1000 });
   });
 });
+
+describe('printed expiry and opening date', () => {
+  const printed = addDays(today(), 20);
+
+  it('keeps the printed date when a pack is opened, and drops back to it when sealed again', () => {
+    const line = svc.stock.add({ name: 'Sauce', quantity: 1, unit: 'piece', packSize: 1, expiresOn: printed });
+    expect(line.printedExpiresOn).toBe(printed);
+    svc.products.update({ id: line.productId, openedShelfLifeDays: 3 });
+    const opened = svc.stock.open({ id: line.id });
+    expect(opened.expiresOn).toBe(addDays(today(), 3));
+    expect(opened.printedExpiresOn).toBe(printed);
+    expect(svc.stock.unopen(opened.id).expiresOn).toBe(printed);
+  });
+
+  it('moves the expiry when the opening date is corrected, never past the printed date', () => {
+    const line = svc.stock.add({ name: 'Sauce', quantity: 1, unit: 'piece', packSize: 1, expiresOn: printed });
+    svc.products.update({ id: line.productId, openedShelfLifeDays: 3 });
+    const opened = svc.stock.open({ id: line.id });
+    const earlier = addDays(today(), -2);
+    const fixed = svc.stock.update({ id: opened.id, openedOn: earlier });
+    expect(fixed?.openedOn).toBe(earlier);
+    expect(fixed?.expiresOn).toBe(addDays(earlier, 3));
+    expect(fixed?.printedExpiresOn).toBe(printed);
+    // Setting the expiry in the same call wins over the recomputation.
+    const manual = svc.stock.update({ id: opened.id, openedOn: earlier, expiresOn: addDays(today(), 9) });
+    expect(manual?.expiresOn).toBe(addDays(today(), 9));
+  });
+
+  it('refuses an opening date on a sealed pack or in the future', () => {
+    const line = svc.stock.add({ name: 'Sauce', quantity: 1, unit: 'piece', packSize: 1, expiresOn: printed });
+    expect(() => svc.stock.update({ id: line.id, openedOn: today() })).toThrow(/opened pack/);
+    const opened = svc.stock.open({ id: line.id });
+    expect(() => svc.stock.update({ id: opened.id, openedOn: addDays(today(), 1) })).toThrow(/future/);
+  });
+
+  it('records the printed date of a sealed line edited by hand', () => {
+    const line = svc.stock.add({ name: 'Rice', quantity: 1, unit: 'kg' });
+    expect(line.printedExpiresOn).toBeNull();
+    expect(svc.stock.update({ id: line.id, expiresOn: printed })?.printedExpiresOn).toBe(printed);
+  });
+});

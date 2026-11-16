@@ -181,6 +181,8 @@ export const en = {
   'stock.nothingHere': 'Nothing here.',
   'stock.add.title': 'Add to stock',
   'stock.expiry': 'Expiry date',
+  'stock.openedOnLabel': 'Opened on',
+  'stock.printedHint': 'Printed date: {date}',
   'stock.edit': 'Edit',
   'stock.editProduct': 'For every {name}',
   'stock.shelfLifeLabel': 'Keeps this many days once opened',

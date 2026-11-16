@@ -178,6 +178,8 @@ export const fr: Messages = {
   'stock.nothingHere': 'Rien ici.',
   'stock.add.title': 'Ajouter au stock',
   'stock.expiry': 'Date de péremption',
+  'stock.openedOnLabel': 'Ouvert le',
+  'stock.printedHint': 'Date imprimée : {date}',
   'stock.edit': 'Modifier',
   'stock.editProduct': 'Pour tout « {name} »',
   'stock.shelfLifeLabel': 'Se garde ce nombre de jours après ouverture',
