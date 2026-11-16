@@ -502,3 +502,59 @@ describe('price paid per line', () => {
     expect(svc.stock.list().find((i) => i.name === 'Flour')?.paidUnitPrice).toBeCloseTo(0.15);
   });
 });
+
+describe('partial freezing', () => {
+  const printed = addDays(today(), 3);
+
+  it('splits the line: the frozen part gets the freezing clock, the rest keeps its date', () => {
+    const line = svc.stock.add({
+      name: 'Mince',
+      quantity: 1000,
+      unit: 'g',
+      location: 'fridge',
+      expiresOn: printed,
+      price: 8,
+      note: 'bulk',
+    });
+    svc.products.update({ id: line.productId, category: 'meat_fish' });
+    const frozen = svc.stock.freeze({ id: line.id, quantity: 300 });
+    expect(frozen).toMatchObject({
+      quantity: 300,
+      location: 'freezer',
+      frozen: true,
+      printedExpiresOn: printed,
+      expiresOn: addDays(today(), 90),
+      note: 'bulk',
+    });
+    expect(frozen.paidUnitPrice).toBe(line.paidUnitPrice);
+    expect(frozen.id).not.toBe(line.id);
+    expect(svc.stock.get(line.id)).toMatchObject({ quantity: 700, location: 'fridge', frozen: false, expiresOn: printed });
+    expect(svc.stock.list().filter((i) => i.name === 'Mince')).toHaveLength(2);
+  });
+
+  it('freezes everything when the quantity covers the line, and refuses nonsense', () => {
+    const line = svc.stock.add({ name: 'Bread', quantity: 500, unit: 'g', location: 'pantry' });
+    expect(svc.stock.freeze({ id: line.id, quantity: 500 })).toMatchObject({ id: line.id, quantity: 500, frozen: true });
+    const other = svc.stock.add({ name: 'Ham', quantity: 200, unit: 'g', location: 'fridge' });
+    expect(svc.stock.freeze({ id: other.id, quantity: 900 })).toMatchObject({ id: other.id, frozen: true });
+    const third = svc.stock.add({ name: 'Beef', quantity: 200, unit: 'g', location: 'fridge' });
+    expect(() => svc.stock.freeze({ id: third.id, quantity: 0 })).toThrow(/Nothing to freeze/);
+    expect(svc.stock.get(third.id).quantity).toBe(200);
+  });
+
+  it('keeps whole packs as packs and turns a part of a pack into a plain quantity', () => {
+    const line = svc.stock.add({ name: 'Cream', packCount: 4, packSize: 200, unit: 'ml', location: 'fridge' });
+    const two = svc.stock.freeze({ id: line.id, quantity: 400 });
+    expect(two).toMatchObject({ quantity: 400, packSize: 200, packCount: 2 });
+    expect(svc.stock.get(line.id)).toMatchObject({ quantity: 400, packCount: 2 });
+    const part = svc.stock.freeze({ id: line.id, quantity: 100 });
+    expect(part).toMatchObject({ quantity: 100, packSize: null, packCount: null });
+  });
+
+  it('freezes part of an opened pack, and an already frozen line cannot be split again', () => {
+    const opened = svc.stock.add({ name: 'Sauce', quantity: 300, unit: 'ml', packSize: 500, opened: true, location: 'fridge' });
+    const part = svc.stock.freeze({ id: opened.id, quantity: 100 });
+    expect(part).toMatchObject({ quantity: 100, opened: true, frozen: true });
+    expect(() => svc.stock.freeze({ id: part.id, quantity: 50 })).toThrow(/already frozen/);
+  });
+});

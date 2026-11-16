@@ -189,6 +189,12 @@ export const fr: Messages = {
   'stock.toCheck': 'À vérifier',
   'stock.freeze': 'Congeler',
   'stock.freezeAria': 'Congeler {name}',
+  'stock.freezePart': 'Congeler une partie…',
+  'stock.freezePartAria': 'Congeler une partie de {name}',
+  'stock.freezePartTitle': 'Congeler une partie de {name}',
+  'stock.freezePartHelp':
+    'La ligne contient {total}. Seule la partie congelée démarre son horloge de congélation ; le reste garde sa date.',
+  'stock.freezePartQuantity': 'Quantité à congeler ({unit})',
   'stock.thaw': 'Décongeler',
   'stock.thawAria': 'Décongeler {name}',
   'stock.refreezeConfirm': 'Cet aliment a déjà été décongelé. Le recongeler n’est pas recommandé. Congeler quand même ?',

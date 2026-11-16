@@ -491,18 +491,53 @@ export function createStockService(db: Db, hid: number, productService: ProductS
       );
     },
 
-    /** Puts a line in the freezer. A line that was already thawed is only refrozen on purpose (refreeze). */
-    freeze({ id, refreeze }: { id: number; refreeze?: boolean }) {
+    /**
+     * Puts a line in the freezer. A line that was already thawed is only refrozen on purpose (refreeze).
+     * With a `quantity` smaller than the line, only that part is frozen: the line is split, the frozen part gets
+     * the freezing date and its own expiry, the rest keeps its date. Returns the frozen line.
+     */
+    freeze({ id, refreeze, quantity }: { id: number; refreeze?: boolean; quantity?: number }) {
       const line = svc.get(id);
       if (line.approximate) throw new ValidationError('A "plenty of it" marker cannot be frozen');
       if (line.frozenOn) throw new ValidationError('This is already frozen');
       const product = productService.get(line.productId);
       const changes = freezeChanges(refreeze ? { ...line, thawedOn: null } : line, product);
-      db.update(stockItems)
-        .set(changes)
-        .where(and(mine, eq(stockItems.id, id)))
-        .run();
-      return svc.get(id);
+      if (quantity === undefined || quantity >= line.quantity - 1e-9) {
+        db.update(stockItems)
+          .set(changes)
+          .where(and(mine, eq(stockItems.id, id)))
+          .run();
+        return svc.get(id);
+      }
+      if (quantity <= 0) throw new ValidationError('Nothing to freeze');
+      const part = round(quantity);
+      // Whole packs stay packs; a part of a pack is just a quantity.
+      const wholePacks =
+        line.packSize !== null && !line.openedOn && Math.abs(part / line.packSize - Math.round(part / line.packSize)) < 1e-9;
+      return db.transaction(() => {
+        db.update(stockItems)
+          .set({ quantity: round(line.quantity - part) })
+          .where(and(mine, eq(stockItems.id, id)))
+          .run();
+        const row = db
+          .insert(stockItems)
+          .values({
+            householdId: hid,
+            productId: line.productId,
+            quantity: part,
+            unit: line.unit,
+            dateKind: line.dateKind,
+            note: line.note,
+            addedOn: line.addedOn,
+            packSize: line.openedOn ? line.packSize : wholePacks ? line.packSize : null,
+            openedOn: line.openedOn,
+            paidUnitPrice: line.paidUnitPrice,
+            ...changes,
+          })
+          .returning()
+          .get();
+        return svc.get(row.id);
+      });
     },
 
     /** Takes a line out of the freezer: it must now be used within the product's thawed shelf life. */

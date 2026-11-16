@@ -45,7 +45,7 @@ export function registerStockTools({ stock, tool, ro, rw, del }: ToolContext) {
   );
   tool(
     'freeze_stock_item',
-    'Put a stock line in the freezer. The freezing date replaces the printed date as the clock: it keeps the product frozen shelf life (update_product frozenShelfLifeDays; a default per category otherwise). Refuses a line that was already thawed unless refreeze=true. Moving a line to the freezer with update_stock_item location does the same.',
+    'Put a stock line in the freezer. The freezing date replaces the printed date as the clock: it keeps the product frozen shelf life (update_product frozenShelfLifeDays; a default per category otherwise). Refuses a line that was already thawed unless refreeze=true. Moving a line to the freezer with update_stock_item location does the same. Only part of a line (a pack split before freezing)? Give quantity: the line is split and only that part is frozen.',
     s.stockFreezeByRef.shape,
     rw,
     ({ name, id, ...rest }) => stock.freeze({ ...rest, id: stock.resolve({ id, name }, (l) => !l.frozen) }),

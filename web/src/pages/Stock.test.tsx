@@ -1,9 +1,9 @@
 import { screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { beforeEach, describe, expect, it } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { mockApi, renderApp } from '../test/utils';
 import type { StockItem } from '../types';
-import { EditStock, Stock } from './Stock';
+import { EditStock, FreezePart, Stock } from './Stock';
 
 beforeEach(() => {
   try {
@@ -235,5 +235,19 @@ describe('EditStock price follow-up', () => {
     open();
     expect(await screen.findByText(/Followed as typed.*per can/)).toBeInTheDocument();
     expect(screen.queryByText(/No price yet/)).toBeNull();
+  });
+});
+
+describe('FreezePart', () => {
+  it('sends the part to freeze, and only when it is a positive number', async () => {
+    const { calls } = mockApi({ 'POST /stock/7/freeze': { status: 200, body: {} } });
+    let closed = false;
+    renderApp(<FreezePart item={{ ...opened, quantity: 1000, unit: 'g' }} onClose={() => (closed = true)} />);
+    const freeze = screen.getByRole('button', { name: 'Freeze' });
+    expect(freeze).toBeDisabled();
+    await userEvent.type(screen.getByLabelText('Quantity to freeze (g)'), '300');
+    await userEvent.click(freeze);
+    expect(calls).toEqual([{ method: 'POST', path: '/stock/7/freeze', body: { quantity: 300 } }]);
+    await vi.waitFor(() => expect(closed).toBe(true));
   });
 });
