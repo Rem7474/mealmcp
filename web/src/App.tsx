@@ -1,4 +1,4 @@
-import { BookOpen, CalendarBlank, CookingPot, type IconWeight, Package, ShoppingCart, Wallet } from '@phosphor-icons/react';
+import { BookOpen, CalendarBlank, CookingPot, House, type IconWeight, Package, ShoppingCart, Wallet } from '@phosphor-icons/react';
 import { useQuery } from '@tanstack/react-query';
 import type { ComponentType } from 'react';
 import { useCallback, useEffect, useState } from 'react';
@@ -9,6 +9,7 @@ import { Account } from './pages/Account';
 import { AuthPage, fetchMe, meKey } from './pages/AuthPage';
 import { Budget } from './pages/Budget';
 import { Consent } from './pages/Consent';
+import { Home } from './pages/Home';
 import { Planning } from './pages/Planning';
 import { Recipes } from './pages/Recipes';
 import { Shopping } from './pages/Shopping';
@@ -16,16 +17,20 @@ import { Stock } from './pages/Stock';
 import type { User } from './types';
 import { UndoHost } from './undo';
 
-const TABS = ['planning', 'recipes', 'shopping', 'stock', 'budget', 'account'] as const;
+const TABS = ['home', 'planning', 'recipes', 'shopping', 'stock', 'budget', 'account'] as const;
 type TabId = (typeof TABS)[number];
+type NavItem = { id: Exclude<TabId, 'account'>; Icon: ComponentType<{ size?: number; className?: string; weight?: IconWeight }> };
 // The account has no tab of its own: it sits behind the avatar.
-const NAV: { id: Exclude<TabId, 'account'>; Icon: ComponentType<{ size?: number; className?: string; weight?: IconWeight }> }[] = [
+const NAV: NavItem[] = [
+  { id: 'home', Icon: House },
   { id: 'planning', Icon: CalendarBlank },
   { id: 'recipes', Icon: BookOpen },
   { id: 'shopping', Icon: ShoppingCart },
   { id: 'stock', Icon: Package },
   { id: 'budget', Icon: Wallet },
 ];
+// The bar under the thumb has room for five: the budget is reached from the home page and from the account.
+const PHONE_NAV = NAV.filter(({ id }) => id !== 'budget');
 const initials = (name: string) =>
   name
     .split(/\s+/)
@@ -34,10 +39,12 @@ const initials = (name: string) =>
     .slice(0, 2)
     .toUpperCase();
 
-const initialTab = (): TabId => TABS.find((id) => id === location.hash.slice(1).split('/')[0]) ?? 'planning';
+const initialTab = (): TabId => TABS.find((id) => id === location.hash.slice(1).split('/')[0]) ?? 'home';
 
 function Page({ tab, user }: { tab: TabId; user: User }) {
   switch (tab) {
+    case 'home':
+      return <Home />;
     case 'planning':
       return <Planning />;
     case 'recipes':
@@ -170,7 +177,7 @@ function Shell({ user }: { user: User }) {
       <UndoHost />
       {/* Phones: the tabs move to a bar under the thumb. */}
       <nav className="fixed inset-x-0 bottom-0 z-10 flex border-t border-line bg-bg pb-[env(safe-area-inset-bottom)] sm:hidden">
-        {NAV.map(({ id, Icon }) => (
+        {PHONE_NAV.map(({ id, Icon }) => (
           <button
             type="button"
             key={id}
