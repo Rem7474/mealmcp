@@ -57,3 +57,36 @@ describe('PurchaseFromText', () => {
     expect(screen.getByRole('button', { name: 'Put 0 away' })).toBeDisabled();
   });
 });
+
+describe('PurchaseFromText with AI', () => {
+  const status = (text: boolean) => ({
+    status: 200,
+    body: { enabled: text, reachable: text, text, textModel: text ? 'm' : null, visionModel: null, vision: 'unknown' },
+  });
+
+  it('offers the model only when it is usable, and fills the total it found', async () => {
+    const { calls } = mockApi({
+      'GET /ai/status': status(true),
+      'POST /shopping/from-text/ai': {
+        status: 200,
+        body: {
+          total: 12.3,
+          lines: [{ text: 'milk', name: 'Milk', quantity: 2, unit: 'piece', price: null, match: 'new', onList: false, include: true }],
+        },
+      },
+    });
+    renderApp(<PurchaseFromText onClose={() => {}} />);
+    await userEvent.type(screen.getByLabelText('What you bought'), 'I took two milks');
+    await userEvent.click(await screen.findByRole('button', { name: 'Read it with AI' }));
+    expect(calls.some((c) => c.path === '/shopping/from-text/ai')).toBe(true);
+    expect(await screen.findByDisplayValue('Milk')).toBeInTheDocument();
+    expect(screen.getByDisplayValue('12.3')).toBeInTheDocument();
+  });
+
+  it('is absent without an AI server', async () => {
+    mockApi({ 'GET /ai/status': status(false) });
+    renderApp(<PurchaseFromText onClose={() => {}} />);
+    await screen.findByRole('button', { name: 'Check my list' });
+    expect(screen.queryByRole('button', { name: 'Read it with AI' })).toBeNull();
+  });
+});

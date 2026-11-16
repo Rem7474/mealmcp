@@ -100,6 +100,7 @@ describe('AI routes', () => {
       ['PUT', '/api/ai/model'],
       ['POST', '/api/ai/test'],
       ['POST', '/api/plan/week/ai'],
+      ['POST', '/api/shopping/from-text/ai'],
     ] as const) {
       const res = await anon.call(path, { method, headers: bearer, json: method === 'GET' ? undefined : {} });
       expect(res.status, `${method} ${path}`).toBe(403);
@@ -218,6 +219,25 @@ describe('plan the week with AI', () => {
   });
 });
 
+describe('shopping from text with AI', () => {
+  it('reads the sentences with the model, then answers like the typed list; bad input is a 400', async () => {
+    const b = await signUp();
+    // The fake model answers {"ok": true}: not a purchase list, so the person is told to try again or go without AI.
+    const bad = await b.call('/api/shopping/from-text/ai', { json: { text: '2 kg rice' } });
+    expect(bad.status).toBe(400);
+    expect((await b.call('/api/shopping/from-text/ai', { json: { text: '' } })).status).toBe(400);
+    const typed = await b.call('/api/shopping/from-text', { json: { text: '2 kg rice' } });
+    expect(typed.status).toBe(200);
+  });
+
+  it('cannot be asked too often', async () => {
+    const b = await signUp();
+    const codes: number[] = [];
+    for (let i = 0; i < 25; i++) codes.push((await b.call('/api/shopping/from-text/ai', { json: { text: '' } })).status);
+    expect(codes).toContain(429);
+  });
+});
+
 describe('without an AI server', () => {
   it('is simply off', async () => {
     const probe = createServer();
@@ -243,6 +263,12 @@ describe('without an AI server', () => {
         body: JSON.stringify({ meals: [{ date: '2031-03-10', mealType: 'dinner' }] }),
       });
       expect(plan.status).toBe(400);
+      const buy = await fetch(`http://localhost:${port}/api/shopping/from-text/ai`, {
+        method: 'POST',
+        headers: { cookie, 'content-type': 'application/json' },
+        body: JSON.stringify({ text: '2 kg rice' }),
+      });
+      expect(buy.status).toBe(400);
       expect(await (await fetch(`http://localhost:${port}/api/ai/models`, { headers: { cookie } })).json()).toEqual([]);
     } finally {
       off.close();

@@ -4,8 +4,9 @@ import { sessionOnly } from '../auth/http.js';
 import { createRateLimiter } from '../auth/rateLimit.js';
 import type { Db } from '../db/index.js';
 import { ForbiddenError } from '../domain/errors.js';
-import { aiWeekPlanStart } from '../domain/schemas.js';
+import { aiWeekPlanStart, purchaseText } from '../domain/schemas.js';
 import { createAiService } from '../services/ai.js';
+import { createAiPurchase } from '../services/aiPurchase.js';
 import { createAiWeekPlan } from '../services/aiWeekPlan.js';
 import { createServices } from '../services/index.js';
 
@@ -39,6 +40,14 @@ export function createAiRoutes(db: Db, llm: LlmClient) {
   r.post('/ai/test', sessionOnly, async (req, res) => {
     limit.hit(`test:${req.user!.householdId}`);
     res.json(await ai(req.user!.householdId).test(req.log));
+  });
+
+  // The same review screen as the typed list, with the model reading the sentences.
+  r.post('/shopping/from-text/ai', sessionOnly, async (req, res) => {
+    const { householdId } = req.user!;
+    limit.hit(`purchase:${householdId}`);
+    const services = createServices(db, householdId);
+    res.json(await createAiPurchase(llm, ai(householdId), services.purchase, householdId).parse(purchaseText.parse(req.body).text));
   });
 
   // The AI plan answers at once with the rules' plan, then fills the slots in the background: the page polls GET /plan/week/:id.

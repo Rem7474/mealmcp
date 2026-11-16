@@ -657,6 +657,8 @@ export const fr: Messages = {
   'purchase.text': 'Ce que vous avez acheté',
   'purchase.placeholder': '2 kg de tomates\n6 oeufs 2,40€\nlait 1,15€',
   'purchase.read': 'Vérifier ma liste',
+  'purchase.readAi': 'Lire avec l’IA',
+  'purchase.aiHint': 'L’IA comprend des phrases entières (« j’ai pris deux laits et un poulet »). Vous vérifiez toujours chaque ligne.',
   'purchase.empty': 'Rien de lisible dans ce texte.',
   'purchase.back': 'Modifier le texte',
   'purchase.apply': 'Ranger {n} article(s)',

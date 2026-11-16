@@ -8,7 +8,7 @@ import type { Services } from './index.js';
 import type { AiSlotResult } from './weekPlan.js';
 
 /** The units a model may use: anything else is rejected and the model is asked again. */
-const UNITS = ['g', 'kg', 'ml', 'cl', 'l', 'piece', 'tsp', 'tbsp', 'can', 'pack'] as const;
+export const UNITS = ['g', 'kg', 'ml', 'cl', 'l', 'piece', 'tsp', 'tbsp', 'can', 'pack'] as const;
 
 const aiIngredient = z
   .object({

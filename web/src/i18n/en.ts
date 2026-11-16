@@ -651,6 +651,8 @@ export const en = {
   'purchase.text': 'What you bought',
   'purchase.placeholder': '2 kg tomatoes\n6 eggs 2.40€\nmilk 1.15€',
   'purchase.read': 'Check my list',
+  'purchase.readAi': 'Read it with AI',
+  'purchase.aiHint': 'The AI understands full sentences ("I took two milks and a chicken"). You still check every line.',
   'purchase.empty': 'Nothing readable in that text.',
   'purchase.back': 'Edit the text',
   'purchase.apply': 'Put {n} away',
