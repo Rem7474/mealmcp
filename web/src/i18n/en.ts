@@ -653,6 +653,9 @@ export const en = {
   'purchase.read': 'Check my list',
   'purchase.readAi': 'Read it with AI',
   'purchase.aiHint': 'The AI understands full sentences ("I took two milks and a chicken"). You still check every line.',
+  'purchase.receipt': 'Or a receipt',
+  'purchase.receiptHint':
+    'A PDF receipt (the text is read) or a photo of it. The file is read and not kept. A PDF that is a scan: send a photo instead.',
   'purchase.empty': 'Nothing readable in that text.',
   'purchase.back': 'Edit the text',
   'purchase.apply': 'Put {n} away',

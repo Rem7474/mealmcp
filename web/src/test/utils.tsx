@@ -35,7 +35,7 @@ export function mockApi(routes: Record<string, Handler | Reply>) {
   const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
     const method = init?.method ?? 'GET';
     const path = String(input).replace(/^\/api/, '');
-    const body = init?.body ? JSON.parse(String(init.body)) : undefined;
+    const body = typeof init?.body === 'string' ? JSON.parse(init.body) : init?.body ? { file: (init.body as Blob).type } : undefined;
     calls.push({ method, path, body });
     const route = routes[`${method} ${path}`];
     if (!route) throw new Error(`Unscripted request: ${method} ${path}`);

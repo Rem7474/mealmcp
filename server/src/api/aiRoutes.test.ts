@@ -4,12 +4,15 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { createApp } from '../app.js';
 import { loadConfig } from '../config.js';
 import { createDb } from '../db/index.js';
+import { makePdf } from '../services/testPdf.js';
 
 let app: Server;
 let llm: Server;
 let base: string;
 let llmDown = false;
+let chatAnswer = '{"ok": true}';
 const asked: { url: string; auth?: string; body?: string }[] = [];
+const askedChat = () => asked.filter((a) => a.url === '/v1/chat/completions');
 
 const listen = async (server: Server) => {
   server.listen(0);
@@ -27,7 +30,7 @@ beforeAll(async () => {
       if (llmDown) return void req.socket.destroy();
       res.setHeader('content-type', 'application/json');
       if (req.url === '/v1/models') return void res.end(JSON.stringify({ data: [{ id: 'llama3' }, { id: 'llava' }] }));
-      if (req.url === '/v1/chat/completions') return void res.end(JSON.stringify({ choices: [{ message: { content: '{"ok": true}' } }] }));
+      if (req.url === '/v1/chat/completions') return void res.end(JSON.stringify({ choices: [{ message: { content: chatAnswer } }] }));
       res.statusCode = 404;
       res.end('{}');
     });
@@ -60,16 +63,16 @@ function browser() {
   const ip = `10.9.${Math.floor(++ipCounter / 250)}.${ipCounter % 250}`;
   let cookie = '';
   return {
-    async call(path: string, init: { method?: string; json?: unknown; headers?: Record<string, string> } = {}) {
+    async call(path: string, init: { method?: string; json?: unknown; body?: BodyInit; headers?: Record<string, string> } = {}) {
       const res = await fetch(`${base}${path}`, {
-        method: init.method ?? (init.json !== undefined ? 'POST' : 'GET'),
+        method: init.method ?? (init.json !== undefined || init.body !== undefined ? 'POST' : 'GET'),
         headers: {
           'x-forwarded-for': ip,
           ...(init.json !== undefined ? { 'content-type': 'application/json' } : {}),
           ...(cookie ? { cookie } : {}),
           ...init.headers,
         },
-        body: init.json !== undefined ? JSON.stringify(init.json) : undefined,
+        body: init.body ?? (init.json !== undefined ? JSON.stringify(init.json) : undefined),
       });
       const set = res.headers.get('set-cookie');
       if (set) cookie = set.split(';')[0].endsWith('=') ? '' : set.split(';')[0];
@@ -101,6 +104,7 @@ describe('AI routes', () => {
       ['POST', '/api/ai/test'],
       ['POST', '/api/plan/week/ai'],
       ['POST', '/api/shopping/from-text/ai'],
+      ['POST', '/api/shopping/receipt'],
     ] as const) {
       const res = await anon.call(path, { method, headers: bearer, json: method === 'GET' ? undefined : {} });
       expect(res.status, `${method} ${path}`).toBe(403);
@@ -235,6 +239,49 @@ describe('shopping from text with AI', () => {
     const codes: number[] = [];
     for (let i = 0; i < 25; i++) codes.push((await b.call('/api/shopping/from-text/ai', { json: { text: '' } })).status);
     expect(codes).toContain(429);
+  });
+});
+
+describe('receipts', () => {
+  const receipt = (b: Awaited<ReturnType<typeof signUp>>, body: BodyInit, type: string) =>
+    b.call('/api/shopping/receipt', { method: 'POST', body, headers: { 'content-type': type } });
+  const answer = { lines: [{ name: 'Rice', quantity: 2, unit: 'kg', price: 3.1 }], total: 3.1, store: 'Shop' };
+
+  it('reads a digital PDF through its text layer, then a picture, and keeps nothing', async () => {
+    const b = await signUp();
+    chatAnswer = JSON.stringify(answer);
+    try {
+      const pdf = await receipt(b, makePdf('RICE 2KG 3.10 EUR TOTAL 3.10 EUR'), 'application/pdf');
+      expect(pdf.status).toBe(200);
+      expect(await pdf.json()).toMatchObject({ total: 3.1, store: 'Shop', lines: [{ name: 'Rice', quantity: 2, match: 'new' }] });
+      const asked = JSON.parse(`${askedChat().at(-1)?.body}`);
+      expect(JSON.stringify(asked.messages)).toContain('RICE 2KG');
+      const jpeg = await receipt(b, Buffer.from([0xff, 0xd8, 0xff, 0xe0, 1, 2, 3]), 'image/jpeg');
+      expect(jpeg.status).toBe(200);
+      const photo = JSON.parse(`${askedChat().at(-1)?.body}`);
+      expect(JSON.stringify(photo.messages)).toContain('data:image/jpeg;base64,');
+      expect(await (await b.call('/api/stock')).json()).toHaveLength(0);
+    } finally {
+      chatAnswer = '{"ok": true}';
+    }
+  });
+
+  it('says a scanned PDF is a scan, and refuses other files, lies about the type and empty bodies', async () => {
+    const b = await signUp();
+    const scan = await receipt(b, makePdf(''), 'application/pdf');
+    expect(scan.status).toBe(422);
+    expect(await scan.json()).toMatchObject({ scan: true });
+    expect((await receipt(b, Buffer.from('MZ an executable program'), 'application/pdf')).status).toBe(400);
+    expect((await receipt(b, makePdf('RICE 2KG 3.10 EUR TOTAL'), 'image/jpeg')).status).toBe(400);
+    expect((await receipt(b, Buffer.alloc(0), 'application/pdf')).status).toBe(400);
+    expect((await receipt(b, 'text', 'text/plain')).status).toBe(400);
+  });
+
+  it('is for a signed-in browser, and a file that is too big is refused', async () => {
+    expect((await receipt(browser(), makePdf('x'), 'application/pdf')).status).toBe(401);
+    const b = await signUp();
+    const big = Buffer.concat([Buffer.from('%PDF-1.4 '), Buffer.alloc(9 * 1024 * 1024)]);
+    expect((await receipt(b, big, 'application/pdf')).status).toBe(413);
   });
 });
 

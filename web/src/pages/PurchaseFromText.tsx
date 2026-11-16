@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { api, useAction } from '../api';
 import { LOCATIONS } from '../format';
 import { useT } from '../i18n';
+import { shrinkImage } from '../receiptImage';
 import type { AiStatus, Location } from '../types';
 import { Badge, Button, Field, Input, Select, Sheet } from '../ui';
 
@@ -16,6 +17,12 @@ interface ParsedPurchaseLine {
   match: 'barcode' | 'name' | 'close' | 'new' | 'unknown';
   onList: boolean;
   include: boolean;
+}
+
+interface Read {
+  lines: ParsedPurchaseLine[];
+  total?: number | null;
+  store?: string | null;
 }
 
 interface Draft {
@@ -51,11 +58,12 @@ export function PurchaseFromText({ onClose }: { onClose: () => void }) {
   // Offered only when the household's AI server answers and has a model.
   const { data: ai } = useQuery({ queryKey: ['ai', 'status'], queryFn: () => api.get<AiStatus>('/ai/status'), retry: false });
 
-  const read = async (withAi = false) => {
-    const { lines, total } = (await run(() =>
-      api.post<{ lines: ParsedPurchaseLine[]; total?: number | null }>(withAi ? '/shopping/from-text/ai' : '/shopping/from-text', { text }),
-    )) as { lines: ParsedPurchaseLine[]; total?: number | null };
-    if (total != null) setMeta((m) => ({ ...m, total: String(total) }));
+  const read = async (withAi = false) =>
+    show((await run(() => api.post<Read>(withAi ? '/shopping/from-text/ai' : '/shopping/from-text', { text }))) as Read);
+  const readFile = async (file: File) =>
+    show((await run(async () => api.upload<Read>('/shopping/receipt', await shrinkImage(file)))) as Read);
+  const show = ({ lines, total, store }: Read) => {
+    if (total != null || store) setMeta((m) => ({ ...m, ...(total != null ? { total: String(total) } : {}), ...(store ? { store } : {}) }));
     setDrafts(
       lines.map((l) => ({
         name: l.name,
@@ -123,6 +131,22 @@ export function PurchaseFromText({ onClose }: { onClose: () => void }) {
             )}
           </div>
           {ai?.text && <p className="text-xs text-muted">{t('purchase.aiHint')}</p>}
+          {ai?.text && (
+            <Field label={t('purchase.receipt')} hint={t('purchase.receiptHint')}>
+              <input
+                type="file"
+                accept="application/pdf,image/jpeg,image/png,image/webp"
+                disabled={pending}
+                className="block w-full text-sm"
+                onChange={(e) => {
+                  const file = e.target.files?.[0];
+                  e.target.value = '';
+                  // A refused file is already reported in the app banner by useAction.
+                  if (file) readFile(file).catch(() => {});
+                }}
+              />
+            </Field>
+          )}
         </div>
       ) : (
         <>

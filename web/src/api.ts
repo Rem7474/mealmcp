@@ -17,7 +17,17 @@ async function request<T>(method: string, path: string, body?: unknown): Promise
   return data as T;
 }
 
+/** Sends a file as the raw request body (a receipt), with its own content type. */
+async function upload<T>(path: string, file: Blob): Promise<T> {
+  const res = await fetch(`/api${path}`, { method: 'POST', headers: { 'Content-Type': file.type }, body: file });
+  const data = await res.json().catch(() => null);
+  if (res.status === 401) throw new UnauthorizedError(data?.error ?? 'Not signed in');
+  if (!res.ok) throw new Error(data?.error ?? `Error ${res.status}`);
+  return data as T;
+}
+
 export const api = {
+  upload,
   get: <T>(path: string) => request<T>('GET', path),
   post: <T>(path: string, body: unknown = {}) => request<T>('POST', path, body),
   put: <T>(path: string, body: unknown) => request<T>('PUT', path, body),
