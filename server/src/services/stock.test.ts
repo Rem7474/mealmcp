@@ -459,3 +459,46 @@ describe('notes, brand and barcode', () => {
     expect(() => productUpdate.parse({ id: product.id, barcode: '12ab' })).toThrow();
   });
 });
+
+describe('price paid per line', () => {
+  it('stores what was paid per base unit and shows it per kg', () => {
+    const line = svc.stock.add({ name: 'Beef', quantity: 500, unit: 'g', price: 6 });
+    expect(line.paidUnitPrice).toBeCloseTo(1.2);
+    expect(line.paidPer).toEqual({ main: { cents: 1200, per: 'kg' }, alt: null });
+    expect(svc.stock.add({ name: 'Rice', quantity: 1, unit: 'kg' }).paidPer).toBeNull();
+  });
+
+  it('merges only lines paid the same, and keeps the price when a line is split or opened', () => {
+    const a = svc.stock.add({ name: 'Milk', packCount: 2, packSize: 1, unit: 'l', price: 2 });
+    expect(svc.stock.add({ name: 'Milk', packCount: 2, packSize: 1, unit: 'l', price: 2 }).id).toBe(a.id);
+    const dearer = svc.stock.add({ name: 'Milk', packCount: 1, packSize: 1, unit: 'l', price: 5 });
+    expect(dearer.id).not.toBe(a.id);
+    const unpriced = svc.stock.add({ name: 'Milk', packCount: 1, packSize: 1, unit: 'l' });
+    expect(new Set([a.id, dearer.id, unpriced.id]).size).toBe(3);
+    const opened = svc.stock.open({ id: a.id });
+    expect(opened.paidUnitPrice).toBe(a.paidUnitPrice);
+    // Using part of a sealed pack opens the next one with the same price.
+    svc.stock.consume({ name: 'Milk', quantity: 250, unit: 'ml' });
+    const lines = svc.stock.list().filter((i) => i.name === 'Milk' && i.opened);
+    expect(lines.length).toBeGreaterThan(0);
+    expect(lines.every((i) => i.paidUnitPrice === a.paidUnitPrice)).toBe(true);
+  });
+
+  it('values waste at the price paid, then at the latest product price', () => {
+    const product = svc.stock.add({ name: 'Cheese', quantity: 1000, unit: 'g' });
+    svc.budget.setProductPrice({ name: 'Cheese', price: 20, quantity: 1, unit: 'kg' });
+    const paid = svc.stock.add({ name: 'Cheese', quantity: 200, unit: 'g', price: 1 });
+    expect(svc.stock.discard({ id: paid.id, quantity: 100, reason: 'spoiled' })).toMatchObject({ costCents: 50 });
+    expect(svc.stock.discard({ id: product.id, quantity: 100, reason: 'spoiled' })).toMatchObject({ costCents: 200 });
+    expect(svc.stock.wasteSummary().totalCostCents).toBe(250);
+  });
+
+  it('is filled by a priced shopping line and by a receipt put away', () => {
+    const milk = svc.shopping.add({ name: 'Cream', quantity: 2, unit: 'piece' });
+    svc.shopping.setChecked(milk.id, true, 3);
+    svc.shopping.completePurchase('fridge');
+    expect(svc.stock.list().find((i) => i.name === 'Cream')?.paidUnitPrice).toBeCloseTo(150);
+    svc.budget.recordExpense({ items: [{ name: 'Flour', quantity: 1, unit: 'kg', price: 1.5 }], addToStock: true });
+    expect(svc.stock.list().find((i) => i.name === 'Flour')?.paidUnitPrice).toBeCloseTo(0.15);
+  });
+});

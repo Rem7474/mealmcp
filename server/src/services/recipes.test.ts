@@ -23,7 +23,14 @@ describe('aliases', () => {
     });
     expect(expense.items[0].name).toBe('Pork chops');
     expect(svc.products.list()).toHaveLength(1); // no duplicate product was created
-    expect(svc.stock.list()).toMatchObject([{ name: 'Pork chops', quantity: 1000 }]);
+    // The bought part was paid for, the older part was not: two lines, 1000 g in all.
+    expect(
+      svc.stock
+        .list()
+        .map((i) => i.quantity)
+        .sort(),
+    ).toEqual([400, 600]);
+    expect(svc.stock.list().every((i) => i.name === 'Pork chops')).toBe(true);
 
     // An alias cannot steal another product's name.
     svc.stock.add({ name: 'Beef', quantity: 1 });

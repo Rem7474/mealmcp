@@ -80,7 +80,8 @@ export function createBudgetService(
               source: 'receipt',
               expenseId: expense.id,
             });
-          if (addToStock && item.quantity !== undefined) stock.add({ name: item.name, quantity: item.quantity, unit: item.unit, location });
+          if (addToStock && item.quantity !== undefined)
+            stock.add({ name: item.name, quantity: item.quantity, unit: item.unit, location, price: item.price });
         }
         return expense.id;
       });

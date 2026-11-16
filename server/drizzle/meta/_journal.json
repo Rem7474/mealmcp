@@ -106,6 +106,13 @@
       "when": 1794825581503,
       "tag": "0014_flippant_baron_strucker",
       "breakpoints": true
+    },
+    {
+      "idx": 15,
+      "version": "6",
+      "when": 1794832225566,
+      "tag": "0015_outstanding_klaw",
+      "breakpoints": true
     }
   ]
 }
