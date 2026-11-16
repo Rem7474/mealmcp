@@ -550,3 +550,17 @@ export const purchaseApply = z.object({
   total: money.optional().describe('Amount actually paid, when it differs from the sum of the lines'),
   location: location.default('pantry'),
 });
+
+export const aiChat = z.object({
+  messages: z
+    .array(
+      z.object({
+        role: z.enum(['user', 'assistant']),
+        content: z.string().trim().min(1).max(2000),
+      }),
+    )
+    .min(1)
+    .max(12)
+    .refine((m) => m.at(-1)?.role === 'user', { message: 'The last message must be from the user' })
+    .describe('The conversation so far, oldest first. Nothing is stored on the server'),
+});

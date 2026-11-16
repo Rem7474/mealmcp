@@ -717,6 +717,15 @@ export const en = {
   'home.budget.ok': 'On track',
   'home.budget.close': 'Close to the limit',
   'home.budget.over': 'Over budget',
+  'assistant.open.button': 'Ask the assistant',
+  'assistant.title': 'Assistant',
+  'assistant.intro':
+    'Ask what to cook, what to use up, how the budget looks. The assistant reads your kitchen data but cannot change anything, and nothing of this conversation is kept.',
+  'assistant.ask': 'Your question',
+  'assistant.send': 'Send',
+  'assistant.thinking': 'The assistant is thinking…',
+  'assistant.failed': 'The assistant could not answer, try again.',
+  'assistant.open': 'Open {screen}',
 } as const;
 
 export type Messages = Record<keyof typeof en, string>;

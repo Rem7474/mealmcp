@@ -723,4 +723,13 @@ export const fr: Messages = {
   'home.budget.ok': 'Dans les clous',
   'home.budget.close': 'Proche de la limite',
   'home.budget.over': 'Budget dépassé',
+  'assistant.open.button': 'Demander à l’assistant',
+  'assistant.title': 'Assistant',
+  'assistant.intro':
+    'Demandez quoi cuisiner, quoi finir, où en est le budget. L’assistant lit les données de votre cuisine mais ne peut rien modifier, et rien de cette conversation n’est conservé.',
+  'assistant.ask': 'Votre question',
+  'assistant.send': 'Envoyer',
+  'assistant.thinking': 'L’assistant réfléchit…',
+  'assistant.failed': 'L’assistant n’a pas pu répondre, réessayez.',
+  'assistant.open': 'Ouvrir {screen}',
 };

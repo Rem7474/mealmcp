@@ -4,8 +4,9 @@ import { sessionOnly } from '../auth/http.js';
 import { createRateLimiter } from '../auth/rateLimit.js';
 import type { Db } from '../db/index.js';
 import { ForbiddenError, ValidationError } from '../domain/errors.js';
-import { aiWeekPlanStart, purchaseText } from '../domain/schemas.js';
+import { aiChat, aiWeekPlanStart, purchaseText } from '../domain/schemas.js';
 import { createAiService } from '../services/ai.js';
+import { createAiChat } from '../services/aiChat.js';
 import { createAiPurchase } from '../services/aiPurchase.js';
 import { createAiWeekPlan } from '../services/aiWeekPlan.js';
 import { createServices } from '../services/index.js';
@@ -41,6 +42,13 @@ export function createAiRoutes(db: Db, llm: LlmClient) {
   r.post('/ai/test', sessionOnly, async (req, res) => {
     limit.hit(`test:${req.user!.householdId}`);
     res.json(await ai(req.user!.householdId).test(req.log));
+  });
+
+  // A conversation about the household's own data. Read only: it answers in text and writes nothing; nothing is kept.
+  r.post('/ai/chat', sessionOnly, async (req, res) => {
+    const { householdId } = req.user!;
+    limit.hit(`chat:${householdId}`);
+    res.json(await createAiChat(llm, ai(householdId), createServices(db, householdId), householdId).reply(aiChat.parse(req.body)));
   });
 
   // The same review screen as the typed list, with the model reading the sentences.
