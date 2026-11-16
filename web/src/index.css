@@ -1,33 +1,36 @@
 @import 'tailwindcss';
-@import '@fontsource-variable/inter';
+@import '@fontsource-variable/fraunces';
+@import '@fontsource-variable/bricolage-grotesque';
 
 /*
- * Nocturne theme: a quiet, compact dark interface (blue-grey ground, Inter, 8px radii, the accent
- * used as a line and a glow rather than a flood). Everything in the app takes its colours from the
- * semantic variables below, so restyling means editing this block.
+ * Market-kitchen theme: a charcoal ground, cream ink and a sage accent (user-selectable), with a serif for
+ * titles and recipe names and a warm grotesque for everything else. Everything in the app takes its
+ * colours from the semantic variables below, so restyling means editing this block.
  */
 :root {
-  --bg: #161826;
-  --surface: #232532;
-  --ink: #e9e9ed;
-  --muted: #9397ab;
-  --line: #3f424d;
+  --bg: #131212;
+  --surface: #1e1c1b;
+  --ink: #f6f1ea;
+  --muted: #aaa39a;
+  --line: #38342f;
   /* Borders of controls (inputs, buttons): 3:1 against the ground, which --line is not meant to reach. */
-  --control: #6f7389;
-  --accent: #9184d9;
-  --accent-ink: #f5f4ff;
-  --warn: #e3b26b;
-  --danger: #ee8d8d;
+  --control: #7c7670;
+  --warn: #f0c24f;
+  --danger: #ff8fa0;
+  --neutral-800: #38342f;
+  --divider: color-mix(in srgb, #f6f1ea 16%, transparent);
 
-  /* Tonal steps used by hovers, tints and the glow. */
-  --accent-300: #d2cefd;
-  --accent-400: #b5abfc;
-  --accent-700: #5d5294;
-  --accent-800: #423a6a;
-  --accent-900: #2b2741;
-  --neutral-800: #3f424d;
-  --divider: color-mix(in srgb, #e9e9ed 16%, transparent);
-  --glow: color-mix(in srgb, var(--accent) 45%, transparent);
+  /* Sage is the default accent; theme.ts overrides --accent and --accent-ink when the user picks another. */
+  --accent: #a8d672;
+  --accent-ink: #13200a;
+  /* "In stock" green: a meaning, so it does not follow the accent. */
+  --herb: #a8d672;
+  --accent-300: color-mix(in srgb, var(--accent) 45%, white);
+  --accent-400: color-mix(in srgb, var(--accent) 75%, white);
+  --accent-700: color-mix(in srgb, var(--accent) 55%, black);
+  --accent-800: color-mix(in srgb, var(--accent) 35%, black);
+  --accent-900: color-mix(in srgb, var(--accent) 18%, var(--bg));
+  --glow: color-mix(in srgb, var(--accent) 40%, transparent);
 }
 @theme inline {
   --color-bg: var(--bg);
@@ -43,7 +46,9 @@
   --color-accent-deep: var(--accent-900);
   --color-warn: var(--warn);
   --color-danger: var(--danger);
-  --font-sans: 'Inter Variable', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --color-herb: var(--herb);
+  --font-sans: 'Bricolage Grotesque Variable', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --font-display: 'Fraunces Variable', Georgia, 'Times New Roman', serif;
   --radius-lg: 8px;
   --radius-xl: 14px;
 }
@@ -67,12 +72,29 @@ html {
 }
 
 body {
-  background: var(--bg);
+  background-color: var(--bg);
   color: var(--ink);
   font-family: var(--font-sans);
   font-size: 15px;
   line-height: 1.55;
   color-scheme: dark;
+  min-height: 100dvh;
+  /* A glow of the accent from the top right, a softer one bottom left: the ground is never flat. */
+  background-image:
+    radial-gradient(60rem 28rem at 88% -8%, color-mix(in srgb, var(--accent) 13%, transparent), transparent 65%),
+    radial-gradient(44rem 30rem at -12% 105%, color-mix(in srgb, var(--herb) 9%, transparent), transparent 65%);
+  background-attachment: fixed;
+}
+/* Paper grain over the ground, behind the content. */
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  opacity: 0.07;
+  mix-blend-mode: screen;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
 }
 ::selection {
   background: color-mix(in srgb, var(--accent) 35%, transparent);
@@ -87,9 +109,128 @@ h3 {
   font-weight: 500;
   letter-spacing: -0.015em;
 }
+/* Titles are set in the serif; h3 stays a small sans label. */
+h1,
+h2 {
+  font-family: var(--font-display);
+  font-variation-settings: 'opsz' 72, 'SOFT' 50;
+  letter-spacing: -0.01em;
+}
 
 /* A rule that fades out at both ends instead of stopping cleanly. */
 .fade-rule {
   height: 1px;
   background: linear-gradient(to right, transparent, var(--divider) 48px, var(--divider) calc(100% - 48px), transparent);
+}
+
+/* Page entrance: elements rise and fade in, one after another (--i is the position in the group). */
+@keyframes rise {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+}
+.rise {
+  animation: rise 0.55s cubic-bezier(0.2, 0.7, 0.2, 1) both;
+  animation-delay: calc(var(--i, 0) * 55ms);
+}
+/* A page's top-level blocks enter in sequence. */
+.stagger > * {
+  animation: rise 0.55s cubic-bezier(0.2, 0.7, 0.2, 1) both;
+}
+.stagger > :nth-child(2) {
+  animation-delay: 60ms;
+}
+.stagger > :nth-child(3) {
+  animation-delay: 120ms;
+}
+.stagger > :nth-child(4) {
+  animation-delay: 180ms;
+}
+.stagger > :nth-child(n + 5) {
+  animation-delay: 240ms;
+}
+/* What a folded card holds fades in when it opens. */
+details[open] > :not(summary) {
+  animation: rise 0.35s cubic-bezier(0.2, 0.7, 0.2, 1) both;
+}
+summary {
+  list-style: none;
+}
+summary::-webkit-details-marker {
+  display: none;
+}
+summary::before {
+  content: '';
+  display: inline-block;
+  width: 0.45em;
+  height: 0.45em;
+  margin-right: 0.6em;
+  border-right: 1.5px solid var(--accent);
+  border-bottom: 1.5px solid var(--accent);
+  transform: translateY(-0.15em) rotate(-45deg);
+  transition: transform 0.2s ease;
+}
+details[open] > summary::before {
+  transform: translateY(-0.25em) rotate(45deg);
+}
+
+/* A shopping line crossed out by a stroke drawn from left to right. */
+.strike {
+  background: linear-gradient(currentColor, currentColor) no-repeat 0 58% / 0 1.5px;
+  transition:
+    background-size 0.35s ease,
+    color 0.2s ease;
+}
+.strike[data-done='true'] {
+  background-size: 100% 1.5px;
+  color: var(--muted);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .rise,
+  .stagger > *,
+  details[open] > :not(summary) {
+    animation: none;
+  }
+  .strike,
+  summary::before {
+    transition: none;
+  }
+}
+
+/* A row's "more" menu is a button, not a fold: it gets no chevron. */
+details.no-chev > summary::before {
+  display: none;
+}
+
+/* Checkboxes: a rounded box that fills with the accent and draws its tick. */
+input[type='checkbox'] {
+  appearance: none;
+  display: inline-grid;
+  place-content: center;
+  border: 1.5px solid var(--control);
+  border-radius: 6px;
+  background: transparent;
+  cursor: pointer;
+  transition:
+    background-color 0.15s ease,
+    border-color 0.15s ease;
+}
+input[type='checkbox']::after {
+  content: '';
+  width: 9px;
+  height: 5px;
+  margin-top: -2px;
+  border-left: 2px solid var(--accent-ink);
+  border-bottom: 2px solid var(--accent-ink);
+  transform: rotate(-45deg) scale(0);
+  transition: transform 0.15s ease;
+}
+input[type='checkbox']:checked {
+  background: var(--accent);
+  border-color: var(--accent);
+}
+input[type='checkbox']:checked::after {
+  transform: rotate(-45deg) scale(1);
 }

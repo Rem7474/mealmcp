@@ -4,6 +4,7 @@ import { type FormEvent, useState } from 'react';
 import { api, useAction } from '../api';
 import { formatDate, MEALS, weekdayName } from '../format';
 import { type MessageKey, useI18n, useT } from '../i18n';
+import { ACCENTS, type AccentId, applyAccent, savedAccent } from '../theme';
 import {
   ALLERGENS,
   COUNTRIES,
@@ -43,6 +44,7 @@ export function Account({ user }: { user: User }) {
       </Card>
       <div className="grid grid-cols-1 items-start gap-4 lg:grid-cols-2">
         <div className="min-w-0 space-y-4">
+          <AccentCard />
           <HouseholdCard user={user} />
           <Fold title={t('settings.title')}>
             <SettingsCard />
@@ -71,6 +73,37 @@ export function Account({ user }: { user: User }) {
         </div>
       </div>
     </>
+  );
+}
+
+function AccentCard() {
+  const t = useT();
+  const [accent, setAccent] = useState<AccentId>(savedAccent);
+  const choose = (id: AccentId) => {
+    applyAccent(id, true);
+    setAccent(id);
+  };
+  return (
+    <Card title={t('account.accent.title')}>
+      <div role="radiogroup" aria-label={t('account.accent.title')} className="flex flex-wrap gap-3">
+        {ACCENTS.map((a) => (
+          <button
+            type="button"
+            key={a.id}
+            role="radio"
+            aria-checked={accent === a.id}
+            aria-label={t(`accent.${a.id}`)}
+            title={t(`accent.${a.id}`)}
+            onClick={() => choose(a.id)}
+            style={{ backgroundColor: a.color }}
+            className={`size-11 cursor-pointer rounded-full ring-offset-2 ring-offset-surface ${
+              accent === a.id ? 'ring-2 ring-ink' : 'hover:ring-2 hover:ring-muted'
+            }`}
+          />
+        ))}
+      </div>
+      <p className="mt-2 text-sm text-muted">{t('account.accent.hint')}</p>
+    </Card>
   );
 }
 
@@ -314,8 +347,8 @@ function ChipPicker({
             <Button
               key={o.value}
               type="button"
-              variant={on ? 'primary' : 'secondary'}
-              className="h-8 px-3"
+              variant={on ? 'active' : 'secondary'}
+              compact
               aria-pressed={on}
               onClick={() => onChange(on ? value.filter((v) => v !== o.value) : [...value, o.value])}
             >
@@ -384,7 +417,7 @@ function EquipmentCard() {
               </label>
               <Button
                 variant="ghost"
-                className="h-8 px-2"
+                compact
                 aria-label={t('equipment.remove', { name: item.name })}
                 onClick={() => run(() => api.del(`/equipment/${item.id}`))}
               >

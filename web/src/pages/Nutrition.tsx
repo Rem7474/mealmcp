@@ -110,12 +110,7 @@ export function ProductNutritionCard() {
                     : t('nutrition.unset')}
                 </div>
               </div>
-              <Button
-                variant="ghost"
-                className="h-8 px-2 text-xs"
-                aria-expanded={open === p.id}
-                onClick={() => setOpen(open === p.id ? null : p.id)}
-              >
+              <Button variant="ghost" compact aria-expanded={open === p.id} onClick={() => setOpen(open === p.id ? null : p.id)}>
                 {t('nutrition.edit')}
               </Button>
             </div>
@@ -195,7 +190,7 @@ function ProductEditor({ product, onDone }: { product: Product; onDone: () => vo
                 </div>
                 <div className="text-xs text-muted">{summary(h.per100)}</div>
               </div>
-              <Button className="h-8 px-2 text-xs" disabled={pending} onClick={() => save({ code: h.code })}>
+              <Button compact disabled={pending} onClick={() => save({ code: h.code })}>
                 {t('nutrition.use')}
               </Button>
             </li>
@@ -215,11 +210,11 @@ function ProductEditor({ product, onDone }: { product: Product; onDone: () => vo
             className="h-8 w-20 px-2 text-right"
           />
         ))}
-        <Button type="submit" className="h-8 px-2 text-xs" disabled={pending}>
+        <Button type="submit" compact disabled={pending}>
           {t('nutrition.save')}
         </Button>
         {product.nutrition && (
-          <Button type="button" variant="ghost" className="h-8 px-2 text-xs" disabled={pending} onClick={() => save({})}>
+          <Button type="button" variant="ghost" compact disabled={pending} onClick={() => save({})}>
             {t('nutrition.clear')}
           </Button>
         )}

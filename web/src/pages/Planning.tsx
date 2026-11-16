@@ -58,10 +58,10 @@ export function Planning() {
   return (
     <>
       <div className="flex flex-wrap items-center gap-2">
-        <Button className="w-9 px-0" aria-label={t('plan.prevWeek')} onClick={() => setStart(addDays(start, -7))}>
+        <Button className="w-11 px-0 sm:w-9" aria-label={t('plan.prevWeek')} onClick={() => setStart(addDays(start, -7))}>
           <CaretLeft size={16} />
         </Button>
-        <Button className="w-9 px-0" aria-label={t('plan.nextWeek')} onClick={() => setStart(addDays(start, 7))}>
+        <Button className="w-11 px-0 sm:w-9" aria-label={t('plan.nextWeek')} onClick={() => setStart(addDays(start, 7))}>
           <CaretRight size={16} />
         </Button>
         {start !== weekStart(today()) && (
@@ -69,7 +69,7 @@ export function Planning() {
             {t('plan.thisWeek')}
           </Button>
         )}
-        <h2 className="ml-1 min-w-0 flex-1 truncate text-lg lg:flex-none lg:text-xl">
+        <h2 className="ml-1 min-w-0 flex-1 truncate text-2xl lg:flex-none lg:text-3xl">
           {formatDate(start)} – {formatDate(end)}
         </h2>
         <span className="hidden flex-1 lg:block" />
@@ -91,7 +91,7 @@ export function Planning() {
           <Plus size={16} />
           {t('plan.add.title')}
         </Button>
-        <Button variant="primary" className="order-1 lg:order-none" disabled={pending} onClick={generate}>
+        <Button className="order-1 lg:order-none" disabled={pending} onClick={generate}>
           <ShoppingCart size={16} />
           {t('plan.generate')}
         </Button>
@@ -99,32 +99,62 @@ export function Planning() {
 
       {composer && <AddMeal key={`${composer.date}-${composer.mealType}`} preset={composer} onClose={() => setComposer(null)} />}
 
-      <UseItUp />
+      <div className="max-lg:hidden">
+        <UseItUp />
+      </div>
+
+      {/* Phones: a strip of the seven days stays under the header; a tap jumps to that day. A dot marks days with meals. */}
+      <nav aria-label={t('plan.thisWeek')} className="sticky top-14 z-[5] -mx-4 flex gap-1.5 bg-bg/90 px-4 py-2 backdrop-blur lg:hidden">
+        {days.map((day) => {
+          const isToday = day === today();
+          const planned = meals.some((m) => m.date === day);
+          return (
+            <button
+              type="button"
+              key={day}
+              onClick={() => document.getElementById(`day-${day}`)?.scrollIntoView({ behavior: 'smooth', block: 'start' })}
+              className={`flex flex-1 cursor-pointer flex-col items-center rounded-lg py-1.5 ${isToday ? 'bg-accent text-accent-ink' : 'bg-surface text-muted'}`}
+            >
+              <span className="text-[10px] tracking-wider uppercase">
+                {fromIso(day).toLocaleDateString(locale(), { weekday: 'narrow' })}
+              </span>
+              <span className="font-display text-lg leading-tight tabular-nums">{fromIso(day).getDate()}</span>
+              <span className={`mt-0.5 size-1 rounded-full ${planned ? (isToday ? 'bg-accent-ink' : 'bg-accent') : ''}`} />
+            </button>
+          );
+        })}
+      </nav>
 
       <WeekMatrix days={days} meals={meals} slots={slots} insights={insights} onAdd={(date, mealType) => setComposer({ date, mealType })} />
       <div className="grid gap-3 sm:grid-cols-2 lg:hidden">
         {days.map((day) => {
           const dayMeals = meals.filter((m) => m.date === day);
           const daySlots = slots.filter((slot) => slot.date === day);
+          const isToday = day === today();
           return (
             <section
               key={day}
-              className={`rounded-xl bg-surface p-3 ${day === today() ? 'shadow-[0_0_0_1px_var(--accent)]' : 'shadow-[0_0_0_1px_var(--line)]'}`}
+              id={`day-${day}`}
+              className={`scroll-mt-32 rounded-xl p-3 ${
+                isToday
+                  ? 'bg-linear-to-br from-accent-deep to-surface p-4 shadow-[0_0_0_1px_var(--accent),0_10px_30px_-12px_var(--glow)] sm:col-span-2'
+                  : `bg-surface shadow-[0_0_0_1px_var(--line)] ${day < today() ? 'opacity-60' : ''}`
+              }`}
             >
               {dayMeals.length === 0 && daySlots.length === 0 ? (
                 // An empty day takes one line: six of them should not push the week's meals off the screen.
                 <div className="flex items-baseline justify-between gap-3 text-sm">
-                  <h2 className="font-medium first-letter:uppercase">{formatDay(day)}</h2>
+                  <h2 className="first-letter:uppercase">{formatDay(day)}</h2>
                   <p className="text-muted">{t('plan.nothing')}</p>
                 </div>
               ) : (
                 <>
-                  <h2 className="mb-2 text-sm font-medium first-letter:uppercase">{formatDay(day)}</h2>
+                  <h2 className={`mb-2 first-letter:uppercase ${isToday ? 'text-2xl text-accent-soft' : 'text-base'}`}>{formatDay(day)}</h2>
                   <ul className="space-y-3">
                     {dayMeals.map((meal) => (
                       <li key={meal.id}>
-                        <div className="mb-0.5 text-xs text-muted">{t(`meal.${meal.mealType}`)}</div>
-                        <MealCard meal={meal} insight={insights.get(meal.id)} />
+                        <div className="mb-0.5 text-xs tracking-wider text-muted uppercase">{t(`meal.${meal.mealType}`)}</div>
+                        <MealCard meal={meal} insight={insights.get(meal.id)} large={isToday} />
                       </li>
                     ))}
                     {daySlots.map((slot) => (
@@ -146,6 +176,10 @@ export function Planning() {
         })}
       </div>
 
+      <div className="lg:hidden">
+        <UseItUp />
+      </div>
+
       <BudgetStrip />
 
       {/* Phones: the main action floats within thumb reach, above the tab bar. */}
@@ -154,7 +188,7 @@ export function Planning() {
         aria-label={t('plan.add.title')}
         title={t('plan.add.title')}
         onClick={toggleComposer}
-        className="fixed right-4 bottom-[calc(4.75rem+env(safe-area-inset-bottom))] z-10 grid size-14 cursor-pointer place-items-center rounded-full border border-accent bg-surface text-accent-soft shadow-[0_4px_16px_rgba(0,0,0,0.5),0_0_14px_var(--glow)] active:bg-accent/25 sm:hidden"
+        className="fixed right-4 bottom-[calc(4.75rem+env(safe-area-inset-bottom))] z-10 grid size-14 cursor-pointer place-items-center rounded-full bg-accent text-accent-ink shadow-[0_6px_20px_rgba(0,0,0,0.5),0_0_16px_var(--glow)] active:scale-95 sm:hidden"
       >
         {composer ? <X size={24} /> : <Plus size={24} />}
       </button>
@@ -238,7 +272,7 @@ function WeekMatrix({
               <div className={`text-xs first-letter:uppercase ${isToday ? 'text-accent-soft' : 'text-muted'}`}>
                 {fromIso(day).toLocaleDateString(locale(), { weekday: 'short' })}
               </div>
-              <div className="text-[22px] leading-tight tabular-nums">{fromIso(day).getDate()}</div>
+              <div className="font-display text-[28px] leading-tight tabular-nums">{fromIso(day).getDate()}</div>
             </div>
           );
         })}
@@ -289,7 +323,7 @@ function WeekMatrix({
 }
 
 /** One planned meal: name (a link to the recipe), servings, estimated cost, stock status and the two actions. */
-function MealCard({ meal, insight }: { meal: PlannedMeal; insight?: MealInsight }) {
+function MealCard({ meal, insight, large = false }: { meal: PlannedMeal; insight?: MealInsight; large?: boolean }) {
   const t = useT();
   const currency = useCurrency();
   const { run, pending } = useAction();
@@ -297,35 +331,50 @@ function MealCard({ meal, insight }: { meal: PlannedMeal; insight?: MealInsight 
   const missingEquipment = insight?.missingEquipment ?? [];
 
   const actions = (
-    <div className="ml-auto flex items-center gap-1 text-muted">
+    <div className="ml-auto flex items-center gap-0.5 text-muted">
       {!meal.cooked && (
         <button
           type="button"
-          className="inline-flex size-9 sm:size-6 cursor-pointer items-center justify-center rounded hover:bg-ink/10 hover:text-accent-soft disabled:opacity-45"
+          className="inline-flex size-11 cursor-pointer items-center justify-center rounded-lg hover:bg-ink/10 hover:text-accent-soft disabled:opacity-45 sm:size-8"
           disabled={pending}
           title={t('plan.cookTitle')}
           aria-label={t('plan.cookTitle')}
           onClick={() => run(() => api.post(`/plan/${meal.id}/cook`))}
         >
-          <ChefHat size={14} />
+          <ChefHat size={18} />
         </button>
       )}
-      <button
-        type="button"
-        className="inline-flex size-9 sm:size-6 cursor-pointer items-center justify-center rounded hover:bg-ink/10 hover:text-danger"
-        title={t('plan.remove')}
-        aria-label={t('plan.remove')}
-        onClick={() => run(() => api.del(`/plan/${meal.id}`))}
-      >
-        <X size={14} />
-      </button>
+      {/* Removing sits behind a menu so it cannot be hit by the thumb that is reaching for "cook". */}
+      <details className="no-chev relative">
+        <summary
+          aria-label={t('common.more')}
+          className="flex size-11 cursor-pointer list-none items-center justify-center rounded-lg text-xl leading-none hover:bg-ink/10 active:bg-ink/10 sm:size-8 [&::-webkit-details-marker]:hidden"
+        >
+          ⋯
+        </summary>
+        <div className="absolute right-0 z-20 mt-1 w-44 rounded-xl border border-line bg-surface p-1 shadow-lg">
+          <button
+            type="button"
+            className="flex h-11 w-full cursor-pointer items-center rounded-lg px-3 text-left text-sm text-danger active:bg-ink/10"
+            aria-label={t('plan.remove')}
+            onClick={(e) => {
+              e.currentTarget.closest('details')?.removeAttribute('open');
+              run(() => api.del(`/plan/${meal.id}`));
+            }}
+          >
+            {t('plan.remove')}
+          </button>
+        </div>
+      </details>
     </div>
   );
 
   // A free-text meal ("Leftovers", "Restaurant") has no recipe, cost or stock status, but its title wraps like any other.
   return (
     <div className="flex h-full flex-col gap-1 text-sm">
-      <div className={`text-[13px] leading-tight font-medium text-pretty ${meal.cooked ? 'text-muted line-through' : ''}`}>
+      <div
+        className={`font-display leading-tight text-pretty ${large ? 'text-xl' : 'text-[15px]'} ${meal.cooked ? 'text-muted line-through' : ''}`}
+      >
         {meal.recipeId ? (
           <a href={`#recipes/${meal.recipeId}`} className="hover:text-accent hover:underline">
             {meal.recipeName}
@@ -348,7 +397,7 @@ function MealCard({ meal, insight }: { meal: PlannedMeal; insight?: MealInsight 
             </div>
           )}
           {insight?.canCook === true && missingEquipment.length === 0 && (
-            <div className="flex items-center gap-1 text-xs text-accent-soft">
+            <div className="flex items-center gap-1 text-xs text-herb">
               <Check size={13} />
               {t('plan.inStock')}
             </div>
@@ -361,7 +410,8 @@ function MealCard({ meal, insight }: { meal: PlannedMeal; insight?: MealInsight 
           )}
         </>
       )}
-      <div className="mt-auto flex items-center justify-between gap-2">
+      {/* A perforated line, like the stub of a ticket. */}
+      <div className="mt-auto flex items-center justify-between gap-2 border-t border-dashed border-line pt-1.5">
         <div className="flex gap-2.5 text-xs text-muted tabular-nums">
           <span className="inline-flex items-center gap-1">
             <Users size={12} />
@@ -408,7 +458,7 @@ function AddMeal({ preset, onClose }: { preset: { date: string; mealType: MealTy
       <Card
         title={t('plan.add.title')}
         actions={
-          <Button variant="ghost" className="w-9 px-0" aria-label={t('app.close')} onClick={onClose}>
+          <Button variant="ghost" className="w-11 px-0 sm:w-9" aria-label={t('app.close')} onClick={onClose}>
             <X size={16} />
           </Button>
         }

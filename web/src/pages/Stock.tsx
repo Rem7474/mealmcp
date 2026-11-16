@@ -56,30 +56,30 @@ export function Stock() {
         </Card>
       )}
       <AddForm />
-      <div className="grid gap-4 lg:grid-cols-3">
+      <div className="grid items-start gap-x-4 gap-y-6 lg:grid-cols-3">
         {LOCATIONS.map((location) => {
-          const here = items.filter((i) => i.location === location);
+          // What goes off first comes first; items without a date sink to the bottom.
+          const here = items
+            .filter((i) => i.location === location)
+            .sort((a, b) => (a.expiresOn ?? '9999').localeCompare(b.expiresOn ?? '9999'));
           return (
-            <Card
-              key={location}
-              title={
-                <span className="inline-flex items-center gap-2">
-                  {LOCATION_ICON[location]}
-                  {t(`location.${location}`)}
-                </span>
-              }
-              actions={<span className="text-sm text-muted">{here.length}</span>}
-            >
+            <section key={location}>
+              <h2 className="mb-2 flex items-center gap-2 px-1 text-xl">
+                {LOCATION_ICON[location]}
+                {t(`location.${location}`)}
+                <span className="font-sans text-sm text-muted tabular-nums">{here.length}</span>
+              </h2>
               {here.length === 0 ? (
-                <Empty>{t('stock.nothingHere')}</Empty>
+                // An empty place is one quiet line, not a card of its own.
+                <p className="rounded-xl border border-dashed border-line px-3 py-2.5 text-sm text-muted">{t('stock.nothingHere')}</p>
               ) : (
-                <ul className="divide-y divide-line">
+                <ul className="divide-y divide-line rounded-xl bg-surface px-3 shadow-[0_0_0_1px_var(--line)]">
                   {here.map((item) => (
                     <StockRow key={item.id} item={item} />
                   ))}
                 </ul>
               )}
-            </Card>
+            </section>
           );
         })}
       </div>
@@ -233,20 +233,26 @@ function StockRow({ item }: { item: StockItem }) {
   return (
     <li className="flex flex-wrap items-center gap-x-2 gap-y-1 py-2 text-sm">
       {/* min-w keeps the name readable in a narrow column: the controls wrap to the next line instead of squeezing it. */}
-      <div className="min-w-32 flex-1">
-        <div className="font-medium wrap-break-word">{item.name}</div>
+      <div className="flex min-w-32 flex-1 flex-wrap items-center gap-x-2">
+        <div className="font-display order-1 text-base wrap-break-word">{item.name}</div>
         {item.opened && item.openedOn && (
-          <div className="text-xs text-accent">{t('stock.openedBadge', { date: formatDate(item.openedOn) })}</div>
+          <div className="order-3 basis-full text-xs text-accent">{t('stock.openedBadge', { date: formatDate(item.openedOn) })}</div>
         )}
         {item.packCount !== null && item.packSize !== null && (
-          <div className="text-xs text-muted">
+          <div className="order-3 basis-full text-xs text-muted">
             {item.packCount} × {formatQty(item.packSize, item.unit)}
           </div>
         )}
         {item.expiresOn && days !== null && (
-          <div className={days < 0 ? 'text-danger' : days <= 3 ? 'text-warn' : 'text-muted'}>
-            {t(days < 0 ? 'stock.expired' : 'stock.useBy', { date: formatDate(item.expiresOn) })}
-          </div>
+          // The date is a chip that gets louder as it nears: calm, then amber, then red.
+          <span
+            title={t(days < 0 ? 'stock.expired' : 'stock.useBy', { date: formatDate(item.expiresOn) })}
+            className={`order-2 inline-block rounded-md px-1.5 py-0.5 text-xs ${
+              days < 0 ? 'bg-danger/15 text-danger' : days <= 3 ? 'bg-warn/15 text-warn' : 'bg-ink/5 text-muted'
+            }`}
+          >
+            {days < 0 ? t('stock.expiredShort') : days === 0 ? t('stock.today') : t('stock.daysLeft', { n: days })}
+          </span>
         )}
       </div>
       {item.approximate ? (
@@ -260,29 +266,16 @@ function StockRow({ item }: { item: StockItem }) {
             aria-label={t('stock.quantityOf', { name: item.name })}
             onBlur={(e) => saveQuantity(e.target.value)}
             onKeyDown={(e) => e.key === 'Enter' && e.currentTarget.blur()}
-            className="h-8 w-16 px-2 text-right"
+            className="h-9 w-16 border-transparent bg-transparent px-1 text-right text-base tabular-nums focus:bg-surface"
           />
-          <span className="w-10 text-muted">{item.unit === 'piece' ? '' : item.unit}</span>
+          <span className="w-8 text-muted">{item.unit === 'piece' ? '' : item.unit}</span>
         </>
       )}
-      {/* Phones: one "more" menu keeps the row to a single line. Wider screens show the actions as buttons. */}
-      <div className="hidden items-center justify-end gap-1 sm:ml-auto sm:flex">
-        {actions.map((a) => (
-          <Button
-            key={a.key}
-            variant={a.key === 'remove' ? 'ghost' : 'secondary'}
-            className={a.key === 'remove' ? 'size-8 px-0' : 'h-8 px-2 text-xs'}
-            aria-label={a.aria}
-            onClick={a.run}
-          >
-            {a.key === 'remove' ? '✕' : a.label}
-          </Button>
-        ))}
-      </div>
-      <details className="relative sm:hidden">
+      {/* One "more" menu on every screen keeps each row to a single line. */}
+      <details className="no-chev relative">
         <summary
           aria-label={t('common.more')}
-          className="flex size-9 cursor-pointer list-none items-center justify-center rounded-lg text-xl leading-none text-muted active:bg-ink/10 [&::-webkit-details-marker]:hidden"
+          className="flex size-11 sm:size-9 cursor-pointer list-none items-center justify-center rounded-lg text-xl leading-none text-muted active:bg-ink/10 [&::-webkit-details-marker]:hidden"
         >
           ⋯
         </summary>

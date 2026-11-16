@@ -40,11 +40,15 @@ export function AuthPage({ registrationOpen }: { registrationOpen: boolean }) {
   };
 
   return (
-    <main className="mx-auto max-w-sm px-4 py-12">
-      <div className="mb-6 flex items-center justify-between">
-        <h1 className="text-2xl font-bold text-accent">MealMCP</h1>
+    <main className="stagger mx-auto max-w-sm px-4 py-10">
+      <div className="mb-2 flex justify-end">
         <LanguageSwitch />
       </div>
+      <Harvest />
+      <h1 className="text-5xl text-ink">
+        Meal<span className="text-accent italic">MCP</span>
+      </h1>
+      <p className="mt-2 mb-7 max-w-xs text-muted text-pretty">{t('auth.tagline')}</p>
       <Card title={t(`auth.title.${mode}`)}>
         <form onSubmit={submit} className="space-y-3">
           {mode === 'register' && (
@@ -127,6 +131,21 @@ export function AuthPage({ registrationOpen }: { registrationOpen: boolean }) {
         </button>
       </p>
     </main>
+  );
+}
+
+/** A tomato, a lemon and a leaf, drawn with flat shapes: the only picture on the sign-in page. */
+function Harvest() {
+  return (
+    <svg viewBox="0 0 220 96" aria-hidden="true" className="mb-4 h-20 w-auto">
+      <circle cx="54" cy="52" r="38" fill="var(--accent)" />
+      <circle cx="42" cy="40" r="9" fill="#fff" opacity=".18" />
+      <path d="M54 14c-8-8-18-6-24 0 10 0 14 6 24 6s14-6 24-6c-6-6-16-8-24 0z" fill="var(--herb)" />
+      <ellipse cx="128" cy="60" rx="34" ry="26" fill="var(--warn)" transform="rotate(-18 128 60)" />
+      <ellipse cx="116" cy="52" rx="8" ry="5" fill="#fff" opacity=".22" transform="rotate(-18 116 52)" />
+      <path d="M170 84c0-34 14-62 44-70-2 34-14 62-44 70z" fill="var(--herb)" opacity=".85" />
+      <path d="M172 82c10-22 22-42 38-58" stroke="var(--bg)" strokeWidth="2" fill="none" />
+    </svg>
   );
 }
 

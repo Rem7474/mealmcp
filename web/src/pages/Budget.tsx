@@ -202,7 +202,7 @@ function SummaryCard({ currency }: { currency: string }) {
       actions={
         <div className="flex flex-wrap gap-1">
           {(Object.keys(presets) as (keyof typeof presets)[]).map((key) => (
-            <Button key={key} variant={key === preset ? 'primary' : 'secondary'} className="h-8 px-2" onClick={() => setPreset(key)}>
+            <Button key={key} variant={key === preset ? 'active' : 'secondary'} compact onClick={() => setPreset(key)}>
               {t(`budget.range.${key}`)}
             </Button>
           ))}
@@ -358,7 +358,7 @@ function ExpenseRow({ expense, currency }: { expense: ExpenseSummary; currency: 
         <span className="font-semibold tabular-nums">{formatMoney(expense.totalCents, currency)}</span>
         <Button
           variant="ghost"
-          className="h-8 px-2"
+          compact
           aria-label={t('budget.expenses.delete')}
           onClick={() => confirm(t('budget.expenses.confirmDelete')) && run(() => api.del(`/expenses/${expense.id}`))}
         >

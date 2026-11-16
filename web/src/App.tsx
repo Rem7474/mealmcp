@@ -1,4 +1,4 @@
-import { BookOpen, CalendarBlank, CookingPot, Package, ShoppingCart, Wallet } from '@phosphor-icons/react';
+import { BookOpen, CalendarBlank, CookingPot, type IconWeight, Package, ShoppingCart, Wallet } from '@phosphor-icons/react';
 import { useQuery } from '@tanstack/react-query';
 import type { ComponentType } from 'react';
 import { useCallback, useEffect, useState } from 'react';
@@ -18,7 +18,7 @@ import type { User } from './types';
 const TABS = ['planning', 'recipes', 'shopping', 'stock', 'budget', 'account'] as const;
 type TabId = (typeof TABS)[number];
 // The account has no tab of its own: it sits behind the avatar.
-const NAV: { id: Exclude<TabId, 'account'>; Icon: ComponentType<{ size?: number; className?: string }> }[] = [
+const NAV: { id: Exclude<TabId, 'account'>; Icon: ComponentType<{ size?: number; className?: string; weight?: IconWeight }> }[] = [
   { id: 'planning', Icon: CalendarBlank },
   { id: 'recipes', Icon: BookOpen },
   { id: 'shopping', Icon: ShoppingCart },
@@ -93,9 +93,11 @@ function Shell({ user }: { user: User }) {
     <ErrorContext.Provider value={report}>
       <header className="sticky top-0 z-10 bg-linear-to-b from-surface to-bg">
         <div className="mx-auto flex max-w-6xl flex-wrap items-center gap-x-5 px-4">
-          <h1 className="flex flex-1 items-center gap-2 py-3 text-base font-medium sm:flex-none">
-            <CookingPot size={20} className="text-accent" />
-            MealMCP
+          <h1 className="flex flex-1 items-center gap-2 py-3 text-xl sm:flex-none">
+            <CookingPot size={22} weight="duotone" className="text-accent" />
+            {/* Phones say where you are; the brand is for wider screens. */}
+            <span className="sm:hidden">{t(`tab.${tab}`)}</span>
+            <span className="max-sm:hidden">MealMCP</span>
           </h1>
           <nav className="hidden flex-1 gap-0.5 self-stretch overflow-x-auto [scrollbar-width:none] sm:flex [&::-webkit-scrollbar]:hidden">
             {NAV.map(({ id, Icon }) => (
@@ -118,9 +120,11 @@ function Shell({ user }: { user: User }) {
             role="status"
             title={live ? t('app.live') : t('app.liveOff')}
             aria-label={live ? t('app.live') : t('app.liveOff')}
-            className={`size-2 rounded-full ${live ? 'bg-accent shadow-[0_0_8px_var(--accent)]' : 'bg-warn'}`}
+            className={`size-2 rounded-full ${live ? 'bg-herb shadow-[0_0_8px_var(--herb)] max-sm:hidden' : 'bg-warn'}`}
           />
-          <LanguageSwitch />
+          <span className="hidden sm:block">
+            <LanguageSwitch />
+          </span>
           <button
             type="button"
             onClick={() => select('account')}
@@ -150,7 +154,16 @@ function Shell({ user }: { user: User }) {
             </button>
           </div>
         )}
-        <Page tab={tab} user={user} />
+        {/* Phones: the language switch lives with the account instead of crowding the header. */}
+        {tab === 'account' && (
+          <div className="flex justify-end sm:hidden">
+            <LanguageSwitch />
+          </div>
+        )}
+        {/* Keyed by tab so that every page enters with the same staggered rise. */}
+        <div key={tab} className="stagger space-y-4">
+          <Page tab={tab} user={user} />
+        </div>
       </main>
       {/* Phones: the tabs move to a bar under the thumb. */}
       <nav className="fixed inset-x-0 bottom-0 z-10 flex bg-linear-to-t from-surface to-bg pb-[env(safe-area-inset-bottom)] sm:hidden">
@@ -161,11 +174,15 @@ function Shell({ user }: { user: User }) {
             key={id}
             onClick={() => select(id)}
             aria-current={tab === id ? 'page' : undefined}
-            className={`relative flex flex-1 cursor-pointer flex-col items-center gap-0.5 py-2 text-[11px] ${tab === id ? 'text-ink' : 'text-muted'}`}
+            className={`flex flex-1 cursor-pointer flex-col items-center gap-1 pt-2 pb-1.5 text-[11px] ${tab === id ? 'text-ink' : 'text-muted'}`}
           >
-            <Icon size={20} className={tab === id ? 'text-accent' : ''} />
+            {/* The current tab is a filled pill around its icon, the way a native tab bar shows it. */}
+            <span
+              className={`grid h-7 w-14 place-items-center rounded-full transition-colors ${tab === id ? 'bg-accent/20 text-accent' : ''}`}
+            >
+              <Icon size={20} weight={tab === id ? 'fill' : 'regular'} />
+            </span>
             {t(`tab.${id}`)}
-            {tab === id && <span className="absolute inset-x-5 top-0 h-0.5 rounded-full bg-accent shadow-[0_0_12px_var(--accent)]" />}
           </button>
         ))}
       </nav>
