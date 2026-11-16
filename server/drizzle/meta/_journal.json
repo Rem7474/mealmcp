@@ -113,6 +113,13 @@
       "when": 1794832225566,
       "tag": "0015_outstanding_klaw",
       "breakpoints": true
+    },
+    {
+      "idx": 16,
+      "version": "6",
+      "when": 1794841414950,
+      "tag": "0016_tricky_princess_powerful",
+      "breakpoints": true
     }
   ]
 }

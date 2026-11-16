@@ -66,6 +66,7 @@ const TOOLS = {
   nutrition: ['search_nutrition', 'set_product_nutrition', 'get_recipe_nutrition', 'get_meal_plan_nutrition'],
   more: [
     'list_products',
+    'search_catalog',
     'update_product',
     'update_products_bulk',
     'add_product_alias',

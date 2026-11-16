@@ -7,7 +7,6 @@ import { ValidationError } from '../domain/errors.js';
 import {
   addInto,
   emptyTotals,
-  fromOpenFoodFacts,
   NUTRIENTS,
   type Nutrient,
   type NutrientValues,
@@ -16,16 +15,15 @@ import {
   scale,
 } from '../domain/nutrition.js';
 import type { nutritionPlan, nutritionSearch, productNutritionSet } from '../domain/schemas.js';
+import { type CatalogHit, createCatalogClient, type Fetch } from './catalog.js';
 import type { PlannerService } from './planner.js';
 import type { ProductService } from './products.js';
 import type { RecipeService } from './recipes.js';
 import type { SettingsService } from './settings.js';
 
-const USER_AGENT = 'MealMCP (self-hosted meal planner; https://github.com/Rem7474/mealmcp)';
-const SEARCH_URL = 'https://search.openfoodfacts.org/search';
-const PRODUCT_URL = 'https://world.openfoodfacts.org/api/v2/product';
-
-type Fetch = typeof fetch;
+/** A catalogue entry seen as nutrition: null when it has no values. */
+const nutritional = (h: CatalogHit): NutritionHit | null =>
+  h.per100 ? { code: h.code, name: h.name, brands: h.brands, per100: h.per100 } : null;
 
 export interface NutritionHit {
   code: string;
@@ -57,20 +55,6 @@ export function closestHit(name: string, hits: NutritionHit[]): NutritionHit | n
   return best?.hit ?? null;
 }
 
-async function getJson(fetchImpl: Fetch, url: string): Promise<unknown> {
-  let res: Response;
-  try {
-    res = await fetchImpl(url, { headers: { 'user-agent': USER_AGENT, accept: 'application/json' }, signal: AbortSignal.timeout(8000) });
-  } catch {
-    throw new ValidationError('Open Food Facts cannot be reached right now. Try again later, or type the values by hand.');
-  }
-  if (res.status === 404) return null;
-  const type = res.headers.get('content-type') ?? '';
-  if (!res.ok || !type.includes('json'))
-    throw new ValidationError('Open Food Facts is not available right now. Try again later, or type the values by hand.');
-  return res.json();
-}
-
 /**
  * Optional nutrition module: calories and macros per recipe, meal and day, from per-product values that come
  * from Open Food Facts (looked up on demand, only the name or barcode is sent) or are typed by hand.
@@ -86,6 +70,7 @@ export function createNutritionService(
   fetchImpl: Fetch = fetch,
 ) {
   const mine = eq(products.householdId, hid);
+  const catalog = createCatalogClient(fetchImpl, hid);
   const requireOn = () => {
     if (!settings.get().nutrition?.enabled)
       throw new ValidationError('The nutrition module is off. Turn it on in the household settings (nutrition.enabled).');
@@ -101,40 +86,17 @@ export function createNutritionService(
   const svc = {
     enabled: () => !!settings.get().nutrition?.enabled,
 
-    /** Looks products up on Open Food Facts by name. Only the search text leaves the server. */
+    /** Looks products up on Open Food Facts by name (those with nutrition values). Only the search text leaves the server. */
     async search({ query }: z.infer<typeof nutritionSearch>): Promise<NutritionHit[]> {
       requireOn();
-      const url = `${SEARCH_URL}?q=${encodeURIComponent(query)}&page_size=8&fields=code,product_name,brands,nutriments`;
-      const body = (await getJson(fetchImpl, url)) as {
-        hits?: { code?: string; product_name?: string; brands?: string[] | string; nutriments?: unknown }[];
-      } | null;
-      const hits: NutritionHit[] = [];
-      for (const h of body?.hits ?? []) {
-        const per100 = fromOpenFoodFacts(h.nutriments);
-        if (!per100 || !h.code || !h.product_name) continue;
-        hits.push({
-          code: h.code,
-          name: h.product_name,
-          brands: Array.isArray(h.brands) ? h.brands.join(', ') || null : (h.brands ?? null),
-          per100,
-        });
-      }
-      return hits;
+      return (await catalog.search(query)).flatMap((h) => (nutritional(h) ? [nutritional(h) as NutritionHit] : []));
     },
 
     /** One product by barcode. */
     async lookup(code: string): Promise<NutritionHit | null> {
       requireOn();
-      const body = (await getJson(
-        fetchImpl,
-        `${PRODUCT_URL}/${encodeURIComponent(code)}.json?fields=code,product_name,brands,nutriments`,
-      )) as {
-        product?: { code?: string; product_name?: string; brands?: string; nutriments?: unknown };
-      } | null;
-      const p = body?.product;
-      const per100 = fromOpenFoodFacts(p?.nutriments);
-      if (!p || !per100) return null;
-      return { code: p.code ?? code, name: p.product_name ?? code, brands: p.brands || null, per100 };
+      const hit = await catalog.product(code);
+      return hit ? nutritional(hit) : null;
     },
 
     /** Keeps nutrition values on a product: fetched from a barcode, or typed by hand. Without either, clears them. */
@@ -142,21 +104,21 @@ export function createNutritionService(
       requireOn();
       const product = productService.get(id);
       let value: ProductNutrition | null = null;
-      let brand: string | null = null;
+      let hit: NutritionHit | null = null;
       if (code) {
-        const hit = await svc.lookup(code);
+        hit = await svc.lookup(code);
         if (!hit) throw new ValidationError('That product has no usable nutrition values on Open Food Facts.');
-        brand = hit.brands?.split(',')[0]?.trim() || null;
         value = { per100: hit.per100, source: 'openfoodfacts', code: hit.code, label: [hit.name, hit.brands].filter(Boolean).join(' · ') };
       } else if (per100) {
         value = { per100, source: 'manual' };
       }
-      // A barcode that resolved is worth keeping on the product, with its brand, unless they were already filled in.
-      const known = code && value ? { ...(product.barcode ? {} : { barcode: code }), ...(product.brand || !brand ? {} : { brand }) } : {};
       db.update(products)
-        .set({ nutrition: value ? JSON.stringify(value) : null, ...known })
+        .set({ nutrition: value ? JSON.stringify(value) : null })
         .where(and(mine, eq(products.id, id)))
         .run();
+      // A barcode that resolved is worth keeping on the product (with its brand) unless it already belongs to another one.
+      if (hit && !productService.findByBarcode(hit.code))
+        productService.attachBarcode(id, hit.code, { brand: hit.brands?.split(',')[0]?.trim() || null, label: hit.name });
       return productService.get(id);
     },
 

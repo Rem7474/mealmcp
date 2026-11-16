@@ -114,3 +114,30 @@ export const wasteLog = sqliteTable(
   },
   (t) => [index('waste_log_household_date_idx').on(t.householdId, t.date)],
 );
+
+/**
+ * One physical item (a barcode) that maps to a household product, which is a concept ("Pasta"): a product can have many,
+ * one per format or brand bought. The pack size is what is saved here; it wins over the catalogue's when that is wrong.
+ */
+export const productBarcodes = sqliteTable(
+  'product_barcodes',
+  {
+    id: integer('id').primaryKey({ autoIncrement: true }),
+    householdId: household(),
+    productId: integer('product_id')
+      .notNull()
+      .references(() => products.id, { onDelete: 'cascade' }),
+    /** Normalised to 13 digits (EAN-8 and GTIN-14 with an indicator keep their length), see domain/barcode.ts. */
+    code: text('code').notNull(),
+    brand: text('brand'),
+    /** Size of one pack in a base unit (g or ml), when known. */
+    packSize: real('pack_size'),
+    unit: text('unit'),
+    /** The catalogue's name for this item ("Spaghetti n°5 Barilla"), kept for display. */
+    label: text('label'),
+  },
+  (t) => [
+    uniqueIndex('product_barcodes_household_code_idx').on(t.householdId, t.code),
+    index('product_barcodes_product_idx').on(t.productId),
+  ],
+);

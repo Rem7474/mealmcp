@@ -1,9 +1,11 @@
 import { z } from 'zod';
+import * as c from '../../domain/catalogSchemas.js';
 import { today } from '../../domain/dates.js';
+import { ValidationError } from '../../domain/errors.js';
 import * as s from '../../domain/schemas.js';
 import type { ToolContext } from './context.js';
 
-export function registerStockTools({ stock, tool, ro, rw, del }: ToolContext) {
+export function registerStockTools({ stock, catalog, tool, ro, rw, del }: ToolContext) {
   // --- Stock ---------------------------------------------------------------
   tool(
     'list_stock',
@@ -14,10 +16,14 @@ export function registerStockTools({ stock, tool, ro, rw, del }: ToolContext) {
   );
   tool(
     'add_stock',
-    'Add a quantity of a product to the stock (after shopping, or to record what is at home). Bought in packs ("2 x 500 g", "3 cartons of 200 ml")? Send packCount + packSize + unit instead of a total so both are kept. An already opened jar: opened=true with the quantity left. Use approximate=true (no quantity) for "plenty of it". Send dateKind with expiresOn when the pack says which it is: use_by (to consume by, unsafe after) or best_before (DDM). A free-text note ("for Sunday") can be attached to the line.',
-    s.stockAdd.shape,
+    'Add a quantity of a product to the stock (after shopping, or to record what is at home). Bought in packs ("2 x 500 g", "3 cartons of 200 ml")? Send packCount + packSize + unit instead of a total so both are kept. An already opened jar: opened=true with the quantity left. Use approximate=true (no quantity) for "plenty of it". Send dateKind with expiresOn when the pack says which it is: use_by (to consume by, unsafe after) or best_before (DDM). A free-text note ("for Sunday") can be attached to the line. Bought with a barcode? Send barcode (and no quantity): a known code adds one pack of that product with its size; a new code is looked up in the catalogue (see search_catalog) and attached to the product it matches, or to the one named in name.',
+    c.stockAddOrCode.shape,
     rw,
-    (a) => stock.add(a),
+    (a) => {
+      if (a.barcode) return catalog.addStock({ ...a, barcode: a.barcode });
+      if (!a.name) throw new ValidationError('Give a product name, or a barcode');
+      return stock.add({ ...a, name: a.name });
+    },
   );
   tool(
     'update_stock_item',
