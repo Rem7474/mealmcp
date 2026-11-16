@@ -20,6 +20,7 @@ import type { BudgetStatus, HouseholdSettings, MealType, PlanCost, PlannedMeal, 
 import { Accordion, Button, Card, Fab, Field, Input, Select, Sheet } from '../ui';
 import { confirmation, deferDelete } from '../undo';
 import { useCurrency } from './shared';
+import { WeekPlanner } from './WeekPlanner';
 
 type Composer = { date: string; mealType: MealType } | null;
 type MealInsight = PlanCost['meals'][number];
@@ -48,6 +49,7 @@ export function Planning() {
   const [generated, setGenerated] = useState(false);
   // The add-a-meal form opens from the toolbar, or from the "+" of an empty cell with that cell preselected.
   const [composer, setComposer] = useState<Composer>(null);
+  const [planningWeek, setPlanningWeek] = useState(false);
 
   const toggleComposer = () => setComposer(composer ? null : { date: days.includes(today()) ? today() : start, mealType: 'dinner' });
 
@@ -88,6 +90,10 @@ export function Planning() {
           </div>
         )}
         {generated && <span className="order-1 text-sm text-accent lg:order-none">{t('plan.listUpdated')}</span>}
+        <Button onClick={() => setPlanningWeek(true)}>
+          <ArrowsClockwise size={16} />
+          {t('week.title')}
+        </Button>
         <Button className="max-sm:hidden" onClick={toggleComposer}>
           <Plus size={16} />
           {t('plan.add.title')}
@@ -97,6 +103,8 @@ export function Planning() {
           {t('plan.generate')}
         </Button>
       </div>
+
+      {planningWeek && <WeekPlanner start={start} onClose={() => setPlanningWeek(false)} />}
 
       {composer && <AddMeal key={`${composer.date}-${composer.mealType}`} preset={composer} onClose={() => setComposer(null)} />}
 

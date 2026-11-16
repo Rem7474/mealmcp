@@ -450,3 +450,29 @@ export interface Suggestions {
   expiring: { name: string; expiresOn: string | null }[];
   suggestions: Suggestion[];
 }
+
+export interface WeekPlanSlot {
+  key: string;
+  date: string;
+  mealType: MealType;
+  servings: number;
+  status: 'proposed' | 'accepted' | 'refused' | 'empty';
+  recipe: {
+    id: number;
+    name: string;
+    prepMinutes: number | null;
+    cookMinutes: number | null;
+    reasons: string[];
+    missing: string[];
+  } | null;
+  alternatives: number;
+}
+
+export interface WeekPlan {
+  id: number;
+  status: 'pending' | 'applied';
+  source: 'rules' | 'llm';
+  expiresAt: number;
+  alreadyPlanned: { date: string; mealType: MealType }[];
+  slots: WeekPlanSlot[];
+}

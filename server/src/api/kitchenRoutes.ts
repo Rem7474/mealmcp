@@ -114,6 +114,23 @@ export function createKitchenRoutes(db: Db) {
     (req, res) => void res.json(kitchen(req).stock.discard(s.stockDiscard.parse({ ...req.body, id: id(req.params) }))),
   );
   r.get('/plan/slots', (req, res) => void res.json(kitchen(req).planner.slots(s.planSlots.parse(req.query))));
+  r.get('/plan/week', (req, res) => void res.json(kitchen(req).weekPlan.current()));
+  r.post('/plan/week', (req, res) => void res.status(201).json(kitchen(req).weekPlan.start(s.weekPlanStart.parse(req.body), req.user!.id)));
+  r.get('/plan/week/:id', (req, res) => void res.json(kitchen(req).weekPlan.get(id(req.params))));
+  r.post('/plan/week/:id/accept-all', (req, res) => void res.json(kitchen(req).weekPlan.acceptAll(id(req.params))));
+  r.post('/plan/week/:id/apply', (req, res) => void res.json(kitchen(req).weekPlan.apply(id(req.params))));
+  r.post('/plan/week/:id/slots/:key/accept', (req, res) => {
+    const p = s.weekSlotParams.parse(req.params);
+    res.json(kitchen(req).weekPlan.accept(p.id, p.key));
+  });
+  r.post('/plan/week/:id/slots/:key/refuse', (req, res) => {
+    const p = s.weekSlotParams.parse(req.params);
+    res.json(kitchen(req).weekPlan.refuse(p.id, p.key));
+  });
+  r.post('/plan/week/:id/slots/:key/choose', (req, res) => {
+    const p = s.weekSlotParams.parse(req.params);
+    res.json(kitchen(req).weekPlan.choose(p.id, p.key, s.weekPlanChoose.parse(req.body).recipeId));
+  });
   r.post('/plan/bulk', (req, res) => void res.status(201).json(kitchen(req).planner.addMany(s.planAddMany.parse(req.body).meals)));
   r.post('/plan', (req, res) => void res.status(201).json(kitchen(req).planner.add(s.planAdd.parse(req.body))));
   r.post('/plan/:id/cook', (req, res) => void res.json(kitchen(req).planner.cook(id(req.params))));
