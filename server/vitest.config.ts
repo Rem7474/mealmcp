@@ -8,7 +8,7 @@ export default defineConfig({
       exclude: ['src/**/*.test.ts', 'src/index.ts', 'src/db/schema/**'],
       reporter: ['text-summary', 'lcov'],
       // A floor, not a goal: raise it when coverage rises. A drop below it fails CI.
-      thresholds: { lines: 85, functions: 70, statements: 80, branches: 75 },
+      thresholds: { lines: 90, functions: 72, statements: 86, branches: 81 },
     },
   },
 });
