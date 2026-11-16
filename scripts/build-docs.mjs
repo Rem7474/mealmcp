@@ -4,28 +4,79 @@ const REPO = 'https://github.com/Rem7474/mealmcp';
 const SITE = 'https://rem7474.github.io/mealmcp';
 
 const TOOLS = {
-  stock: ['list_stock', 'add_stock', 'update_stock_item', 'open_stock_item', 'consume_stock', 'remove_stock_item', 'get_stock_alerts'],
-  recipes: ['list_recipes', 'get_recipe', 'create_recipe', 'update_recipe', 'check_recipe_availability', 'suggest_recipes_to_use_up'],
-  plan: ['list_meal_plan', 'plan_meal', 'cook_planned_meal', 'list_planning_slots'],
-  shop: ['list_shopping_list', 'generate_shopping_list', 'add_shopping_item', 'check_shopping_item', 'complete_shopping'],
+  stock: [
+    'list_stock',
+    'add_stock',
+    'add_stock_bulk',
+    'update_stock_item',
+    'update_stock_bulk',
+    'open_stock_item',
+    'unopen_stock_item',
+    'freeze_stock_item',
+    'thaw_stock_item',
+    'consume_stock',
+    'discard_stock',
+    'remove_stock_item',
+    'get_stock_alerts',
+    'get_waste_summary',
+  ],
+  recipes: [
+    'list_recipes',
+    'get_recipe',
+    'create_recipe',
+    'create_recipes_bulk',
+    'update_recipe',
+    'delete_recipe',
+    'check_recipe_availability',
+    'suggest_recipes_to_use_up',
+  ],
+  plan: [
+    'list_meal_plan',
+    'plan_meal',
+    'plan_meals_bulk',
+    'remove_planned_meal',
+    'cook_planned_meal',
+    'list_planning_slots',
+    'get_meal_history',
+    'get_meal_context',
+  ],
+  shop: [
+    'list_shopping_list',
+    'generate_shopping_list',
+    'add_shopping_item',
+    'add_shopping_items_bulk',
+    'check_shopping_item',
+    'remove_shopping_item',
+    'complete_shopping',
+  ],
   budget: [
     'record_expense',
+    'list_expenses',
+    'get_expense',
+    'delete_expense',
     'get_spending_summary',
     'get_budget_status',
     'set_budget',
+    'set_product_price',
+    'get_price_history',
     'estimate_recipe_cost',
+    'estimate_meal_plan_cost',
     'estimate_shopping_list_cost',
   ],
   nutrition: ['search_nutrition', 'set_product_nutrition', 'get_recipe_nutrition', 'get_meal_plan_nutrition'],
   more: [
     'list_products',
     'update_product',
+    'update_products_bulk',
     'add_product_alias',
+    'remove_product_alias',
     'list_equipment',
+    'add_equipment',
+    'update_equipment',
+    'remove_equipment',
+    'get_household_settings',
     'set_household_settings',
-    'add_stock_bulk',
-    'create_recipes_bulk',
-    'plan_meals_bulk',
+    'get_seasonal_produce',
   ],
 };
 
@@ -60,7 +111,7 @@ const t = {
       [
         '🧊',
         'Know what is in the fridge',
-        'See what expires first, get an alert on opened jars, and cook what you already own before buying more.',
+        'See what expires first, tell use-by from best-before, freeze and thaw with the right clock, get an alert on opened jars, and cook what you already own before buying more.',
       ],
       [
         '📖',
@@ -70,7 +121,7 @@ const t = {
       [
         '💶',
         'Grocery budget under control',
-        'Log receipts, set a monthly budget and see where you will land before the month ends. In any currency.',
+        'Log receipts, set a monthly budget and see where you will land before the month ends. Every receipt builds a price history per product, with the trend and the cheapest shop. In any currency.',
       ],
       [
         '🍎',
@@ -90,7 +141,7 @@ const t = {
       [
         '♻️',
         'Less waste, less repetition',
-        'Remember what you cooked so menus stay fresh, and see what throwing food away really costs you.',
+        'Remember what you cooked so menus stay fresh, and see what throwing food away really costs you, valued at the price you paid.',
       ],
       [
         '👨‍👩‍👧',
@@ -201,7 +252,7 @@ const t = {
       [
         '🧊',
         'Savoir ce qu’il y a dans le frigo',
-        'Voyez ce qui expire en premier, soyez alerté pour les pots ouverts et cuisinez ce que vous avez avant d’en racheter.',
+        'Voyez ce qui expire en premier, distinguez DLC et DDM, congelez et décongelez avec la bonne horloge, soyez alerté pour les pots ouverts et cuisinez ce que vous avez avant d’en racheter.',
       ],
       [
         '📖',
@@ -211,7 +262,7 @@ const t = {
       [
         '💶',
         'Un budget courses maîtrisé',
-        'Enregistrez vos tickets, fixez un budget mensuel et voyez où vous allez finir avant la fin du mois. Dans la devise de votre choix.',
+        'Enregistrez vos tickets, fixez un budget mensuel et voyez où vous allez finir avant la fin du mois. Chaque ticket construit un historique des prix par produit, avec la tendance et le magasin le moins cher. Dans la devise de votre choix.',
       ],
       [
         '🍎',
@@ -231,7 +282,7 @@ const t = {
       [
         '♻️',
         'Moins de gaspillage, moins de répétitions',
-        'Retient ce que vous avez cuisiné pour varier les menus, et chiffre ce que coûte vraiment la nourriture jetée.',
+        'Retient ce que vous avez cuisiné pour varier les menus, et chiffre ce que coûte vraiment la nourriture jetée, au prix que vous avez payé.',
       ],
       [
         '👨‍👩‍👧',

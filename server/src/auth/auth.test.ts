@@ -1,4 +1,5 @@
 import { createHash, randomBytes } from 'node:crypto';
+import { readFileSync } from 'node:fs';
 import { createServer, type Server } from 'node:http';
 import type { AddressInfo } from 'node:net';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
@@ -236,5 +237,54 @@ describe('MCP OAuth', () => {
     // A second, separate household (created via a fresh instance of the flow is not possible: signup is closed),
     // so isolation is covered by services.test.ts; here we check a bogus token is refused.
     expect((await rpc('mmcp_bogus', 'tools/list')).status).toBe(401);
+  });
+});
+
+describe('MCP tools', () => {
+  const result = async (res: Response) => {
+    const line = (await res.text()).split('\n').find((l) => l.startsWith('data:'));
+    return JSON.parse(line!.slice(5)).result;
+  };
+  const call = async (token: string, name: string, args: unknown) => {
+    const out = await result(await rpc(token, 'tools/call', { name, arguments: args }));
+    return { error: out.isError === true, text: out.content[0].text as string };
+  };
+  async function token() {
+    const alice = browser();
+    await alice.call('/api/auth/login', { method: 'POST', json: { email: 'a@x.fr', password: 'correct horse battery' } });
+    return ((await (await alice.call('/api/tokens', { method: 'POST', json: { name: 'tools' } })).json()) as { token: string }).token;
+  }
+
+  it('lists documented tools, each described and annotated, and every one is in both READMEs', async () => {
+    const { tools } = await result(await rpc(await token(), 'tools/list'));
+    expect(tools.length).toBeGreaterThan(60);
+    for (const t of tools as { name: string; description: string; annotations?: Record<string, boolean> }[]) {
+      expect(t.description.length, t.name).toBeGreaterThan(20);
+      expect(t.name).toMatch(/^[a-z]+(_[a-z]+)+$/);
+    }
+    const names = (tools as { name: string }[]).map((t) => t.name);
+    expect(new Set(names).size).toBe(names.length);
+    for (const file of ['../../../README.md', '../../../README.fr.md', '../../../scripts/build-docs.mjs']) {
+      const text = readFileSync(new URL(file, import.meta.url), 'utf8');
+      expect(
+        names.filter((n) => !text.includes(n)),
+        file,
+      ).toEqual([]);
+    }
+  });
+
+  it('works with names instead of ids, a price paid, the freezer and a price history', async () => {
+    const t = await token();
+    const added = await call(t, 'add_stock', { name: 'Salmon', quantity: 400, unit: 'g', location: 'freezer', price: 6 });
+    expect(added.error).toBe(false);
+    expect(JSON.parse(added.text)).toMatchObject({ frozen: true, location: 'freezer', paidPer: { main: { cents: 1500, per: 'kg' } } });
+    const bulk = await call(t, 'update_stock_bulk', { items: [{ name: 'Salmon', note: 'for Friday' }] });
+    expect(bulk.error).toBe(false);
+    expect(bulk.text).toContain('for Friday');
+    expect((await call(t, 'set_product_price', { name: 'Salmon', price: 20, quantity: 1, unit: 'kg', store: 'Market' })).error).toBe(false);
+    const history = await call(t, 'get_price_history', { name: 'Salmon' });
+    expect(JSON.parse(history.text)).toMatchObject({ per: 'kg', latestCents: 2000, count: 1 });
+    expect((await call(t, 'get_price_history', { name: 'Nothing like this' })).error).toBe(true);
+    expect((await call(t, 'discard_stock', { id: 999999, reason: 'spoiled' })).error).toBe(true);
   });
 });

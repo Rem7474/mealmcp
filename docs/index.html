@@ -52,13 +52,13 @@
   <div class="grid">
       <div class="card"><div class="ico" aria-hidden="true">📅</div><h3>Plan the week in minutes</h3><p>Drop a recipe or a quick note on each day. Empty slots stand out, so nothing is left to “we will see”.</p></div>
       <div class="card"><div class="ico" aria-hidden="true">🛒</div><h3>Shopping lists that write themselves</h3><p>One tap turns the week’s meals into a list: what you need, minus what is already at home. Sort it by aisle and tick as you walk the shop.</p></div>
-      <div class="card"><div class="ico" aria-hidden="true">🧊</div><h3>Know what is in the fridge</h3><p>See what expires first, get an alert on opened jars, and cook what you already own before buying more.</p></div>
+      <div class="card"><div class="ico" aria-hidden="true">🧊</div><h3>Know what is in the fridge</h3><p>See what expires first, tell use-by from best-before, freeze and thaw with the right clock, get an alert on opened jars, and cook what you already own before buying more.</p></div>
       <div class="card"><div class="ico" aria-hidden="true">📖</div><h3>Recipes that fit your kitchen</h3><p>Rate and favorite recipes, see which ones you can make tonight, and get a warning when one needs an appliance you do not have.</p></div>
-      <div class="card"><div class="ico" aria-hidden="true">💶</div><h3>Grocery budget under control</h3><p>Log receipts, set a monthly budget and see where you will land before the month ends. In any currency.</p></div>
+      <div class="card"><div class="ico" aria-hidden="true">💶</div><h3>Grocery budget under control</h3><p>Log receipts, set a monthly budget and see where you will land before the month ends. Every receipt builds a price history per product, with the trend and the cheapest shop. In any currency.</p></div>
       <div class="card"><div class="ico" aria-hidden="true">🍎</div><h3>Calories and macros, only if you want them</h3><p>Turn on nutrition to see calories, protein, carbs and fat for every recipe. Values come from Open Food Facts or your own numbers, and the app tells you when an ingredient is missing. Off by default.</p></div>
       <div class="card"><div class="ico" aria-hidden="true">🥕</div><h3>Eat in season</h3><p>A fruit and vegetable calendar for your country. Out-of-season items on your list come with in-season alternatives.</p></div>
       <div class="card"><div class="ico" aria-hidden="true">🥗</div><h3>Diets and allergies, handled</h3><p>Vegetarian, gluten-free, the 14 EU allergens, foods someone dislikes: unsuitable recipes are flagged and never suggested.</p></div>
-      <div class="card"><div class="ico" aria-hidden="true">♻️</div><h3>Less waste, less repetition</h3><p>Remember what you cooked so menus stay fresh, and see what throwing food away really costs you.</p></div>
+      <div class="card"><div class="ico" aria-hidden="true">♻️</div><h3>Less waste, less repetition</h3><p>Remember what you cooked so menus stay fresh, and see what throwing food away really costs you, valued at the price you paid.</p></div>
       <div class="card"><div class="ico" aria-hidden="true">👨‍👩‍👧</div><h3>One household, everyone in sync</h3><p>Invite the family. Changes show up on every device instantly, including the ones your AI makes.</p></div>
       <div class="card"><div class="ico" aria-hidden="true">📱</div><h3>On your phone</h3><p>Install it like an app and use it one-handed in the shop. Dark theme, English and French.</p></div>
   </div>
@@ -81,13 +81,13 @@
   </div>
   <h2 style="margin-top:56px;font-size:1.3rem">What your AI can do</h2>
   <div class="tools">
-      <div><h3>Stock</h3><code>list_stock</code> <code>add_stock</code> <code>update_stock_item</code> <code>open_stock_item</code> <code>consume_stock</code> <code>remove_stock_item</code> <code>get_stock_alerts</code></div>
-      <div><h3>Recipes</h3><code>list_recipes</code> <code>get_recipe</code> <code>create_recipe</code> <code>update_recipe</code> <code>check_recipe_availability</code> <code>suggest_recipes_to_use_up</code></div>
-      <div><h3>Meal plan</h3><code>list_meal_plan</code> <code>plan_meal</code> <code>cook_planned_meal</code> <code>list_planning_slots</code></div>
-      <div><h3>Shopping</h3><code>list_shopping_list</code> <code>generate_shopping_list</code> <code>add_shopping_item</code> <code>check_shopping_item</code> <code>complete_shopping</code></div>
-      <div><h3>Budget</h3><code>record_expense</code> <code>get_spending_summary</code> <code>get_budget_status</code> <code>set_budget</code> <code>estimate_recipe_cost</code> <code>estimate_shopping_list_cost</code></div>
+      <div><h3>Stock</h3><code>list_stock</code> <code>add_stock</code> <code>add_stock_bulk</code> <code>update_stock_item</code> <code>update_stock_bulk</code> <code>open_stock_item</code> <code>unopen_stock_item</code> <code>freeze_stock_item</code> <code>thaw_stock_item</code> <code>consume_stock</code> <code>discard_stock</code> <code>remove_stock_item</code> <code>get_stock_alerts</code> <code>get_waste_summary</code></div>
+      <div><h3>Recipes</h3><code>list_recipes</code> <code>get_recipe</code> <code>create_recipe</code> <code>create_recipes_bulk</code> <code>update_recipe</code> <code>delete_recipe</code> <code>check_recipe_availability</code> <code>suggest_recipes_to_use_up</code></div>
+      <div><h3>Meal plan</h3><code>list_meal_plan</code> <code>plan_meal</code> <code>plan_meals_bulk</code> <code>remove_planned_meal</code> <code>cook_planned_meal</code> <code>list_planning_slots</code> <code>get_meal_history</code> <code>get_meal_context</code></div>
+      <div><h3>Shopping</h3><code>list_shopping_list</code> <code>generate_shopping_list</code> <code>add_shopping_item</code> <code>add_shopping_items_bulk</code> <code>check_shopping_item</code> <code>remove_shopping_item</code> <code>complete_shopping</code></div>
+      <div><h3>Budget</h3><code>record_expense</code> <code>list_expenses</code> <code>get_expense</code> <code>delete_expense</code> <code>get_spending_summary</code> <code>get_budget_status</code> <code>set_budget</code> <code>set_product_price</code> <code>get_price_history</code> <code>estimate_recipe_cost</code> <code>estimate_meal_plan_cost</code> <code>estimate_shopping_list_cost</code></div>
       <div><h3>Nutrition (optional)</h3><code>search_nutrition</code> <code>set_product_nutrition</code> <code>get_recipe_nutrition</code> <code>get_meal_plan_nutrition</code></div>
-      <div><h3>And more</h3><code>list_products</code> <code>update_product</code> <code>add_product_alias</code> <code>list_equipment</code> <code>set_household_settings</code> <code>add_stock_bulk</code> <code>create_recipes_bulk</code> <code>plan_meals_bulk</code></div>
+      <div><h3>And more</h3><code>list_products</code> <code>update_product</code> <code>update_products_bulk</code> <code>add_product_alias</code> <code>remove_product_alias</code> <code>list_equipment</code> <code>add_equipment</code> <code>update_equipment</code> <code>remove_equipment</code> <code>get_household_settings</code> <code>set_household_settings</code> <code>get_seasonal_produce</code></div>
   </div>
 </div></section>
 
