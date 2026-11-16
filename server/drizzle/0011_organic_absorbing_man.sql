@@ -1,0 +1,1 @@
+ALTER TABLE `stock_items` ADD `date_kind` text;

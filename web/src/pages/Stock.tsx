@@ -5,7 +5,7 @@ import { api, useAction } from '../api';
 import { daysUntil, formatDate, formatMoney, formatQty, LOCATIONS } from '../format';
 import { useT } from '../i18n';
 import type { Product, StockAlerts, StockItem, WasteSummary } from '../types';
-import { Accordion, Badge, Button, Card, Empty, Fab, Field, Input, Sheet } from '../ui';
+import { Accordion, Badge, Button, Card, Empty, Fab, Field, Input, Select, Sheet } from '../ui';
 import { ProductNutritionCard } from './Nutrition';
 import { LocationSelect, ProductDatalist, parseQty, useCurrency, useProducts } from './shared';
 
@@ -99,6 +99,7 @@ function AddForm() {
     unit: '',
     location: 'fridge',
     expiresOn: '',
+    dateKind: '',
     approximate: false,
     packSize: '',
     opened: false,
@@ -121,9 +122,10 @@ function AddForm() {
         unit: form.unit || undefined,
         location: form.location,
         expiresOn: form.expiresOn || null,
+        ...(form.expiresOn && form.dateKind ? { dateKind: form.dateKind } : {}),
       }),
     );
-    set({ name: '', quantity: '1', expiresOn: '', packSize: '', opened: false });
+    set({ name: '', quantity: '1', expiresOn: '', dateKind: '', packSize: '', opened: false });
     setOpen(false);
   };
 
@@ -187,6 +189,7 @@ function AddForm() {
                 />
               </Field>
             </div>
+            {form.expiresOn && <DateKindSelect value={form.dateKind} onChange={(v) => set({ dateKind: v })} />}
             <Field label={t('stock.packSize')}>
               <Input
                 inputMode="decimal"
@@ -216,6 +219,19 @@ function AddForm() {
         </Sheet>
       )}
     </>
+  );
+}
+
+function DateKindSelect({ value, onChange }: { value: string; onChange: (value: string) => void }) {
+  const t = useT();
+  return (
+    <Field label={t('stock.dateKind')}>
+      <Select aria-label={t('stock.dateKind')} value={value} onChange={(e) => onChange(e.target.value)} className="w-full">
+        <option value="">{t('stock.dateKind.unknown')}</option>
+        <option value="use_by">{t('stock.dateKind.useBy')}</option>
+        <option value="best_before">{t('stock.dateKind.bestBefore')}</option>
+      </Select>
+    </Field>
   );
 }
 
@@ -277,12 +293,24 @@ function StockRow({ item }: { item: StockItem }) {
         {item.expiresOn && days !== null && (
           // The date is a chip that gets louder as it nears: calm, then amber, then red.
           <span
-            title={t(days < 0 ? 'stock.expired' : 'stock.useBy', { date: formatDate(item.expiresOn) })}
+            title={t(days < 0 ? 'stock.expired' : item.dateKind === 'best_before' ? 'stock.bestBefore' : 'stock.useBy', {
+              date: formatDate(item.expiresOn),
+            })}
             className={`order-2 inline-block rounded-md px-1.5 py-0.5 text-xs ${
-              days < 0 ? 'bg-danger/15 text-danger' : days <= 3 ? 'bg-warn/15 text-warn' : 'bg-ink/5 text-muted'
+              item.expiryState === 'discard'
+                ? 'bg-danger/15 text-danger'
+                : item.expiryState === 'check' || item.expiryState === 'soon'
+                  ? 'bg-warn/15 text-warn'
+                  : 'bg-ink/5 text-muted'
             }`}
           >
-            {days < 0 ? t('stock.expiredShort') : days === 0 ? t('stock.today') : t('stock.daysLeft', { n: days })}
+            {item.expiryState === 'discard'
+              ? t('stock.toDiscard')
+              : item.expiryState === 'check'
+                ? t('stock.toCheck')
+                : days === 0
+                  ? t('stock.today')
+                  : t('stock.daysLeft', { n: days })}
           </span>
         )}
       </div>
@@ -339,6 +367,7 @@ export function EditStock({ item, onClose }: { item: StockItem; onClose: () => v
   const [location, setLocation] = useState<string>(item.location);
   const [expiresOn, setExpiresOn] = useState(item.expiresOn ?? '');
   const [openedOn, setOpenedOn] = useState(item.openedOn ?? '');
+  const [dateKind, setDateKind] = useState<string>(item.dateKind ?? '');
   const [packs, setPacks] = useState(item.packCount === null ? '' : String(item.packCount));
   const product = useProducts().data?.find((p) => p.id === item.productId);
   const [shelfLife, setShelfLife] = useState<string | null>(null);
@@ -353,6 +382,7 @@ export function EditStock({ item, onClose }: { item: StockItem; onClose: () => v
         // The expiry is only sent when it was edited: otherwise a corrected opening date moves it by itself.
         ...(expiresOn !== (item.expiresOn ?? '') ? { expiresOn: expiresOn || null } : {}),
         ...(item.openedOn && openedOn && openedOn !== item.openedOn ? { openedOn } : {}),
+        ...(dateKind !== (item.dateKind ?? '') ? { dateKind: dateKind || null } : {}),
         ...(item.packCount !== null && count !== undefined && !Number.isNaN(count) ? { packCount: count } : {}),
       }),
     );
@@ -382,6 +412,7 @@ export function EditStock({ item, onClose }: { item: StockItem; onClose: () => v
             className="w-full"
           />
         </Field>
+        {expiresOn && <DateKindSelect value={dateKind} onChange={setDateKind} />}
         {item.openedOn && (
           <Field
             label={t('stock.openedOnLabel')}

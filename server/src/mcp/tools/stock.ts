@@ -14,14 +14,14 @@ export function registerStockTools({ stock, tool, ro, rw, del }: ToolContext) {
   );
   tool(
     'add_stock',
-    'Add a quantity of a product to the stock (after shopping, or to record what is at home). Bought in packs ("2 x 500 g", "3 cartons of 200 ml")? Send packCount + packSize + unit instead of a total so both are kept. An already opened jar: opened=true with the quantity left. Use approximate=true (no quantity) for "plenty of it".',
+    'Add a quantity of a product to the stock (after shopping, or to record what is at home). Bought in packs ("2 x 500 g", "3 cartons of 200 ml")? Send packCount + packSize + unit instead of a total so both are kept. An already opened jar: opened=true with the quantity left. Use approximate=true (no quantity) for "plenty of it". Send dateKind with expiresOn when the pack says which it is: use_by (to consume by, unsafe after) or best_before (DDM).',
     s.stockAdd.shape,
     rw,
     (a) => stock.add(a),
   );
   tool(
     'update_stock_item',
-    'Correct a stock line: quantity (or packCount for sealed packs), location, expiry date, or the opening date of an opened pack (the expiry is then recomputed). Use the id from list_stock. A quantity of 0 deletes the line: the answer says { removed: true }.',
+    'Correct a stock line: quantity (or packCount for sealed packs), location, expiry date, dateKind (use_by or best_before), or the opening date of an opened pack (the expiry is then recomputed). Use the id from list_stock. A quantity of 0 deletes the line: the answer says { removed: true }.',
     s.stockUpdate.shape,
     rw,
     (a) => stock.update(a) ?? { removed: true, id: a.id },
@@ -50,7 +50,7 @@ export function registerStockTools({ stock, tool, ro, rw, del }: ToolContext) {
   tool('remove_stock_item', 'Delete a stock line entirely. Use the id from list_stock.', s.idParam.shape, del, (a) => stock.remove(a.id));
   tool(
     'get_stock_alerts',
-    `Products below their minimum threshold, and items that are expired or expire soon. Today is ${today()} at server start; dates are YYYY-MM-DD.`,
+    `Products below their minimum threshold, items that expire soon, toDiscard (past a use-by date) and opened packs. Each item has an expiryState: ok, soon, check (past a best-before date: look and smell) or discard (past a use-by date). Today is ${today()} at server start; dates are YYYY-MM-DD.`,
     { expiringWithinDays: z.number().int().nonnegative().default(3) },
     ro,
     (a) => ({ today: today(), ...stock.alerts(a.expiringWithinDays) }),

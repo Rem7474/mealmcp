@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { LOCATIONS, MEAL_TYPES } from '../db/schema.js';
+import { DATE_KINDS, LOCATIONS, MEAL_TYPES } from '../db/schema.js';
 import { ALLERGENS } from './diet.js';
 import { householdSettings } from './settings.js';
 
@@ -88,6 +88,14 @@ export const stockList = z.object({
     .describe('Only items expiring within this many days (already expired items included)'),
 });
 
+const dateKind = z
+  .enum(DATE_KINDS)
+  .nullable()
+  .optional()
+  .describe(
+    'What the expiry date means: use_by ("use by", unsafe after, to throw away) or best_before (quality only, still fine to check). Omit when unknown.',
+  );
+
 export const stockAdd = z.object({
   name: productName.describe('Product name; created automatically if unknown'),
   quantity: z.number().positive().optional().describe('Required unless approximate is true'),
@@ -100,6 +108,7 @@ export const stockAdd = z.object({
   unit,
   location: location.default('pantry'),
   expiresOn: isoDate.nullable().optional().describe('Expiry date YYYY-MM-DD'),
+  dateKind,
   packCount: z
     .number()
     .int()
@@ -134,6 +143,7 @@ export const stockUpdate = z.object({
   packCount: z.number().int().positive().optional().describe('For a line kept in packs: how many unopened packs there are now'),
   location: location.optional(),
   expiresOn: isoDate.nullable().optional(),
+  dateKind,
   openedOn: isoDate
     .optional()
     .describe(

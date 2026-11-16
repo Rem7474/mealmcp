@@ -287,3 +287,44 @@ describe('printed expiry and opening date', () => {
     expect(svc.stock.update({ id: line.id, expiresOn: printed })?.printedExpiresOn).toBe(printed);
   });
 });
+
+describe('use-by and best-before dates', () => {
+  const past = addDays(today(), -2);
+
+  it('tells apart what is to throw away from what is only worth a look', () => {
+    svc.stock.add({ name: 'Chicken', quantity: 1, unit: 'kg', expiresOn: past, dateKind: 'use_by' });
+    svc.stock.add({ name: 'Biscuits', quantity: 1, unit: 'piece', expiresOn: past, dateKind: 'best_before' });
+    svc.stock.add({ name: 'Rice', quantity: 1, unit: 'kg', expiresOn: past });
+    const states = Object.fromEntries(svc.stock.list().map((i) => [i.name, i.expiryState]));
+    expect(states).toEqual({ Chicken: 'discard', Biscuits: 'check', Rice: 'check' });
+    expect(svc.stock.alerts().toDiscard.map((i) => i.name)).toEqual(['Chicken']);
+  });
+
+  it('does not merge lines whose dates mean different things', () => {
+    const date = addDays(today(), 5);
+    svc.stock.add({ name: 'Yogurt', quantity: 2, unit: 'piece', expiresOn: date, dateKind: 'use_by' });
+    svc.stock.add({ name: 'Yogurt', quantity: 1, unit: 'piece', expiresOn: date, dateKind: 'best_before' });
+    svc.stock.add({ name: 'Yogurt', quantity: 3, unit: 'piece', expiresOn: date, dateKind: 'use_by' });
+    const lines = svc.stock.list().map((i) => [i.dateKind, i.quantity]);
+    expect(lines).toHaveLength(2);
+    expect(lines).toContainEqual(['use_by', 5]);
+  });
+
+  it('can be set afterwards, and survives opening and sealing a pack again', () => {
+    const line = svc.stock.add({ name: 'Cream', quantity: 1, unit: 'piece', packSize: 1, expiresOn: addDays(today(), 9) });
+    expect(svc.stock.update({ id: line.id, dateKind: 'use_by' })?.dateKind).toBe('use_by');
+    const opened = svc.stock.open({ id: line.id });
+    expect(opened.dateKind).toBe('use_by');
+    expect(svc.stock.unopen(opened.id).dateKind).toBe('use_by');
+  });
+
+  it('does not suggest cooking what is past its use-by date', () => {
+    svc.stock.add({ name: 'Chicken', quantity: 1, unit: 'kg', expiresOn: past, dateKind: 'use_by' });
+    svc.recipes.create({ name: 'Roast', servings: 2, ingredients: [{ name: 'Chicken', quantity: 500, unit: 'g' }] });
+    const roast = () => svc.recipes.suggest({}).suggestions.find((s) => s.name === 'Roast');
+    expect(roast()).toBeUndefined();
+    // The same line with a best-before date is still worth cooking.
+    svc.stock.update({ id: svc.stock.list()[0].id, dateKind: 'best_before' });
+    expect(roast()?.usesExpiring).toHaveLength(1);
+  });
+});

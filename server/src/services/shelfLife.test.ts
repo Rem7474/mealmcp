@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { effectiveExpiry, openedExpiry, printedDate } from './shelfLife.js';
+import { effectiveExpiry, expiryState, openedExpiry, printedDate } from './shelfLife.js';
 
 describe('openedExpiry', () => {
   it('keeps the printed date when the product has no opened shelf life', () => {
@@ -52,5 +52,24 @@ describe('printedDate', () => {
   it('recomputes an opened line from the printed date when the opening date moves', () => {
     const line = { expiresOn: '2026-01-13', printedExpiresOn: '2026-02-01', openedOn: '2026-01-20' };
     expect(effectiveExpiry(line, { openedShelfLifeDays: 3 })).toBe('2026-01-23');
+  });
+});
+
+describe('expiryState', () => {
+  const now = '2026-01-10';
+  it('has no state without a date', () => {
+    expect(expiryState({ expiresOn: null, dateKind: 'use_by' }, now)).toBe('none');
+  });
+
+  it('tells ok from soon', () => {
+    expect(expiryState({ expiresOn: '2026-01-20' }, now)).toBe('ok');
+    expect(expiryState({ expiresOn: '2026-01-13' }, now)).toBe('soon');
+    expect(expiryState({ expiresOn: '2026-01-10', dateKind: 'use_by' }, now)).toBe('soon');
+  });
+
+  it('sends a line past its use-by date to the bin, and past a best-before or unspecified date to a check', () => {
+    expect(expiryState({ expiresOn: '2026-01-09', dateKind: 'use_by' }, now)).toBe('discard');
+    expect(expiryState({ expiresOn: '2026-01-09', dateKind: 'best_before' }, now)).toBe('check');
+    expect(expiryState({ expiresOn: '2026-01-09', dateKind: null }, now)).toBe('check');
   });
 });
