@@ -108,6 +108,7 @@ export function createKitchenRoutes(db: Db) {
   r.get('/seasons', (req, res) => void res.json(kitchen(req).seasons.list(s.seasonList.parse(req.query))));
   r.get('/plan/history', (req, res) => void res.json(kitchen(req).planner.history(s.mealHistory.parse(req.query))));
   r.get('/context', (req, res) => void res.json(kitchen(req).context.get(s.mealContext.parse(req.query))));
+  r.get('/next-actions', (req, res) => void res.json(kitchen(req).nextActions.get()));
   r.get('/waste', (req, res) => void res.json(kitchen(req).stock.wasteSummary(s.wasteSummary.parse(req.query))));
   r.post(
     '/stock/:id/discard',

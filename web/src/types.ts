@@ -450,3 +450,14 @@ export interface Suggestions {
   expiring: { name: string; expiresOn: string | null }[];
   suggestions: Suggestion[];
 }
+
+/** What the landing page shows: facts only, the page words them. Shared with the server, which builds it. */
+export type { ActionCard } from '../../server/src/domain/actionCard';
+
+import type { ActionCard } from '../../server/src/domain/actionCard';
+
+export interface NextActions {
+  today: string;
+  cards: ActionCard[];
+  budget: (BudgetStatus & { state: 'none' | 'ok' | 'close' | 'over' }) | null;
+}
