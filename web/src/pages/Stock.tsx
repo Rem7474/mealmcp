@@ -8,6 +8,7 @@ import type { CatalogLookup, Product, StockAlerts, StockItem, WasteSummary } fro
 import { Accordion, Badge, Button, Card, Empty, Fab, Field, Input, Select, Sheet } from '../ui';
 import { ProductNutritionCard } from './Nutrition';
 import { CameraScan, canScan, cleanCode, isCode } from './Scan';
+import { StarterStockCard } from './Starter';
 import { LocationSelect, PriceHistoryView, ProductDatalist, parseQty, UnitPrice, useCurrency, useProducts } from './shared';
 
 const LOCATION_ICON = {
@@ -56,6 +57,7 @@ export function Stock() {
           </ul>
         </Card>
       )}
+      {stock.isSuccess && items.length === 0 && <StarterStockCard />}
       <AddForm />
       <div className="grid items-start gap-x-4 gap-y-6 lg:grid-cols-3">
         {LOCATIONS.map((location) => {

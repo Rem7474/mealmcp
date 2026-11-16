@@ -476,3 +476,55 @@ export interface WeekPlan {
   alreadyPlanned: { date: string; mealType: MealType }[];
   slots: WeekPlanSlot[];
 }
+
+export type Capability = 'yes' | 'no' | 'unknown';
+export interface AiStatus {
+  enabled: boolean;
+  reachable: boolean;
+  textModel: string | null;
+  visionModel: string | null;
+  text: boolean;
+  vision: Capability;
+}
+export interface AiModel {
+  id: string;
+  vision: Capability;
+}
+export interface AiTest {
+  reachable: boolean;
+  model: boolean;
+  json: boolean;
+  vision: 'skipped' | 'ok' | 'failed';
+}
+
+export interface StarterProduct {
+  key: string;
+  name: string;
+  staple: boolean;
+  /** Already at home (in stock, or flagged as always there). */
+  added: boolean;
+}
+export interface StarterRecipe {
+  key: string;
+  name: string;
+  servings: number;
+  minutes: number;
+  tags: string[];
+  ingredients: string[];
+  imported: boolean;
+}
+export interface StarterOverview {
+  aisles: { aisle: string; products: StarterProduct[] }[];
+  recipes: StarterRecipe[];
+}
+
+/** What the landing page shows: facts only, the page words them. Shared with the server, which builds it. */
+export type { ActionCard } from '../../server/src/domain/actionCard';
+
+import type { ActionCard } from '../../server/src/domain/actionCard';
+
+export interface NextActions {
+  today: string;
+  cards: ActionCard[];
+  budget: (BudgetStatus & { state: 'none' | 'ok' | 'close' | 'over' }) | null;
+}

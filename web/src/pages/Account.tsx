@@ -19,6 +19,7 @@ import {
   type User,
 } from '../types';
 import { Badge, Button, Card, Empty, Fold, Input, Select } from '../ui';
+import { AiCard } from './AiCard';
 import { resetSession } from './AuthPage';
 import { DeleteAccountCard, DevicesCard, PasswordCard } from './Security';
 import { useProducts } from './shared';
@@ -45,6 +46,10 @@ export function Account({ user }: { user: User }) {
         <p className="text-sm text-muted">
           {t('account.roleLine', { email: user.email, role: t(`role.${user.role}`), household: user.householdName })}
         </p>
+        {/* The phone's tab bar has no room for the budget: it is one tap from here and from the home page. */}
+        <a href="#budget" className="mt-2 inline-flex min-h-11 items-center text-sm text-accent-soft underline sm:hidden">
+          {t('tab.budget')}
+        </a>
       </Card>
       <div className="grid grid-cols-1 items-start gap-4 lg:grid-cols-2">
         <div className="min-w-0 space-y-4">
@@ -65,6 +70,7 @@ export function Account({ user }: { user: User }) {
           </Fold>
         </div>
         <div className="min-w-0 space-y-4">
+          <AiCard user={user} />
           <Fold title={t('tokens.title')}>
             <TokensCard />
           </Fold>
