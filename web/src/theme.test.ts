@@ -7,9 +7,9 @@ afterEach(() => {
 });
 
 describe('accent colour', () => {
-  it('defaults to sage and leaves the stylesheet values alone', () => {
-    expect(savedAccent()).toBe('sage');
-    applyAccent('sage');
+  it('defaults to lavender and leaves the stylesheet values alone', () => {
+    expect(savedAccent()).toBe('lavender');
+    applyAccent('lavender');
     expect(document.documentElement.style.getPropertyValue('--accent')).toBe('');
   });
 
@@ -22,6 +22,6 @@ describe('accent colour', () => {
 
   it('ignores a stored value it does not know', () => {
     localStorage.setItem('mealmcp.accent', 'nope');
-    expect(savedAccent()).toBe('sage');
+    expect(savedAccent()).toBe('lavender');
   });
 });
