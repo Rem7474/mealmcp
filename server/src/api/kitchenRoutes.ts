@@ -1,5 +1,6 @@
 import { type Request, Router } from 'express';
 import type { Db } from '../db/index.js';
+import * as c from '../domain/catalogSchemas.js';
 import * as s from '../domain/schemas.js';
 import { createServices } from '../services/index.js';
 
@@ -38,7 +39,23 @@ export function createKitchenRoutes(db: Db) {
 
   r.get('/stock', (req, res) => void res.json(kitchen(req).stock.list(s.stockList.parse(req.query))));
   r.get('/stock/alerts', (req, res) => void res.json(kitchen(req).stock.alerts()));
-  r.post('/stock', (req, res) => void res.status(201).json(kitchen(req).stock.add(s.stockAdd.parse(req.body))));
+  r.post('/stock', async (req, res) => {
+    const k = kitchen(req);
+    // A barcode settles the product and the pack size; without one this is the plain add.
+    const line =
+      req.body?.barcode !== undefined
+        ? await k.catalog.addStock(c.stockAddFromCode.parse(req.body))
+        : k.stock.add(s.stockAdd.parse(req.body));
+    res.status(201).json(line);
+  });
+  r.get('/catalog/products/:code', async (req, res) => {
+    const q = c.catalogCode.parse({ code: req.params.code, lang: req.query.lang });
+    res.json(await kitchen(req).catalog.product(q.code, q.lang));
+  });
+  r.get('/catalog/search', async (req, res) => {
+    const q = c.catalogSearch.parse(req.query);
+    res.json(await kitchen(req).catalog.search(q.q, q.lang));
+  });
   r.post('/stock/bulk', (req, res) => void res.status(201).json(kitchen(req).stock.addMany(s.stockAddMany.parse(req.body).items)));
   r.post('/stock/:id/unopen', (req, res) => void res.json(kitchen(req).stock.unopen(id(req.params))));
   r.post(

@@ -4,6 +4,7 @@ import type { Services } from '../services/index.js';
 import { VERSION } from '../version.js';
 import { registerBudgetTools } from './tools/budget.js';
 import { registerBulkTools } from './tools/bulk.js';
+import { registerCatalogTools } from './tools/catalog.js';
 import type { ToolContext } from './tools/context.js';
 import { registerInsightsTools } from './tools/insights.js';
 import { registerNutritionTools } from './tools/nutrition.js';
@@ -72,6 +73,7 @@ export function createMcpServer(services: Services, onChange?: () => void) {
   registerShoppingTools(ctx);
   registerBulkTools(ctx);
   registerInsightsTools(ctx);
+  registerCatalogTools(ctx);
   registerNutritionTools(ctx);
   registerBudgetTools(ctx);
 

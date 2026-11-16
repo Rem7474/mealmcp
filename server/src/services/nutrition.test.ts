@@ -15,7 +15,7 @@ describe('nutrition module', () => {
   const offBody = {
     hits: [
       {
-        code: '123456789012',
+        code: '0123456789012',
         product_name: 'Oat flakes',
         brands: ['Brand'],
         nutriments: { 'energy-kcal_100g': 370, proteins_100g: 13, carbohydrates_100g: 60, fat_100g: 7, fiber_100g: 10 },
@@ -25,7 +25,7 @@ describe('nutrition module', () => {
   };
   const fakeFetch = (async (url: string) => {
     const body = String(url).includes('/api/v2/product/')
-      ? { product: { code: '123456789012', product_name: 'Oat flakes', brands: 'Brand', nutriments: offBody.hits[0]!.nutriments } }
+      ? { product: { code: '0123456789012', product_name: 'Oat flakes', brands: 'Brand', nutriments: offBody.hits[0]!.nutriments } }
       : offBody;
     return new Response(JSON.stringify(body), { status: 200, headers: { 'content-type': 'application/json' } });
   }) as unknown as typeof fetch;
@@ -44,7 +44,7 @@ describe('nutrition module', () => {
     const n = make();
     const hits = await n.search({ query: 'oat flakes' });
     expect(hits).toHaveLength(1);
-    expect(hits[0]).toMatchObject({ code: '123456789012', brands: 'Brand', per100: { kcal: 370, protein: 13 } });
+    expect(hits[0]).toMatchObject({ code: '0123456789012', brands: 'Brand', per100: { kcal: 370, protein: 13 } });
 
     const recipe = svc.recipes.create({
       name: 'Porridge',
@@ -57,10 +57,10 @@ describe('nutrition module', () => {
     });
     const oats = svc.products.list().find((p) => p.name === 'Oats')!;
     const milk = svc.products.list().find((p) => p.name === 'Milk')!;
-    await n.setProduct({ id: oats.id, code: '123456789012' });
-    expect(svc.products.get(oats.id).nutrition).toMatchObject({ source: 'openfoodfacts', code: '123456789012' });
+    await n.setProduct({ id: oats.id, code: '0123456789012' });
+    expect(svc.products.get(oats.id).nutrition).toMatchObject({ source: 'openfoodfacts', code: '0123456789012' });
     // The barcode and brand that resolved are kept on the product.
-    expect(svc.products.get(oats.id)).toMatchObject({ barcode: '123456789012', brand: 'Brand' });
+    expect(svc.products.get(oats.id)).toMatchObject({ barcode: '0123456789012', brand: 'Brand' });
 
     let r = n.recipe(recipe.id);
     expect(r.total.kcal).toBe(370);
@@ -97,7 +97,7 @@ describe('nutrition module', () => {
     await n.setProduct({ id: milk.id, per100: { kcal: 46 } });
     expect(await n.autofillRecipe(recipe.id)).toBe(1);
     const oats = svc.products.list().find((p) => p.name === 'Oat flakes')!;
-    expect(svc.products.get(oats.id).nutrition).toMatchObject({ source: 'openfoodfacts', auto: true, code: '123456789012' });
+    expect(svc.products.get(oats.id).nutrition).toMatchObject({ source: 'openfoodfacts', auto: true, code: '0123456789012' });
     expect(svc.products.get(milk.id).nutrition).toMatchObject({ source: 'manual' });
     expect(await n.autofillRecipe(recipe.id)).toBe(0);
   });

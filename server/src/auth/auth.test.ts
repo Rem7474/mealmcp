@@ -273,6 +273,21 @@ describe('MCP tools', () => {
     }
   });
 
+  it('stocks by barcode through a code the household already knows, and refuses an unclear catalogue request', async () => {
+    const t = await token();
+    expect((await call(t, 'add_stock', { name: 'Pasta', quantity: 500, unit: 'g' })).error).toBe(false);
+    const linked = await call(t, 'update_product', { product: 'Pasta', barcode: '3017620422003' });
+    expect(JSON.parse(linked.text).barcodes).toMatchObject([{ code: '3017620422003' }]);
+    const added = await call(t, 'add_stock', { barcode: '03017620422003', quantity: 250, unit: 'g' });
+    expect(added.error).toBe(false);
+    expect(JSON.parse(added.text)).toMatchObject({ name: 'Pasta', quantity: 750 });
+    expect((await call(t, 'add_stock', { quantity: 1 })).text).toMatch(/product name, or a barcode/);
+    const known = await call(t, 'search_catalog', { code: '3017620422003' });
+    expect(JSON.parse(known.text)).toMatchObject({ known: { productName: 'Pasta' }, hit: null });
+    expect((await call(t, 'search_catalog', {})).error).toBe(true);
+    expect((await call(t, 'search_catalog', { code: '3017620422003', name: 'x' })).error).toBe(true);
+  });
+
   it('works with names instead of ids, a price paid, the freezer and a price history', async () => {
     const t = await token();
     const added = await call(t, 'add_stock', { name: 'Salmon', quantity: 400, unit: 'g', location: 'freezer', price: 6 });
