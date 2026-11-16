@@ -8,6 +8,7 @@ import { createNutritionService } from './nutrition.js';
 import { createPlannerService } from './planner.js';
 import { createPriceService } from './prices.js';
 import { createProductService } from './products.js';
+import { createPurchaseService } from './purchase.js';
 import { createRecipeService } from './recipes.js';
 import { createSeasonService } from './seasons.js';
 import { createSettingsService } from './settings.js';
@@ -37,11 +38,13 @@ export function createServices(db: Db, householdId: number) {
   const budget = createBudgetService(db, householdId, products, stock, recipes, planner, prices);
   const weekPlan = createWeekPlanService(db, householdId, recipes, planner, settings, products);
   const shopping = createShoppingService(db, householdId, products, stock, recipes, planner, budget, seasons);
+  const purchase = createPurchaseService(db, products, stock, shopping, budget);
   const catalog = createCatalogService(householdId, products, stock);
   const starter = createStarterService(products, stock, recipes);
   const context = createContextService(settings, stock, recipes, planner, seasons, equipment, budget);
   const nextActions = createNextActionsService(stock, recipes, planner, shopping, budget);
   return {
+    purchase,
     starter,
     weekPlan,
     catalog,

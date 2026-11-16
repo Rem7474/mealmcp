@@ -528,3 +528,25 @@ export const aiWeekPlanStart = weekPlanStart.extend({
   meals: weekPlanStart.shape.meals.max(14).describe('The meals to plan: at most 14, one model call each'),
   wishes: z.string().trim().max(500).optional().describe('Free text: ideas, cravings, constraints'),
 });
+
+export const purchaseText = z.object({
+  text: z.string().trim().min(1).max(5000).describe('What was bought, one item per line, e.g. "2 kg tomatoes", "6 eggs 2.40€"'),
+});
+
+export const purchaseApply = z.object({
+  lines: z
+    .array(
+      z.object({
+        name: productName,
+        quantity: z.number().positive().max(1_000_000),
+        unit,
+        price: money.optional().describe('What this line cost, not a unit price'),
+      }),
+    )
+    .min(1)
+    .max(100),
+  store: z.string().trim().min(1).max(80).optional(),
+  date: isoDate.optional(),
+  total: money.optional().describe('Amount actually paid, when it differs from the sum of the lines'),
+  location: location.default('pantry'),
+});
