@@ -101,27 +101,27 @@ const t = {
       [
         '📅',
         'Plan the week in minutes',
-        'Drop a recipe or a quick note on each day. Empty slots stand out, so nothing is left to “we will see”.',
+        'Drop a recipe or a quick note on each day, say who eats and when. Empty slots stand out, so nothing is left to “we will see”.',
       ],
       [
         '🛒',
         'Shopping lists that write themselves',
-        'One tap turns the week’s meals into a list: what you need, minus what is already at home. Sort it by aisle and tick as you walk the shop.',
+        'One tap turns the week’s meals into a list: what you need, minus what is already at home, plus what is running low. View it by aisle or by meal, tick as you walk the shop, then put everything away in one go.',
       ],
       [
         '🧊',
         'Know what is in the fridge',
-        'See what expires first, tell use-by from best-before, freeze and thaw (even part of a pack) with the right clock, get an alert on opened jars, and cook what you already own before buying more.',
+        'Fridge, freezer and pantry. See what expires first, tell use-by from best-before, freeze and thaw (even part of a pack) with the right clock, get an alert on opened jars, and cook what you already own before buying more. Keep a note, brand and barcode per line, packs as “3 × 200 ml”, drained weights for beans and tuna, and the price you paid.',
       ],
       [
         '📖',
         'Recipes that fit your kitchen',
-        'Rate and favorite recipes, see which ones you can make tonight, and get a warning when one needs an appliance you do not have.',
+        'Ingredients (staples and “to taste” items are never bought), steps with appliance and temperature, tags, ratings and favorites. See which ones you can make tonight, and get a warning when one needs an appliance you do not have.',
       ],
       [
         '💶',
         'Grocery budget under control',
-        'Log receipts, set a monthly budget and see where you will land before the month ends. Every receipt builds a price history per product, with the trend and the cheapest shop, and a pricey item on your list is flagged. In any currency.',
+        'Log receipts, set a monthly budget and see where you will land before the month ends. Every receipt builds a price history per product, with the trend and the cheapest shop, and a pricey item on your list is flagged. Estimates use what you really paid, in any currency.',
       ],
       [
         '🍎',
@@ -144,11 +144,16 @@ const t = {
         'Remember what you cooked so menus stay fresh, and see what throwing food away really costs you, valued at the price you paid.',
       ],
       [
+        '🤖',
+        'Made for AI planning',
+        'One call gives your assistant everything it needs to propose a menu: diet and allergens, expiring stock, season, recent meals, open slots and budget. It can name products instead of ids and change many lines at once.',
+      ],
+      [
         '👨‍👩‍👧',
         'One household, everyone in sync',
         'Invite the family. Changes show up on every device instantly, including the ones your AI makes.',
       ],
-      ['📱', 'On your phone', 'Install it like an app and use it one-handed in the shop. Dark theme, English and French.'],
+      ['📱', 'On your phone', 'Install it like an app and use it one-handed in the shop: forms open as sheets you swipe down to close. Dark theme with your accent colour, English and French.'],
     ],
     mHead: 'Say it, your AI does it',
     mLead:
@@ -242,27 +247,27 @@ const t = {
       [
         '📅',
         'La semaine planifiée en quelques minutes',
-        'Posez une recette ou une simple note sur chaque jour. Les créneaux vides ressortent : plus de « on verra ».',
+        'Posez une recette ou une simple note sur chaque jour, dites qui mange et quand. Les créneaux vides ressortent : plus de « on verra ».',
       ],
       [
         '🛒',
         'Des courses qui se préparent seules',
-        'Un clic transforme les repas de la semaine en liste : ce qu’il faut, moins ce qu’il y a déjà. Triez par rayon et cochez en faisant les courses.',
+        'Un clic transforme les repas de la semaine en liste : ce qu’il faut, moins ce qu’il y a déjà, plus ce qui manque. Affichez-la par rayon ou par repas, cochez en faisant les courses, puis rangez tout d’un coup.',
       ],
       [
         '🧊',
         'Savoir ce qu’il y a dans le frigo',
-        'Voyez ce qui expire en premier, distinguez DLC et DDM, congelez et décongelez (même une partie d’un paquet) avec la bonne horloge, soyez alerté pour les pots ouverts et cuisinez ce que vous avez avant d’en racheter.',
+        'Frigo, congélateur et placard. Voyez ce qui expire en premier, distinguez DLC et DDM, congelez et décongelez (même une partie d’un paquet) avec la bonne horloge, soyez alerté pour les pots ouverts et cuisinez ce que vous avez avant d’en racheter. Une note, une marque et un code-barres par ligne, des paquets comme « 3 × 200 ml », des poids égouttés pour les haricots et le thon, et le prix payé.',
       ],
       [
         '📖',
         'Des recettes adaptées à votre cuisine',
-        'Notez et mettez en favori, voyez ce que vous pouvez cuisiner ce soir, et soyez prévenu si une recette demande un appareil que vous n’avez pas.',
+        'Ingrédients (les basiques et les « à votre goût » ne sont jamais achetés), étapes avec appareil et température, étiquettes, notes et favoris. Voyez ce que vous pouvez cuisiner ce soir, et soyez prévenu si une recette demande un appareil que vous n’avez pas.',
       ],
       [
         '💶',
         'Un budget courses maîtrisé',
-        'Enregistrez vos tickets, fixez un budget mensuel et voyez où vous allez finir avant la fin du mois. Chaque ticket construit un historique des prix par produit, avec la tendance et le magasin le moins cher, et un article cher de votre liste est signalé. Dans la devise de votre choix.',
+        'Enregistrez vos tickets, fixez un budget mensuel et voyez où vous allez finir avant la fin du mois. Chaque ticket construit un historique des prix par produit, avec la tendance et le magasin le moins cher, et un article cher de votre liste est signalé. Les estimations reposent sur ce que vous avez vraiment payé, dans la devise de votre choix.',
       ],
       [
         '🍎',
@@ -285,6 +290,11 @@ const t = {
         'Retient ce que vous avez cuisiné pour varier les menus, et chiffre ce que coûte vraiment la nourriture jetée, au prix que vous avez payé.',
       ],
       [
+        '🤖',
+        'Pensé pour la planification par IA',
+        'Un seul appel donne à votre assistant tout ce qu’il faut pour proposer un menu : régime et allergènes, stock qui expire, saison, repas récents, créneaux libres et budget. Il peut désigner les produits par leur nom et modifier plusieurs lignes d’un coup.',
+      ],
+      [
         '👨‍👩‍👧',
         'Un foyer, tout le monde synchronisé',
         'Invitez la famille. Les changements apparaissent aussitôt sur chaque appareil, y compris ceux de votre IA.',
@@ -292,7 +302,7 @@ const t = {
       [
         '📱',
         'Dans votre poche',
-        'Installez-la comme une application et utilisez-la d’une main en magasin. Thème sombre, français et anglais.',
+        'Installez-la comme une application et utilisez-la d’une main en magasin : les formulaires s’ouvrent en feuilles que l’on referme d’un glissement. Thème sombre avec votre couleur d’accent, français et anglais.',
       ],
     ],
     mHead: 'Dites-le, votre IA s’en occupe',
