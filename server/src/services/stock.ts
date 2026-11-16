@@ -33,6 +33,8 @@ export function createStockService(db: Db, hid: number, productService: ProductS
         openedOn: stockItems.openedOn,
         printedExpiresOn: stockItems.printedExpiresOn,
         dateKind: stockItems.dateKind,
+        frozenOn: stockItems.frozenOn,
+        thawedOn: stockItems.thawedOn,
       })
       .from(stockItems)
       .innerJoin(products, eq(products.id, stockItems.productId));
@@ -45,11 +47,38 @@ export function createStockService(db: Db, hid: number, productService: ProductS
   const shape = (r: Row) => ({
     ...r,
     opened: r.openedOn !== null,
+    frozen: r.frozenOn !== null,
+    thawed: r.thawedOn !== null,
     expiryState: expiryState(r, today()),
     packCount: r.packSize && !r.openedOn && !r.approximate ? Math.round(r.quantity / r.packSize) : null,
   });
   // Opened packs are used first, then the soonest expiry.
   const useFirst = [sql`${stockItems.openedOn} is null`, ...fifo] as const;
+  type LineState = Pick<Row, 'expiresOn' | 'printedExpiresOn' | 'openedOn' | 'frozenOn' | 'thawedOn' | 'productId' | 'location'>;
+  type ProductRow = ReturnType<ProductService['get']>;
+  /** What changes when a line goes into the freezer: the freezing date replaces the printed one as the clock. */
+  const freezeChanges = (line: LineState, product: ProductRow, pending: Partial<typeof stockItems.$inferInsert> = {}) => {
+    if (line.thawedOn)
+      throw new ValidationError(
+        'This was already thawed: freezing it again is not recommended. Use freeze_stock_item with refreeze=true to do it anyway',
+      );
+    const printedExpiresOn = printedDate(line, product);
+    const next = { ...line, openedOn: pending.openedOn ?? line.openedOn, printedExpiresOn, frozenOn: today(), thawedOn: null };
+    return {
+      frozenOn: next.frozenOn,
+      thawedOn: null,
+      location: 'freezer' as const,
+      printedExpiresOn,
+      expiresOn: effectiveExpiry(next, product),
+    };
+  };
+  /** What changes when a line comes out of the freezer: the thawing date starts the (short) thawed clock. */
+  const thawChanges = (line: LineState, product: ProductRow, pending: Partial<typeof stockItems.$inferInsert> = {}) => {
+    const printedExpiresOn = printedDate(line, product);
+    const next = { ...line, openedOn: pending.openedOn ?? line.openedOn, printedExpiresOn, frozenOn: null, thawedOn: today() };
+    return { frozenOn: null, thawedOn: next.thawedOn, printedExpiresOn, expiresOn: effectiveExpiry(next, product) };
+  };
+
   /** Lines left at 0 (the quantity is gone) have no reason to exist. Called by the writes that can empty a line. */
   const purgeEmpty = () =>
     void db
@@ -182,6 +211,8 @@ export function createStockService(db: Db, hid: number, productService: ProductS
             packSize === null ? isNull(stockItems.packSize) : eq(stockItems.packSize, packSize),
             expiresOn ? eq(stockItems.expiresOn, expiresOn) : isNull(stockItems.expiresOn),
             dateKind ? eq(stockItems.dateKind, dateKind) : isNull(stockItems.dateKind),
+            isNull(stockItems.frozenOn),
+            isNull(stockItems.thawedOn),
           ),
         )
         .get();
@@ -224,7 +255,7 @@ export function createStockService(db: Db, hid: number, productService: ProductS
       const days = shelfLifeDays ?? product.openedShelfLifeDays;
       const openedOn = today();
       const printed = printedDate(line, product);
-      const expiresOn = openedExpiry(days, openedOn, printed);
+      const expiresOn = effectiveExpiry({ ...line, printedExpiresOn: printed, openedOn }, { ...product, openedShelfLifeDays: days });
       const size = line.packSize ?? line.quantity;
       if (remaining !== undefined && remaining > size + 1e-9) throw new ValidationError('What is left cannot exceed the pack size');
       const left = remaining ?? size;
@@ -259,6 +290,8 @@ export function createStockService(db: Db, hid: number, productService: ProductS
           expiresOn,
           printedExpiresOn: printed,
           dateKind: line.dateKind,
+          frozenOn: line.frozenOn,
+          thawedOn: line.thawedOn,
           addedOn: line.addedOn,
           packSize: size,
           openedOn,
@@ -279,7 +312,10 @@ export function createStockService(db: Db, hid: number, productService: ProductS
       if (line.packSize !== null && line.quantity < line.packSize - 1e-9)
         throw new ValidationError('Part of it was already used: it cannot be sealed again');
       const product = productService.get(line.productId);
-      const expiresOn = printedDate(line, product);
+      const printed = printedDate(line, product);
+      // A sealed pack goes back to its printed date; frozen or thawed ones keep the clock of their freezer state.
+      const expiresOn =
+        line.frozenOn || line.thawedOn ? effectiveExpiry({ ...line, printedExpiresOn: printed, openedOn: null }, product) : printed;
       const twin = db
         .select()
         .from(stockItems)
@@ -294,6 +330,8 @@ export function createStockService(db: Db, hid: number, productService: ProductS
             line.packSize === null ? isNull(stockItems.packSize) : eq(stockItems.packSize, line.packSize),
             expiresOn ? eq(stockItems.expiresOn, expiresOn) : isNull(stockItems.expiresOn),
             line.dateKind ? eq(stockItems.dateKind, line.dateKind) : isNull(stockItems.dateKind),
+            line.frozenOn ? eq(stockItems.frozenOn, line.frozenOn) : isNull(stockItems.frozenOn),
+            line.thawedOn ? eq(stockItems.thawedOn, line.thawedOn) : isNull(stockItems.thawedOn),
           ),
         )
         .get();
@@ -308,7 +346,7 @@ export function createStockService(db: Db, hid: number, productService: ProductS
         return svc.get(twin.id);
       }
       db.update(stockItems)
-        .set({ openedOn: null, expiresOn, printedExpiresOn: expiresOn })
+        .set({ openedOn: null, expiresOn, printedExpiresOn: printed })
         .where(and(mine, eq(stockItems.id, id)))
         .run();
       return svc.get(id);
@@ -342,16 +380,52 @@ export function createStockService(db: Db, hid: number, productService: ProductS
           const product = productService.get(current.productId);
           const printed = printedDate(current, product);
           changes.printedExpiresOn = printed;
-          changes.expiresOn = effectiveExpiry({ expiresOn: printed, printedExpiresOn: printed, openedOn: patch.openedOn }, product);
+          changes.expiresOn = effectiveExpiry(
+            { ...current, expiresOn: printed, printedExpiresOn: printed, openedOn: patch.openedOn },
+            product,
+          );
         }
       }
       // On a sealed pack the expiry is the printed date.
       if (patch.expiresOn !== undefined && !current.openedOn) changes.printedExpiresOn = patch.expiresOn;
+      // Moving a line into the freezer freezes it, moving it out thaws it, unless the caller sets the expiry itself.
+      if (patch.location !== undefined && patch.location !== current.location && patch.expiresOn === undefined) {
+        const product = productService.get(current.productId);
+        if (patch.location === 'freezer' && !current.frozenOn) Object.assign(changes, freezeChanges(current, product, changes));
+        else if (current.location === 'freezer' && patch.location !== 'freezer')
+          Object.assign(changes, thawChanges(current, product, changes));
+      }
       if (Object.keys(changes).length)
         db.update(stockItems)
           .set(changes)
           .where(and(mine, eq(stockItems.id, id)))
           .run();
+      return svc.get(id);
+    },
+
+    /** Puts a line in the freezer. A line that was already thawed is only refrozen on purpose (refreeze). */
+    freeze({ id, refreeze }: { id: number; refreeze?: boolean }) {
+      const line = svc.get(id);
+      if (line.approximate) throw new ValidationError('A "plenty of it" marker cannot be frozen');
+      if (line.frozenOn) throw new ValidationError('This is already frozen');
+      const product = productService.get(line.productId);
+      const changes = freezeChanges(refreeze ? { ...line, thawedOn: null } : line, product);
+      db.update(stockItems)
+        .set(changes)
+        .where(and(mine, eq(stockItems.id, id)))
+        .run();
+      return svc.get(id);
+    },
+
+    /** Takes a line out of the freezer: it must now be used within the product's thawed shelf life. */
+    thaw(id: number) {
+      const line = svc.get(id);
+      if (!line.frozenOn && line.location !== 'freezer') throw new ValidationError('This is not frozen');
+      const product = productService.get(line.productId);
+      db.update(stockItems)
+        .set({ ...thawChanges(line, product), ...(line.location === 'freezer' ? { location: 'fridge' as const } : {}) })
+        .where(and(mine, eq(stockItems.id, id)))
+        .run();
       return svc.get(id);
     },
 
@@ -498,9 +572,11 @@ export function createStockService(db: Db, hid: number, productService: ProductS
                   quantity: round(size - part),
                   unit: line.unit,
                   location: line.location,
-                  expiresOn: openedExpiry(product.openedShelfLifeDays, openedOn, line.expiresOn),
-                  printedExpiresOn: line.expiresOn,
+                  expiresOn: effectiveExpiry({ ...line, openedOn }, product),
+                  printedExpiresOn: printedDate(line, product),
                   dateKind: line.dateKind,
+                  frozenOn: line.frozenOn,
+                  thawedOn: line.thawedOn,
                   addedOn: line.addedOn,
                   packSize: size,
                   openedOn,

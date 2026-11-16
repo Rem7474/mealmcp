@@ -64,6 +64,9 @@ export interface Product {
   drainedRatio: number | null;
   /** Days an opened pack keeps. */
   openedShelfLifeDays: number | null;
+  /** Days it keeps frozen / once thawed; null: the default for its category. */
+  frozenShelfLifeDays: number | null;
+  thawedShelfLifeDays: number | null;
   aliases: string[];
   /** Calories and macros per 100 g, when the nutrition module has them. */
   nutrition: { per100: NutrientValues; source: 'openfoodfacts' | 'manual'; code?: string; label?: string; auto?: boolean } | null;
@@ -109,6 +112,11 @@ export interface StockItem {
   printedExpiresOn: string | null;
   /** What the date means: use by (unsafe after) or best before (quality only); null when not stated. */
   dateKind: 'use_by' | 'best_before' | null;
+  /** Frozen or thawed here (the freezing / thawing date replaces the printed one as the clock). */
+  frozen: boolean;
+  thawed: boolean;
+  frozenOn: string | null;
+  thawedOn: string | null;
   /** Where the line stands against its date: past a use-by date it is for the bin, past a best-before date a check. */
   expiryState: 'none' | 'ok' | 'soon' | 'check' | 'discard';
 }

@@ -29,6 +29,10 @@ const opened: StockItem = {
   printedExpiresOn: '2026-02-01',
   dateKind: null,
   expiryState: 'ok',
+  frozen: false,
+  thawed: false,
+  frozenOn: null,
+  thawedOn: null,
 };
 
 function script() {
@@ -65,5 +69,31 @@ describe('EditStock date kind', () => {
     await userEvent.selectOptions(screen.getByLabelText('The date is'), 'use_by');
     await userEvent.click(screen.getByRole('button', { name: 'Save' }));
     expect(calls.find((c) => c.method === 'PATCH')?.body).toEqual({ location: 'fridge', dateKind: 'use_by' });
+  });
+});
+
+describe('EditStock freezer shelf life', () => {
+  it('saves the product freezer and thawed shelf life', async () => {
+    const product = {
+      id: 3,
+      name: 'Tomato sauce',
+      openedShelfLifeDays: null,
+      frozenShelfLifeDays: null,
+      thawedShelfLifeDays: null,
+      minStock: null,
+    };
+    const { calls } = mockApi({
+      'GET /products': { status: 200, body: [product] },
+      'PATCH /stock/7': { status: 200, body: opened },
+      'PATCH /products/3': { status: 200, body: product },
+    });
+    renderApp(<EditStock item={opened} onClose={() => {}} />);
+    await userEvent.type(await screen.findByLabelText('Days Tomato sauce keeps frozen'), '60');
+    await userEvent.type(screen.getByLabelText('Days Tomato sauce keeps once thawed'), '3');
+    await userEvent.click(screen.getByRole('button', { name: 'Save' }));
+    expect(calls.find((c) => c.method === 'PATCH' && c.path === '/products/3')?.body).toEqual({
+      frozenShelfLifeDays: 60,
+      thawedShelfLifeDays: 3,
+    });
   });
 });

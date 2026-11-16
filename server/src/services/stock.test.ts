@@ -328,3 +328,73 @@ describe('use-by and best-before dates', () => {
     expect(roast()?.usesExpiring).toHaveLength(1);
   });
 });
+
+describe('freezing and thawing', () => {
+  const printed = addDays(today(), 3);
+  const chicken = (extra = {}) =>
+    svc.stock.add({ name: 'Chicken', quantity: 1, unit: 'kg', location: 'fridge', expiresOn: printed, ...extra });
+
+  it('freezes a line: the freezing date replaces the printed one, which is kept', () => {
+    const line = chicken();
+    svc.products.update({ id: line.productId, category: 'meat_fish' });
+    const frozen = svc.stock.freeze({ id: line.id });
+    expect(frozen).toMatchObject({ location: 'freezer', frozen: true, printedExpiresOn: printed, expiresOn: addDays(today(), 90) });
+    expect(() => svc.stock.freeze({ id: line.id })).toThrow(/already frozen/);
+  });
+
+  it('thaws a line into the fridge with a short use-by clock', () => {
+    const line = chicken();
+    svc.products.update({ id: line.productId, category: 'meat_fish', thawedShelfLifeDays: 1 });
+    svc.stock.freeze({ id: line.id });
+    const thawed = svc.stock.thaw(line.id);
+    expect(thawed).toMatchObject({
+      location: 'fridge',
+      frozen: false,
+      thawed: true,
+      expiresOn: addDays(today(), 1),
+      printedExpiresOn: printed,
+    });
+    expect(() => svc.stock.thaw(line.id)).toThrow(/not frozen/);
+  });
+
+  it('refuses to refreeze a thawed line unless told to', () => {
+    const line = chicken();
+    svc.stock.freeze({ id: line.id });
+    svc.stock.thaw(line.id);
+    expect(() => svc.stock.freeze({ id: line.id })).toThrow(/refreeze=true/);
+    expect(svc.stock.freeze({ id: line.id, refreeze: true })).toMatchObject({ frozen: true, thawed: false });
+  });
+
+  it('freezes and thaws when the location is changed', () => {
+    const line = chicken();
+    expect(svc.stock.update({ id: line.id, location: 'freezer' })).toMatchObject({ frozen: true });
+    expect(svc.stock.update({ id: line.id, location: 'fridge' })).toMatchObject({ frozen: false, thawed: true, location: 'fridge' });
+    expect(() => svc.stock.update({ id: line.id, location: 'freezer' })).toThrow(/thawed/);
+  });
+
+  it('thaws a line that was bought frozen, and keeps frozen lines out of merges', () => {
+    const bought = svc.stock.add({ name: 'Peas', quantity: 1, unit: 'kg', location: 'freezer' });
+    expect(bought.frozen).toBe(false);
+    expect(svc.stock.thaw(bought.id)).toMatchObject({ thawed: true, location: 'fridge' });
+    const line = svc.stock.add({ name: 'Fish', quantity: 1, unit: 'kg', location: 'fridge' });
+    svc.stock.freeze({ id: line.id });
+    svc.stock.update({ id: line.id, location: 'fridge', expiresOn: null });
+    svc.stock.add({ name: 'Fish', quantity: 1, unit: 'kg', location: 'fridge' });
+    expect(svc.stock.list().filter((i) => i.name === 'Fish')).toHaveLength(2);
+  });
+
+  it('keeps the freezer state when a pack is opened and sealed again', () => {
+    const line = svc.stock.add({ name: 'Cream', quantity: 2, unit: 'piece', packSize: 1, expiresOn: printed });
+    svc.stock.freeze({ id: line.id });
+    const opened = svc.stock.open({ id: line.id });
+    expect(opened).toMatchObject({ frozen: true, opened: true });
+    expect(svc.stock.unopen(opened.id)).toMatchObject({ frozen: true, opened: false });
+  });
+
+  it('does not touch another household', () => {
+    const line = chicken();
+    const other = createServices(db, db.insert(households).values({ name: 'Other', createdAt: Date.now() }).returning().get().id);
+    expect(() => other.stock.freeze({ id: line.id })).toThrow(/not found/i);
+    expect(() => other.stock.thaw(line.id)).toThrow(/not found/i);
+  });
+});

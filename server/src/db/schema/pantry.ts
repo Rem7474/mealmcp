@@ -35,6 +35,9 @@ export const products = sqliteTable(
     allergens: text('allergens'),
     /** JSON ProductNutrition (values per 100 g and where they come from); null until set. */
     nutrition: text('nutrition'),
+    /** Days it keeps in the freezer / once thawed. Null: the category default (domain/freezing.ts). */
+    frozenShelfLifeDays: integer('frozen_shelf_life_days'),
+    thawedShelfLifeDays: integer('thawed_shelf_life_days'),
   },
   (t) => [uniqueIndex('products_household_name_idx').on(t.householdId, t.nameKey)],
 );
@@ -78,6 +81,9 @@ export const stockItems = sqliteTable(
     printedExpiresOn: text('printed_expires_on'),
     /** What the printed date means: a use-by date (unsafe after) or a best-before date (quality only). Null: unspecified, read as best-before. */
     dateKind: text('date_kind', { enum: DATE_KINDS }),
+    /** Set when the line was frozen / thawed here (ISO date); they replace the printed date as the clock. */
+    frozenOn: text('frozen_on'),
+    thawedOn: text('thawed_on'),
   },
   (t) => [index('stock_household_idx').on(t.householdId)],
 );
