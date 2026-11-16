@@ -7,6 +7,7 @@ import { locale, type MessageKey, useI18n, useT } from '../i18n';
 import type { Availability, MealType, Produce, Recipe, RecipeCost, RecipeSummary, Seasonal } from '../types';
 import { Accordion, Badge, Button, Card, Empty, Field, Input, Select, Sheet, Stars } from '../ui';
 import { RecipeNutrition } from './Nutrition';
+import { StarterRecipesCard } from './Starter';
 import { ProductDatalist, parseQty, useCurrency } from './shared';
 
 const TILE_TONES = [
@@ -32,7 +33,7 @@ export function Recipes() {
   const [tag, setTag] = useState('');
   const [favoritesOnly, setFavoritesOnly] = useState(false);
   const [sort, setSort] = useState<'name' | 'rating'>('name');
-  const { data: found = [] } = useQuery({
+  const { data: found = [], isSuccess: loaded } = useQuery({
     queryKey: ['recipes', search, tag, favoritesOnly],
     queryFn: () =>
       api.get<RecipeSummary[]>(
@@ -105,7 +106,11 @@ export function Recipes() {
           ))}
       </div>
       {recipes.length === 0 ? (
-        <Empty>{search || tag ? t('recipes.noMatch') : t('recipes.none')}</Empty>
+        search || tag || favoritesOnly ? (
+          <Empty>{t('recipes.noMatch')}</Empty>
+        ) : (
+          loaded && <StarterRecipesCard />
+        )
       ) : (
         <ul className="grid grid-cols-[minmax(0,1fr)] gap-3 sm:grid-cols-[repeat(2,minmax(0,1fr))] lg:grid-cols-[minmax(0,1fr)]">
           {recipes.map((r) => (
