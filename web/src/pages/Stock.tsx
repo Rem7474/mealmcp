@@ -70,8 +70,10 @@ export function Stock() {
                 <span className="font-sans text-sm text-muted tabular-nums">{here.length}</span>
               </h2>
               {here.length === 0 ? (
-                // An empty place is one quiet line, not a card of its own.
-                <p className="rounded-xl border border-dashed border-line px-3 py-2.5 text-sm text-muted">{t('stock.nothingHere')}</p>
+                // An empty place is one quiet line, not a card of its own. Nothing is said while the stock is still loading.
+                <p className="rounded-xl border border-dashed border-line px-3 py-2.5 text-sm text-muted">
+                  {stock.data ? t('stock.nothingHere') : ' '}
+                </p>
               ) : (
                 <ul className="divide-y divide-line rounded-xl bg-surface px-3 shadow-[0_0_0_1px_var(--line)]">
                   {here.map((item) => (

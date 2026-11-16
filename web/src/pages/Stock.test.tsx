@@ -3,7 +3,7 @@ import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it } from 'vitest';
 import { mockApi, renderApp } from '../test/utils';
 import type { StockItem } from '../types';
-import { EditStock } from './Stock';
+import { EditStock, Stock } from './Stock';
 
 beforeEach(() => {
   try {
@@ -177,5 +177,19 @@ describe('EditStock price history', () => {
     });
     renderApp(<EditStock item={opened} onClose={() => {}} />);
     expect(await screen.findByText(/No price yet/)).toBeInTheDocument();
+  });
+});
+
+describe('Stock page loading', () => {
+  it('says nothing is here only once the stock has loaded', async () => {
+    let release: (r: { status: number; body: unknown }) => void = () => {};
+    const pending = new Promise<{ status: number; body: unknown }>((resolve) => {
+      release = resolve;
+    });
+    mockApi({ 'GET /stock': () => pending });
+    renderApp(<Stock />);
+    expect(screen.queryByText('Nothing here.')).toBeNull();
+    release({ status: 200, body: [] });
+    expect(await screen.findAllByText('Nothing here.')).toHaveLength(3);
   });
 });
