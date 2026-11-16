@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it } from 'vitest';
 import { createDb, type Db } from '../db/index.js';
 import { households } from '../db/schema.js';
 import { addDays, today } from '../domain/dates.js';
+import { productUpdate } from '../domain/schemas.js';
 import { createServices, type Services } from './index.js';
 
 let db: Db;
@@ -396,5 +397,43 @@ describe('freezing and thawing', () => {
     const other = createServices(db, db.insert(households).values({ name: 'Other', createdAt: Date.now() }).returning().get().id);
     expect(() => other.stock.freeze({ id: line.id })).toThrow(/not found/i);
     expect(() => other.stock.thaw(line.id)).toThrow(/not found/i);
+  });
+});
+
+describe('notes, brand and barcode', () => {
+  it('keeps lines with different notes apart and lets a note be edited or cleared', () => {
+    svc.stock.add({ name: 'Cake', quantity: 1, unit: 'piece' });
+    const gift = svc.stock.add({ name: 'Cake', quantity: 1, unit: 'piece', note: '  a gift  ' });
+    expect(gift.note).toBe('a gift');
+    svc.stock.add({ name: 'Cake', quantity: 1, unit: 'piece' });
+    svc.stock.add({ name: 'Cake', quantity: 2, unit: 'piece', note: 'a gift' });
+    expect(
+      svc.stock
+        .list()
+        .map((i) => [i.note, i.quantity])
+        .sort(),
+    ).toEqual([
+      [null, 2],
+      ['a gift', 3],
+    ]);
+    expect(svc.stock.update({ id: gift.id, note: 'for Sunday' })?.note).toBe('for Sunday');
+    expect(svc.stock.update({ id: gift.id, note: '' })?.note).toBeNull();
+  });
+
+  it('keeps the note when a pack is opened and sealed again', () => {
+    const line = svc.stock.add({ name: 'Jam', quantity: 2, unit: 'piece', packSize: 1, note: 'homemade' });
+    const opened = svc.stock.open({ id: line.id });
+    expect(opened.note).toBe('homemade');
+    expect(svc.stock.unopen(opened.id).note).toBe('homemade');
+  });
+
+  it('stores a brand and a barcode on a product, and rejects a malformed barcode', () => {
+    const product = svc.products.findOrCreate('Jam');
+    expect(svc.products.update({ id: product.id, brand: 'Bonne Maman', barcode: '3045320094084' })).toMatchObject({
+      brand: 'Bonne Maman',
+      barcode: '3045320094084',
+    });
+    expect(svc.products.update({ id: product.id, brand: null, barcode: null })).toMatchObject({ brand: null, barcode: null });
+    expect(() => productUpdate.parse({ id: product.id, barcode: '12ab' })).toThrow();
   });
 });

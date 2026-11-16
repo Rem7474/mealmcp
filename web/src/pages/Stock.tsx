@@ -100,6 +100,7 @@ function AddForm() {
     location: 'fridge',
     expiresOn: '',
     dateKind: '',
+    note: '',
     approximate: false,
     packSize: '',
     opened: false,
@@ -123,9 +124,10 @@ function AddForm() {
         location: form.location,
         expiresOn: form.expiresOn || null,
         ...(form.expiresOn && form.dateKind ? { dateKind: form.dateKind } : {}),
+        ...(form.note.trim() ? { note: form.note.trim() } : {}),
       }),
     );
-    set({ name: '', quantity: '1', expiresOn: '', dateKind: '', packSize: '', opened: false });
+    set({ name: '', quantity: '1', expiresOn: '', dateKind: '', note: '', packSize: '', opened: false });
     setOpen(false);
   };
 
@@ -190,6 +192,15 @@ function AddForm() {
               </Field>
             </div>
             {form.expiresOn && <DateKindSelect value={form.dateKind} onChange={(v) => set({ dateKind: v })} />}
+            <Field label={t('stock.note')}>
+              <Input
+                aria-label={t('stock.note')}
+                maxLength={200}
+                value={form.note}
+                onChange={(e) => set({ note: e.target.value })}
+                className="w-full"
+              />
+            </Field>
             <Field label={t('stock.packSize')}>
               <Input
                 inputMode="decimal"
@@ -299,7 +310,11 @@ function StockRow({ item }: { item: StockItem }) {
     <li className="flex flex-wrap items-center gap-x-2 gap-y-1 py-2 text-sm">
       {/* min-w keeps the name readable in a narrow column: the controls wrap to the next line instead of squeezing it. */}
       <div className="flex min-w-32 flex-1 flex-wrap items-center gap-x-2">
-        <div className="font-medium order-1 text-base wrap-break-word">{item.name}</div>
+        <div className="font-medium order-1 text-base wrap-break-word">
+          {item.name}
+          {item.brand && <span className="ml-1.5 text-xs font-normal text-muted">{item.brand}</span>}
+        </div>
+        {item.note && <div className="order-3 basis-full text-xs text-muted">{item.note}</div>}
         {item.opened && item.openedOn && (
           <div className="order-3 basis-full text-xs text-accent">{t('stock.openedBadge', { date: formatDate(item.openedOn) })}</div>
         )}
@@ -396,6 +411,9 @@ export function EditStock({ item, onClose }: { item: StockItem; onClose: () => v
   const [packs, setPacks] = useState(item.packCount === null ? '' : String(item.packCount));
   const product = useProducts().data?.find((p) => p.id === item.productId);
   const [shelfLife, setShelfLife] = useState<string | null>(null);
+  const [note, setNote] = useState(item.note ?? '');
+  const [brand, setBrand] = useState<string | null>(null);
+  const [barcode, setBarcode] = useState<string | null>(null);
   const [frozenDays, setFrozenDays] = useState<string | null>(null);
   const [thawedDays, setThawedDays] = useState<string | null>(null);
   const [minStock, setMinStock] = useState<string | null>(null);
@@ -410,6 +428,7 @@ export function EditStock({ item, onClose }: { item: StockItem; onClose: () => v
         ...(expiresOn !== (item.expiresOn ?? '') ? { expiresOn: expiresOn || null } : {}),
         ...(item.openedOn && openedOn && openedOn !== item.openedOn ? { openedOn } : {}),
         ...(dateKind !== (item.dateKind ?? '') ? { dateKind: dateKind || null } : {}),
+        ...(note.trim() !== (item.note ?? '') ? { note: note.trim() || null } : {}),
         ...(item.packCount !== null && count !== undefined && !Number.isNaN(count) ? { packCount: count } : {}),
       }),
     );
@@ -425,6 +444,8 @@ export function EditStock({ item, onClose }: { item: StockItem; onClose: () => v
       const n = typed === null ? undefined : parseQty(typed);
       if (typed !== null && (n === undefined || (!Number.isNaN(n) && n !== saved))) change[key] = n ?? null;
     }
+    if (brand !== null && brand.trim() !== (product?.brand ?? '')) change.brand = brand.trim() || null;
+    if (barcode !== null && barcode.trim() !== (product?.barcode ?? '')) change.barcode = barcode.trim() || null;
     const min = minStock === null ? undefined : parseQty(minStock);
     if (minStock !== null && (min === undefined || (!Number.isNaN(min) && min !== product?.minStock))) change.minStock = min ?? null;
     if (Object.keys(change).length > 0) await run(() => api.patch(`/products/${item.productId}`, change));
@@ -447,6 +468,9 @@ export function EditStock({ item, onClose }: { item: StockItem; onClose: () => v
           />
         </Field>
         {expiresOn && <DateKindSelect value={dateKind} onChange={setDateKind} />}
+        <Field label={t('stock.note')}>
+          <Input aria-label={t('stock.note')} maxLength={200} value={note} onChange={(e) => setNote(e.target.value)} className="w-full" />
+        </Field>
         {item.openedOn && (
           <Field
             label={t('stock.openedOnLabel')}
@@ -485,6 +509,25 @@ export function EditStock({ item, onClose }: { item: StockItem; onClose: () => v
                 className="w-full"
               />
             </Field>
+            <div className="grid grid-cols-2 gap-3">
+              <Field label={t('stock.brand')}>
+                <Input
+                  aria-label={t('stock.brand')}
+                  value={brand ?? product.brand ?? ''}
+                  onChange={(e) => setBrand(e.target.value)}
+                  className="w-full"
+                />
+              </Field>
+              <Field label={t('stock.barcode')}>
+                <Input
+                  inputMode="numeric"
+                  aria-label={t('stock.barcode')}
+                  value={barcode ?? product.barcode ?? ''}
+                  onChange={(e) => setBarcode(e.target.value)}
+                  className="w-full"
+                />
+              </Field>
+            </div>
             <div className="grid grid-cols-2 gap-3">
               <Field label={t('stock.frozenLifeLabel')}>
                 <Input

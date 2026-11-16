@@ -67,6 +67,8 @@ export interface Product {
   /** Days it keeps frozen / once thawed; null: the default for its category. */
   frozenShelfLifeDays: number | null;
   thawedShelfLifeDays: number | null;
+  brand: string | null;
+  barcode: string | null;
   aliases: string[];
   /** Calories and macros per 100 g, when the nutrition module has them. */
   nutrition: { per100: NutrientValues; source: 'openfoodfacts' | 'manual'; code?: string; label?: string; auto?: boolean } | null;
@@ -117,6 +119,9 @@ export interface StockItem {
   thawed: boolean;
   frozenOn: string | null;
   thawedOn: string | null;
+  /** Free text about this line. */
+  note: string | null;
+  brand: string | null;
   /** Where the line stands against its date: past a use-by date it is for the bin, past a best-before date a check. */
   expiryState: 'none' | 'ok' | 'soon' | 'check' | 'discard';
 }

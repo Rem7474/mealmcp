@@ -38,6 +38,9 @@ export const products = sqliteTable(
     /** Days it keeps in the freezer / once thawed. Null: the category default (domain/freezing.ts). */
     frozenShelfLifeDays: integer('frozen_shelf_life_days'),
     thawedShelfLifeDays: integer('thawed_shelf_life_days'),
+    /** Brand and barcode (digits), for telling similar products apart and for the nutrition lookup. */
+    brand: text('brand'),
+    barcode: text('barcode'),
   },
   (t) => [uniqueIndex('products_household_name_idx').on(t.householdId, t.nameKey)],
 );
@@ -84,6 +87,8 @@ export const stockItems = sqliteTable(
     /** Set when the line was frozen / thawed here (ISO date); they replace the printed date as the clock. */
     frozenOn: text('frozen_on'),
     thawedOn: text('thawed_on'),
+    /** Free text about this line ("half of it was a gift", "for Sunday"); lines with different notes are not merged. */
+    note: text('note'),
   },
   (t) => [index('stock_household_idx').on(t.householdId)],
 );

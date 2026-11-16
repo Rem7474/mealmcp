@@ -59,6 +59,8 @@ describe('nutrition module', () => {
     const milk = svc.products.list().find((p) => p.name === 'Milk')!;
     await n.setProduct({ id: oats.id, code: '123456789012' });
     expect(svc.products.get(oats.id).nutrition).toMatchObject({ source: 'openfoodfacts', code: '123456789012' });
+    // The barcode and brand that resolved are kept on the product.
+    expect(svc.products.get(oats.id)).toMatchObject({ barcode: '123456789012', brand: 'Brand' });
 
     let r = n.recipe(recipe.id);
     expect(r.total.kcal).toBe(370);

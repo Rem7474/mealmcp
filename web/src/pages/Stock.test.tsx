@@ -33,6 +33,8 @@ const opened: StockItem = {
   thawed: false,
   frozenOn: null,
   thawedOn: null,
+  note: null,
+  brand: null,
 };
 
 function script() {
@@ -94,6 +96,27 @@ describe('EditStock freezer shelf life', () => {
     expect(calls.find((c) => c.method === 'PATCH' && c.path === '/products/3')?.body).toEqual({
       frozenShelfLifeDays: 60,
       thawedShelfLifeDays: 3,
+    });
+  });
+});
+
+describe('EditStock note, brand and barcode', () => {
+  it('saves the line note and the product brand and barcode', async () => {
+    const product = { id: 3, name: 'Tomato sauce', openedShelfLifeDays: null, brand: null, barcode: null, minStock: null };
+    const { calls } = mockApi({
+      'GET /products': { status: 200, body: [product] },
+      'PATCH /stock/7': { status: 200, body: opened },
+      'PATCH /products/3': { status: 200, body: product },
+    });
+    renderApp(<EditStock item={opened} onClose={() => {}} />);
+    await userEvent.type(await screen.findByLabelText('Brand'), 'Panzani');
+    await userEvent.type(screen.getByLabelText('Barcode'), '3038350000000');
+    await userEvent.type(screen.getByLabelText('Note'), 'for Sunday');
+    await userEvent.click(screen.getByRole('button', { name: 'Save' }));
+    expect(calls.find((c) => c.method === 'PATCH' && c.path === '/stock/7')?.body).toEqual({ location: 'fridge', note: 'for Sunday' });
+    expect(calls.find((c) => c.method === 'PATCH' && c.path === '/products/3')?.body).toEqual({
+      brand: 'Panzani',
+      barcode: '3038350000000',
     });
   });
 });
