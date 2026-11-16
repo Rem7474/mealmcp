@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { trimSlashes } from './domain/names.js';
 
 export const LOG_LEVELS = ['debug', 'info', 'warn', 'error', 'silent'] as const;
 export type LogLevel = (typeof LOG_LEVELS)[number];
@@ -118,7 +119,7 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
     // Readable by default in development, machine-readable in production.
     logFormat: e.LOG_FORMAT ?? (e.NODE_ENV === 'production' ? 'json' : 'pretty'),
     llm: {
-      baseUrl: e.LLM_BASE_URL ? new URL(e.LLM_BASE_URL.replace(/\/+$/, '')) : null,
+      baseUrl: e.LLM_BASE_URL ? new URL(trimSlashes(e.LLM_BASE_URL)) : null,
       apiKey: e.LLM_API_KEY,
       model: e.LLM_MODEL,
       visionModel: e.LLM_VISION_MODEL,
