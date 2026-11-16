@@ -1,5 +1,6 @@
 import {
   CalendarPlus,
+  ChatCircleDots,
   CheckCircle,
   Circle,
   CookingPot,
@@ -17,8 +18,9 @@ import { useState } from 'react';
 import { api } from '../api';
 import { formatDay, formatMoney, today } from '../format';
 import { type MessageKey, useT } from '../i18n';
-import type { ActionCard, MealType, NextActions } from '../types';
+import type { ActionCard, AiStatus, MealType, NextActions } from '../types';
 import { Badge, Button, Card, Empty } from '../ui';
+import { Assistant } from './Assistant';
 
 const HIDDEN_KEY = 'mealmcp.home.hidden';
 type Icon = ComponentType<{ size?: number; className?: string; weight?: 'regular' | 'fill' | 'duotone' }>;
@@ -49,6 +51,9 @@ export function Home() {
   const t = useT();
   const day = today();
   const { data } = useQuery({ queryKey: ['next-actions'], queryFn: () => api.get<NextActions>('/next-actions') });
+  // The conversation is offered only when the household's AI server answers and has a model.
+  const { data: ai } = useQuery({ queryKey: ['ai', 'status'], queryFn: () => api.get<AiStatus>('/ai/status'), retry: false });
+  const [asking, setAsking] = useState(false);
   const [hidden, setHidden] = useState(() => readHidden(day));
   if (!data) return null;
 
@@ -66,7 +71,16 @@ export function Home() {
 
   return (
     <>
-      <h2 className="text-2xl lg:text-3xl">{t('home.title')}</h2>
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <h2 className="text-2xl lg:text-3xl">{t('home.title')}</h2>
+        {ai?.text && (
+          <Button onClick={() => setAsking(true)}>
+            <ChatCircleDots size={16} />
+            {t('assistant.open.button')}
+          </Button>
+        )}
+      </div>
+      {asking && <Assistant onClose={() => setAsking(false)} />}
       {data.budget && <BudgetTile budget={data.budget} />}
       {cards.length === 0 && <Empty>{t('home.allClear')}</Empty>}
       <div className="grid grid-cols-1 items-start gap-4 lg:grid-cols-2">
