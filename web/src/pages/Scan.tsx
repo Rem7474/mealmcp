@@ -39,7 +39,7 @@ export function CameraScan({ onCode, onClose }: { onCode: (code: string) => void
     let stream: MediaStream | undefined;
     let timer: ReturnType<typeof setTimeout> | undefined;
     const Detector = (window as unknown as { BarcodeDetector: DetectorConstructor }).BarcodeDetector;
-    (async () => {
+    void (async () => {
       try {
         stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' }, audio: false });
         if (stopped) return stop(stream);
