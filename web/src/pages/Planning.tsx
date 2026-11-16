@@ -343,7 +343,7 @@ function MealCard({ meal, insight, large = false }: { meal: PlannedMeal; insight
   const missingEquipment = insight?.missingEquipment ?? [];
 
   const actions = (
-    <div className="ml-auto flex items-center gap-0.5 text-muted">
+    <div className="ml-auto flex shrink-0 items-center gap-0.5 text-muted">
       {!meal.cooked && (
         <button
           type="button"
@@ -429,8 +429,8 @@ function MealCard({ meal, insight, large = false }: { meal: PlannedMeal; insight
         </>
       )}
       {/* A perforated line, like the stub of a ticket. */}
-      <div className="mt-auto flex items-center justify-between gap-2 border-t border-dashed border-line pt-1.5">
-        <div className="flex gap-2.5 text-xs text-muted tabular-nums">
+      <div className="mt-auto flex flex-wrap items-center justify-between gap-x-2 gap-y-0.5 border-t border-dashed border-line pt-1.5">
+        <div className="flex min-w-0 flex-wrap gap-x-2.5 text-xs text-muted tabular-nums">
           <span className="inline-flex items-center gap-1">
             <Users size={12} />
             {meal.servings}
