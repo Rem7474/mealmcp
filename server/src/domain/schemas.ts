@@ -156,6 +156,12 @@ export const stockAdd = z.object({
     .optional()
     .describe('This pack/jar is already opened; `quantity` is what is left of it. It then expires after the product opened shelf life.'),
   openedOn: isoDate.optional().describe('When it was opened (defaults to today)'),
+  price: z
+    .number()
+    .nonnegative()
+    .max(1_000_000)
+    .optional()
+    .describe('Total paid for this quantity, in the household currency (e.g. 3.40). Waste of this line is then valued at it.'),
 });
 
 export const stockOpen = z.object({

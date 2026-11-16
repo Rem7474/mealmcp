@@ -51,6 +51,7 @@ export function createStockService(db: Db, hid: number, productService: ProductS
         frozenOn: stockItems.frozenOn,
         thawedOn: stockItems.thawedOn,
         note: stockItems.note,
+        paidUnitPrice: stockItems.paidUnitPrice,
       })
       .from(stockItems)
       .innerJoin(products, eq(products.id, stockItems.productId));
@@ -63,6 +64,8 @@ export function createStockService(db: Db, hid: number, productService: ProductS
   const shape = ({ unitPrice, priceUnit, gramsPerPiece, gramsPerMl, ...r }: Row) => ({
     ...r,
     pricePer: shownPrice({ unitPrice, priceUnit, gramsPerPiece, gramsPerMl }),
+    /** What was paid for this line, per kg, litre or piece, when known. */
+    paidPer: r.paidUnitPrice === null ? null : shownPrice({ unitPrice: r.paidUnitPrice, priceUnit: r.unit, gramsPerPiece, gramsPerMl }),
     opened: r.openedOn !== null,
     frozen: r.frozenOn !== null,
     thawed: r.thawedOn !== null,
@@ -189,6 +192,8 @@ export function createStockService(db: Db, hid: number, productService: ProductS
         ({ quantity, unit } = toBase(input.quantity, rawUnit));
       }
       const packSize = pack?.quantity ?? null;
+      // A total paid for the whole quantity becomes a price per base unit, so it stays right when the line is split or used.
+      const paidUnitPrice = input.price !== undefined && quantity > 0 ? Math.round((input.price * 100 * 1e6) / quantity) / 1e6 : null;
       // Put straight into the freezer: the freezing date is the clock, as when an existing line is moved there.
       const frozenAtOnce = (openedOn: string | null) =>
         location === 'freezer'
@@ -218,6 +223,7 @@ export function createStockService(db: Db, hid: number, productService: ProductS
             addedOn: today(),
             packSize,
             openedOn,
+            paidUnitPrice,
             ...frozen,
           })
           .returning()
@@ -243,6 +249,7 @@ export function createStockService(db: Db, hid: number, productService: ProductS
             lineExpiry ? eq(stockItems.expiresOn, lineExpiry) : isNull(stockItems.expiresOn),
             dateKind ? eq(stockItems.dateKind, dateKind) : isNull(stockItems.dateKind),
             frozen ? eq(stockItems.frozenOn, frozen.frozenOn) : isNull(stockItems.frozenOn),
+            paidUnitPrice === null ? isNull(stockItems.paidUnitPrice) : eq(stockItems.paidUnitPrice, paidUnitPrice),
             isNull(stockItems.thawedOn),
             note ? eq(stockItems.note, note) : isNull(stockItems.note),
           ),
@@ -269,6 +276,7 @@ export function createStockService(db: Db, hid: number, productService: ProductS
           note,
           addedOn: today(),
           packSize,
+          paidUnitPrice,
           ...frozen,
         })
         .returning()
@@ -330,6 +338,7 @@ export function createStockService(db: Db, hid: number, productService: ProductS
           addedOn: line.addedOn,
           packSize: size,
           openedOn,
+          paidUnitPrice: line.paidUnitPrice,
         })
         .returning()
         .get();
@@ -367,6 +376,7 @@ export function createStockService(db: Db, hid: number, productService: ProductS
             line.dateKind ? eq(stockItems.dateKind, line.dateKind) : isNull(stockItems.dateKind),
             line.frozenOn ? eq(stockItems.frozenOn, line.frozenOn) : isNull(stockItems.frozenOn),
             line.thawedOn ? eq(stockItems.thawedOn, line.thawedOn) : isNull(stockItems.thawedOn),
+            line.paidUnitPrice === null ? isNull(stockItems.paidUnitPrice) : eq(stockItems.paidUnitPrice, line.paidUnitPrice),
             line.note ? eq(stockItems.note, line.note) : isNull(stockItems.note),
           ),
         )
@@ -523,7 +533,8 @@ export function createStockService(db: Db, hid: number, productService: ProductS
       const product = productService.get(line.productId);
       const thrown = line.approximate ? 0 : Math.min(quantity ?? line.quantity, line.quantity);
       if (!line.approximate && thrown <= 0) throw new ValidationError('Nothing to throw away');
-      const cost = thrown > 0 ? costCents(product, thrown, line.unit) : null;
+      // What was paid for this line first, else the product's latest price.
+      const cost = thrown > 0 ? (line.paidUnitPrice !== null ? line.paidUnitPrice * thrown : costCents(product, thrown, line.unit)) : null;
       db.transaction(() => {
         db.insert(wasteLog)
           .values({
@@ -659,6 +670,7 @@ export function createStockService(db: Db, hid: number, productService: ProductS
                   addedOn: line.addedOn,
                   packSize: size,
                   openedOn,
+                  paidUnitPrice: line.paidUnitPrice,
                 })
                 .run();
             }

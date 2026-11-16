@@ -253,7 +253,13 @@ export function createShoppingService(
       const bought = this.list().filter((i) => i.checked);
       db.transaction(() => {
         for (const item of bought) {
-          stock.add({ name: item.name, quantity: item.quantity ?? 1, unit: item.unit, location });
+          stock.add({
+            name: item.name,
+            quantity: item.quantity ?? 1,
+            unit: item.unit,
+            location,
+            price: item.priceCents === null ? undefined : item.priceCents / 100,
+          });
           db.delete(shoppingItems)
             .where(and(mine, eq(shoppingItems.id, item.id)))
             .run();

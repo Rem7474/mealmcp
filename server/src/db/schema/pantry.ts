@@ -89,6 +89,8 @@ export const stockItems = sqliteTable(
     thawedOn: text('thawed_on'),
     /** Free text about this line ("half of it was a gift", "for Sunday"); lines with different notes are not merged. */
     note: text('note'),
+    /** What was paid, in cents per `unit` (a base unit), when known: a receipt or a priced shopping line. Lines paid differently are not merged. */
+    paidUnitPrice: real('paid_unit_price'),
   },
   (t) => [index('stock_household_idx').on(t.householdId)],
 );
