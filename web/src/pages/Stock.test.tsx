@@ -251,3 +251,123 @@ describe('FreezePart', () => {
     await vi.waitFor(() => expect(closed).toBe(true));
   });
 });
+
+describe('Add to stock with a barcode', () => {
+  const base = {
+    'GET /stock': { status: 200, body: [] },
+    'GET /stock/alerts': { status: 200, body: { lowStock: [], opened: [], expiring: [] } },
+    'GET /products': { status: 200, body: [] },
+  };
+  const openSheet = async () => {
+    renderApp(<Stock />);
+    await userEvent.click((await screen.findAllByRole('button', { name: 'Add to stock' }))[0]);
+  };
+
+  it('fills name, size and unit from the catalogue, counts packs with + and sends the code', async () => {
+    const { calls } = mockApi({
+      ...base,
+      'GET /catalog/products/3017620422003?lang=en': {
+        status: 200,
+        body: {
+          code: '3017620422003',
+          known: null,
+          hit: {
+            code: '3017620422003',
+            name: 'Tomato sauce',
+            genericName: 'Sauce',
+            brand: 'Panzani',
+            brands: 'Panzani',
+            packSize: { size: 400, unit: 'g', count: 1 },
+          },
+          suggestions: [],
+        },
+      },
+      'POST /stock': { status: 201, body: {} },
+    });
+    await openSheet();
+    await userEvent.type(screen.getByLabelText('Barcode'), '3017620422003{Enter}');
+    expect(await screen.findByText(/Found in the catalogue: Tomato sauce/)).toBeInTheDocument();
+    expect(screen.getByText(/Brand: Panzani/)).toBeInTheDocument();
+    expect(screen.getByLabelText('Product')).toHaveValue('Tomato sauce');
+    expect(screen.getByLabelText('Pack size')).toHaveValue('400');
+    await userEvent.click(screen.getByRole('button', { name: 'One pack more' }));
+    await userEvent.click(screen.getByRole('button', { name: 'One pack more' }));
+    expect(screen.getByLabelText('Quantity')).toHaveValue('3');
+    await userEvent.click(screen.getByRole('button', { name: 'Add' }));
+    const post = calls.find((c) => c.method === 'POST' && c.path === '/stock');
+    expect(post?.body).toMatchObject({ name: 'Tomato sauce', barcode: '3017620422003', packSize: 400, packCount: 3, unit: 'g' });
+  });
+
+  it('offers the names the catalogue gives and the one of a product that already goes by it', async () => {
+    mockApi({
+      ...base,
+      'GET /catalog/products/3017620422003?lang=en': {
+        status: 200,
+        body: {
+          code: '3017620422003',
+          known: null,
+          hit: { code: '3017620422003', name: 'Napolitana', genericName: 'Tomato sauce', brand: null, brands: null, packSize: null },
+          suggestions: [{ id: 3, name: 'Pasta sauce' }],
+        },
+      },
+    });
+    await openSheet();
+    await userEvent.type(screen.getByLabelText('Barcode'), '3017620422003{Enter}');
+    expect(await screen.findByRole('button', { name: 'Napolitana' })).toBeInTheDocument();
+    expect(screen.getByLabelText('Product')).toHaveValue('Pasta sauce');
+    await userEvent.click(screen.getByRole('button', { name: 'Napolitana' }));
+    expect(screen.getByLabelText('Product')).toHaveValue('Napolitana');
+  });
+
+  it('leaves the fields to be typed when the catalogue cannot be reached, and keeps the code', async () => {
+    const { calls } = mockApi({
+      ...base,
+      'GET /catalog/products/3017620422003?lang=en': { status: 400, body: { error: 'Open Food Facts cannot be reached right now.' } },
+      'POST /stock': { status: 201, body: {} },
+    });
+    await openSheet();
+    await userEvent.type(screen.getByLabelText('Barcode'), '3017620422003{Enter}');
+    expect(await screen.findByText(/catalogue cannot be reached/)).toBeInTheDocument();
+    await userEvent.type(screen.getByLabelText('Product'), 'Flour');
+    await userEvent.click(screen.getByRole('button', { name: 'Add' }));
+    expect(calls.find((c) => c.method === 'POST' && c.path === '/stock')?.body).toMatchObject({ name: 'Flour', barcode: '3017620422003' });
+  });
+
+  it('recognises a known code without a catalogue answer and offers the known sizes of a product', async () => {
+    mockApi({
+      ...base,
+      'GET /products': {
+        status: 200,
+        body: [
+          {
+            id: 3,
+            name: 'Tomato sauce',
+            aliases: [],
+            minStock: null,
+            defaultUnit: 'g',
+            barcodes: [
+              { code: '3017620422003', brand: null, packSize: 200, unit: 'g', label: null },
+              { code: '3017620422010', brand: null, packSize: 400, unit: 'g', label: null },
+            ],
+          },
+        ],
+      },
+      'GET /catalog/products/3017620422010?lang=en': {
+        status: 200,
+        body: {
+          code: '3017620422010',
+          known: { productId: 3, productName: 'Tomato sauce', packSize: 400, unit: 'g' },
+          hit: null,
+          suggestions: [],
+        },
+      },
+    });
+    await openSheet();
+    await userEvent.type(screen.getByLabelText('Barcode'), '3017620422010{Enter}');
+    expect(await screen.findByText(/Already one of your products: Tomato sauce/)).toBeInTheDocument();
+    expect(screen.getByLabelText('Pack size')).toHaveValue('400');
+    await userEvent.click(screen.getByRole('button', { name: '200 g' }));
+    expect(screen.getByLabelText('Pack size')).toHaveValue('200');
+    expect(screen.getByLabelText('Barcode')).toHaveValue('3017620422003');
+  });
+});

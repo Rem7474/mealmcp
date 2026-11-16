@@ -87,6 +87,32 @@ export interface PriceOverview {
   count: number;
 }
 
+export interface ProductBarcode {
+  code: string;
+  brand: string | null;
+  packSize: number | null;
+  unit: string | null;
+  label: string | null;
+}
+
+/** What the catalogue (Open Food Facts) says about one barcode. */
+export interface CatalogHit {
+  code: string;
+  name: string;
+  genericName: string | null;
+  brand: string | null;
+  brands: string | null;
+  packSize: { size: number; unit: 'g' | 'ml'; count: number } | null;
+}
+
+/** Answer of `GET /catalog/products/:code`: what the household already knows, else the catalogue's entry. */
+export interface CatalogLookup {
+  code: string;
+  known: { productId: number; productName: string; packSize: number | null; unit: string | null } | null;
+  hit: CatalogHit | null;
+  suggestions: { id: number; name: string }[];
+}
+
 export interface Product {
   id: number;
   name: string;
@@ -113,6 +139,8 @@ export interface Product {
   thawedShelfLifeDays: number | null;
   brand: string | null;
   barcode: string | null;
+  /** Every barcode of the product, one per format, with its pack size when known. */
+  barcodes: ProductBarcode[];
   aliases: string[];
   /** Calories and macros per 100 g, when the nutrition module has them. */
   nutrition: { per100: NutrientValues; source: 'openfoodfacts' | 'manual'; code?: string; label?: string; auto?: boolean } | null;
