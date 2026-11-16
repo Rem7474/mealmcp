@@ -140,17 +140,21 @@ export function createNutritionService(
     /** Keeps nutrition values on a product: fetched from a barcode, or typed by hand. Without either, clears them. */
     async setProduct({ id, code, per100 }: z.infer<typeof productNutritionSet>) {
       requireOn();
-      productService.get(id);
+      const product = productService.get(id);
       let value: ProductNutrition | null = null;
+      let brand: string | null = null;
       if (code) {
         const hit = await svc.lookup(code);
         if (!hit) throw new ValidationError('That product has no usable nutrition values on Open Food Facts.');
+        brand = hit.brands?.split(',')[0]?.trim() || null;
         value = { per100: hit.per100, source: 'openfoodfacts', code: hit.code, label: [hit.name, hit.brands].filter(Boolean).join(' · ') };
       } else if (per100) {
         value = { per100, source: 'manual' };
       }
+      // A barcode that resolved is worth keeping on the product, with its brand, unless they were already filled in.
+      const known = code && value ? { ...(product.barcode ? {} : { barcode: code }), ...(product.brand || !brand ? {} : { brand }) } : {};
       db.update(products)
-        .set({ nutrition: value ? JSON.stringify(value) : null })
+        .set({ nutrition: value ? JSON.stringify(value) : null, ...known })
         .where(and(mine, eq(products.id, id)))
         .run();
       return productService.get(id);

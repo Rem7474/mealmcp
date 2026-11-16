@@ -14,7 +14,7 @@ export function registerStockTools({ stock, tool, ro, rw, del }: ToolContext) {
   );
   tool(
     'add_stock',
-    'Add a quantity of a product to the stock (after shopping, or to record what is at home). Bought in packs ("2 x 500 g", "3 cartons of 200 ml")? Send packCount + packSize + unit instead of a total so both are kept. An already opened jar: opened=true with the quantity left. Use approximate=true (no quantity) for "plenty of it". Send dateKind with expiresOn when the pack says which it is: use_by (to consume by, unsafe after) or best_before (DDM).',
+    'Add a quantity of a product to the stock (after shopping, or to record what is at home). Bought in packs ("2 x 500 g", "3 cartons of 200 ml")? Send packCount + packSize + unit instead of a total so both are kept. An already opened jar: opened=true with the quantity left. Use approximate=true (no quantity) for "plenty of it". Send dateKind with expiresOn when the pack says which it is: use_by (to consume by, unsafe after) or best_before (DDM). A free-text note ("for Sunday") can be attached to the line.',
     s.stockAdd.shape,
     rw,
     (a) => stock.add(a),

@@ -23,6 +23,7 @@ export function createStockService(db: Db, hid: number, productService: ProductS
         productId: stockItems.productId,
         name: products.name,
         category: products.category,
+        brand: products.brand,
         quantity: stockItems.quantity,
         unit: stockItems.unit,
         location: stockItems.location,
@@ -35,6 +36,7 @@ export function createStockService(db: Db, hid: number, productService: ProductS
         dateKind: stockItems.dateKind,
         frozenOn: stockItems.frozenOn,
         thawedOn: stockItems.thawedOn,
+        note: stockItems.note,
       })
       .from(stockItems)
       .innerJoin(products, eq(products.id, stockItems.productId));
@@ -117,6 +119,7 @@ export function createStockService(db: Db, hid: number, productService: ProductS
       const location = input.location ?? 'pantry';
       const expiresOn = input.expiresOn ?? null;
       const dateKind = input.dateKind ?? null;
+      const note = input.note?.trim() || null;
 
       if (input.approximate) {
         // One "plenty of it" marker per product and place is enough.
@@ -187,6 +190,7 @@ export function createStockService(db: Db, hid: number, productService: ProductS
             expiresOn: expiresOn ?? openedExpiry(product.openedShelfLifeDays, openedOn, null),
             printedExpiresOn: expiresOn,
             dateKind,
+            note,
             addedOn: today(),
             packSize,
             openedOn,
@@ -213,6 +217,7 @@ export function createStockService(db: Db, hid: number, productService: ProductS
             dateKind ? eq(stockItems.dateKind, dateKind) : isNull(stockItems.dateKind),
             isNull(stockItems.frozenOn),
             isNull(stockItems.thawedOn),
+            note ? eq(stockItems.note, note) : isNull(stockItems.note),
           ),
         )
         .get();
@@ -234,6 +239,7 @@ export function createStockService(db: Db, hid: number, productService: ProductS
           expiresOn,
           printedExpiresOn: expiresOn,
           dateKind,
+          note,
           addedOn: today(),
           packSize,
         })
@@ -292,6 +298,7 @@ export function createStockService(db: Db, hid: number, productService: ProductS
           dateKind: line.dateKind,
           frozenOn: line.frozenOn,
           thawedOn: line.thawedOn,
+          note: line.note,
           addedOn: line.addedOn,
           packSize: size,
           openedOn,
@@ -332,6 +339,7 @@ export function createStockService(db: Db, hid: number, productService: ProductS
             line.dateKind ? eq(stockItems.dateKind, line.dateKind) : isNull(stockItems.dateKind),
             line.frozenOn ? eq(stockItems.frozenOn, line.frozenOn) : isNull(stockItems.frozenOn),
             line.thawedOn ? eq(stockItems.thawedOn, line.thawedOn) : isNull(stockItems.thawedOn),
+            line.note ? eq(stockItems.note, line.note) : isNull(stockItems.note),
           ),
         )
         .get();
@@ -372,6 +380,7 @@ export function createStockService(db: Db, hid: number, productService: ProductS
       // An exact quantity replaces the "plenty of it" marker.
       const changes: Partial<typeof stockItems.$inferInsert> =
         patch.quantity !== undefined && current.approximate ? { ...patch, approximate: false } : { ...patch };
+      if (patch.note !== undefined) changes.note = patch.note?.trim() || null;
       if (patch.openedOn !== undefined) {
         if (!current.openedOn) throw new ValidationError('Only an opened pack has an opening date');
         if (patch.openedOn > today()) throw new ValidationError('A pack cannot be opened in the future');
@@ -577,6 +586,7 @@ export function createStockService(db: Db, hid: number, productService: ProductS
                   dateKind: line.dateKind,
                   frozenOn: line.frozenOn,
                   thawedOn: line.thawedOn,
+                  note: line.note,
                   addedOn: line.addedOn,
                   packSize: size,
                   openedOn,

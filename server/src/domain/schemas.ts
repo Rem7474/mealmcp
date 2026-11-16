@@ -72,6 +72,14 @@ export const productUpdate = z.object({
     .nullable()
     .optional()
     .describe('Days a pack keeps once opened (tomato sauce 3, coconut milk 4). Used to set the expiry when a pack is opened.'),
+  brand: z.string().trim().max(80).nullable().optional().describe('Brand, e.g. "Bonne Maman". null clears it.'),
+  barcode: z
+    .string()
+    .trim()
+    .regex(/^\d{6,14}$/, 'Expected a barcode (digits only)')
+    .nullable()
+    .optional()
+    .describe('Barcode (EAN/UPC, digits only). null clears it.'),
   frozenShelfLifeDays: z
     .number()
     .int()
@@ -112,6 +120,14 @@ const dateKind = z
     'What the expiry date means: use_by ("use by", unsafe after, to throw away) or best_before (quality only, still fine to check). Omit when unknown.',
   );
 
+const note = z
+  .string()
+  .trim()
+  .max(200)
+  .nullable()
+  .optional()
+  .describe('Free text about this line ("for Sunday", "a gift"). Lines with different notes are kept apart.');
+
 export const stockAdd = z.object({
   name: productName.describe('Product name; created automatically if unknown'),
   quantity: z.number().positive().optional().describe('Required unless approximate is true'),
@@ -125,6 +141,7 @@ export const stockAdd = z.object({
   location: location.default('pantry'),
   expiresOn: isoDate.nullable().optional().describe('Expiry date YYYY-MM-DD'),
   dateKind,
+  note,
   packCount: z
     .number()
     .int()
@@ -160,6 +177,7 @@ export const stockUpdate = z.object({
   location: location.optional(),
   expiresOn: isoDate.nullable().optional(),
   dateKind,
+  note,
   openedOn: isoDate
     .optional()
     .describe(
