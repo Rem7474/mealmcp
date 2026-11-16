@@ -373,9 +373,31 @@ describe('freezing and thawing', () => {
     expect(() => svc.stock.update({ id: line.id, location: 'freezer' })).toThrow(/thawed/);
   });
 
+  it('starts the freezing clock for a line added to the freezer, and keeps the printed date', () => {
+    const bought = svc.stock.add({ name: 'Peas', quantity: 1, unit: 'kg', location: 'freezer', expiresOn: printed });
+    expect(bought).toMatchObject({ frozen: true, frozenOn: today(), printedExpiresOn: printed });
+    expect(bought.expiresOn).not.toBe(printed);
+    // The same bag added again today joins it; a line without a freezer place does not.
+    const again = svc.stock.add({ name: 'Peas', quantity: 1, unit: 'kg', location: 'freezer', expiresOn: printed });
+    expect(again.id).toBe(bought.id);
+    expect(again.quantity).toBe(2000);
+    svc.stock.add({ name: 'Peas', quantity: 1, unit: 'kg', location: 'fridge', expiresOn: printed });
+    expect(svc.stock.list().filter((i) => i.name === 'Peas')).toHaveLength(2);
+  });
+
+  it('freezes an opened pack added to the freezer, and a shopping trip put away there', () => {
+    expect(svc.stock.add({ name: 'Cream', quantity: 1, unit: 'piece', packSize: 1, opened: true, location: 'freezer' })).toMatchObject({
+      frozen: true,
+      opened: true,
+    });
+    const fish = svc.shopping.add({ name: 'Fish', quantity: 1, unit: 'kg' });
+    svc.shopping.setChecked(fish.id, true);
+    svc.shopping.completePurchase('freezer');
+    expect(svc.stock.list().find((i) => i.name === 'Fish')).toMatchObject({ location: 'freezer', frozen: true, frozenOn: today() });
+  });
+
   it('thaws a line that was bought frozen, and keeps frozen lines out of merges', () => {
     const bought = svc.stock.add({ name: 'Peas', quantity: 1, unit: 'kg', location: 'freezer' });
-    expect(bought.frozen).toBe(false);
     expect(svc.stock.thaw(bought.id)).toMatchObject({ thawed: true, location: 'fridge' });
     const line = svc.stock.add({ name: 'Fish', quantity: 1, unit: 'kg', location: 'fridge' });
     svc.stock.freeze({ id: line.id });
