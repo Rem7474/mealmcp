@@ -1,4 +1,4 @@
-import { ArrowsClockwise, Basket, Package, Plus, X } from '@phosphor-icons/react';
+import { ArrowsClockwise, Basket, Package, Plus, ShoppingCart, X } from '@phosphor-icons/react';
 import { useQuery } from '@tanstack/react-query';
 import { type FormEvent, useState } from 'react';
 import { api, useAction } from '../api';
@@ -7,6 +7,7 @@ import { type MessageKey, useI18n, useT } from '../i18n';
 import type { BudgetStatus, HouseholdSettings, ShoppingItem } from '../types';
 import { Badge, Button, Card, Disclose, Empty, Input, Select } from '../ui';
 import { deferDelete } from '../undo';
+import { PurchaseFromText } from './PurchaseFromText';
 import { LocationSelect, ProductDatalist, parseQty, UnitPrice, useCurrency, usePriceOverview } from './shared';
 
 const AISLES = ['produce', 'dairy', 'meat_fish', 'bakery', 'pantry', 'frozen', 'drinks', 'household', 'other'];
@@ -51,6 +52,7 @@ export function Shopping() {
   const { run, pending } = useAction();
   const [form, setForm] = useState({ name: '', quantity: '', unit: '' });
   const [range, setRange] = useState({ from: today(), to: addDays(today(), 6) });
+  const [typing, setTyping] = useState(false);
   const [complete, setComplete] = useState({ location: 'pantry', store: '', total: '' });
 
   const basket = items.filter((i) => i.checked);
@@ -85,12 +87,17 @@ export function Shopping() {
   return (
     <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_18.5rem]">
       <ProductDatalist />
+      {typing && <PurchaseFromText onClose={() => setTyping(false)} />}
       <div className="min-w-0 space-y-4 max-lg:pb-16">
         <div className="flex items-end gap-2">
           <div className="mr-auto">
             <h2 className="text-xl">{t('shopping.list.title')}</h2>
             <p className="text-sm text-muted">{t('shopping.list.toBuy', { n: open.length })}</p>
           </div>
+          <Button onClick={() => setTyping(true)}>
+            <ShoppingCart size={16} />
+            {t('purchase.button')}
+          </Button>
           <Button disabled={pending} onClick={() => run(() => api.post('/shopping/generate', range))}>
             <ArrowsClockwise size={16} />
             {t('shopping.generate.button')}
