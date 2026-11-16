@@ -14,7 +14,9 @@ export interface ParsedLine {
 
 const num = (s: string) => Number(s.replace(',', '.'));
 const PRICE = /(?:€\s*(\d+(?:[.,]\d{1,2})?))|(?:(\d+(?:[.,]\d{1,2})?)\s*(?:€|eur(?:o|os)?(?![\p{L}])))/iu;
-const BARCODE = /(?<![\d.,])\d{8}(?:\d{4,6})?(?![\d.,])/;
+const BARCODE = /(?<![\d.,])\d{8,14}(?![\d.,])/;
+/** EAN-8 or EAN-13/GTIN-14 lengths: 9 to 11 digits is a quantity or a price, not a barcode. */
+const isBarcode = (digits: string) => digits.length === 8 || digits.length >= 12;
 const UNITS = 'kilos?|kg|grammes?|gr|g|mg|ml|cl|dl|litres?|liters?|l|pi[eè]ces?|pieces?|pcs?|x|u';
 const QUANTITY = new RegExp(String.raw`(?<![\p{L}\d.,])(\d+(?:[.,]\d+)?)\s*(${UNITS})?(?![\p{L}\d])`, 'iu');
 const UNIT_NAMES: Record<string, string> = {
@@ -37,7 +39,7 @@ export function parseLine(raw: string): ParsedLine | null {
 
   let barcode: string | null = null;
   const code = rest.match(BARCODE);
-  if (code) {
+  if (code && isBarcode(code[0])) {
     barcode = code[0];
     rest = rest.replace(code[0], ' ');
   }
