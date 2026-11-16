@@ -9,7 +9,7 @@ import { costCents } from '../domain/pricing.js';
 import type { stockAdd, stockConsume, stockDiscard, stockList, stockOpen, stockUpdate, wasteSummary } from '../domain/schemas.js';
 import { round, toBase } from '../domain/units.js';
 import type { ProductService } from './products.js';
-import { effectiveExpiry, openedExpiry, printedDate } from './shelfLife.js';
+import { effectiveExpiry, expiryState, openedExpiry, printedDate } from './shelfLife.js';
 
 export const stockKey = (productId: number, unit: string) => `${productId}|${unit}`;
 
@@ -32,6 +32,7 @@ export function createStockService(db: Db, hid: number, productService: ProductS
         packSize: stockItems.packSize,
         openedOn: stockItems.openedOn,
         printedExpiresOn: stockItems.printedExpiresOn,
+        dateKind: stockItems.dateKind,
       })
       .from(stockItems)
       .innerJoin(products, eq(products.id, stockItems.productId));
@@ -40,10 +41,11 @@ export function createStockService(db: Db, hid: number, productService: ProductS
   const fifo = [sql`${stockItems.expiresOn} is null`, stockItems.expiresOn, stockItems.addedOn] as const;
 
   type Row = ReturnType<ReturnType<typeof view>['all']>[number];
-  /** Adds `opened` and `packCount` (how many sealed packs a line holds, null when it is not kept in packs). */
+  /** Adds `opened`, `expiryState` and `packCount` (how many sealed packs a line holds, null when it is not kept in packs). */
   const shape = (r: Row) => ({
     ...r,
     opened: r.openedOn !== null,
+    expiryState: expiryState(r, today()),
     packCount: r.packSize && !r.openedOn && !r.approximate ? Math.round(r.quantity / r.packSize) : null,
   });
   // Opened packs are used first, then the soonest expiry.
@@ -85,6 +87,7 @@ export function createStockService(db: Db, hid: number, productService: ProductS
       const product = productService.findOrCreate(input.name, input.unit);
       const location = input.location ?? 'pantry';
       const expiresOn = input.expiresOn ?? null;
+      const dateKind = input.dateKind ?? null;
 
       if (input.approximate) {
         // One "plenty of it" marker per product and place is enough.
@@ -96,7 +99,7 @@ export function createStockService(db: Db, hid: number, productService: ProductS
         if (marker) {
           if (input.expiresOn !== undefined)
             db.update(stockItems)
-              .set({ expiresOn, printedExpiresOn: expiresOn })
+              .set({ expiresOn, printedExpiresOn: expiresOn, ...(input.dateKind !== undefined ? { dateKind } : {}) })
               .where(and(mine, eq(stockItems.id, marker.id)))
               .run();
           return svc.get(marker.id);
@@ -111,6 +114,7 @@ export function createStockService(db: Db, hid: number, productService: ProductS
             location,
             expiresOn,
             printedExpiresOn: expiresOn,
+            dateKind,
             addedOn: today(),
             approximate: true,
           })
@@ -153,6 +157,7 @@ export function createStockService(db: Db, hid: number, productService: ProductS
             location,
             expiresOn: expiresOn ?? openedExpiry(product.openedShelfLifeDays, openedOn, null),
             printedExpiresOn: expiresOn,
+            dateKind,
             addedOn: today(),
             packSize,
             openedOn,
@@ -176,6 +181,7 @@ export function createStockService(db: Db, hid: number, productService: ProductS
             isNull(stockItems.openedOn),
             packSize === null ? isNull(stockItems.packSize) : eq(stockItems.packSize, packSize),
             expiresOn ? eq(stockItems.expiresOn, expiresOn) : isNull(stockItems.expiresOn),
+            dateKind ? eq(stockItems.dateKind, dateKind) : isNull(stockItems.dateKind),
           ),
         )
         .get();
@@ -196,6 +202,7 @@ export function createStockService(db: Db, hid: number, productService: ProductS
           location,
           expiresOn,
           printedExpiresOn: expiresOn,
+          dateKind,
           addedOn: today(),
           packSize,
         })
@@ -251,6 +258,7 @@ export function createStockService(db: Db, hid: number, productService: ProductS
           location: line.location,
           expiresOn,
           printedExpiresOn: printed,
+          dateKind: line.dateKind,
           addedOn: line.addedOn,
           packSize: size,
           openedOn,
@@ -285,6 +293,7 @@ export function createStockService(db: Db, hid: number, productService: ProductS
             isNull(stockItems.openedOn),
             line.packSize === null ? isNull(stockItems.packSize) : eq(stockItems.packSize, line.packSize),
             expiresOn ? eq(stockItems.expiresOn, expiresOn) : isNull(stockItems.expiresOn),
+            line.dateKind ? eq(stockItems.dateKind, line.dateKind) : isNull(stockItems.dateKind),
           ),
         )
         .get();
@@ -491,6 +500,7 @@ export function createStockService(db: Db, hid: number, productService: ProductS
                   location: line.location,
                   expiresOn: openedExpiry(product.openedShelfLifeDays, openedOn, line.expiresOn),
                   printedExpiresOn: line.expiresOn,
+                  dateKind: line.dateKind,
                   addedOn: line.addedOn,
                   packSize: size,
                   openedOn,
@@ -558,12 +568,16 @@ export function createStockService(db: Db, hid: number, productService: ProductS
         .filter((p) => p.current < p.minStock);
     },
 
-    /** What needs attention: products under their minimum, lines about to expire, and every pack already opened. */
+    /**
+     * What needs attention: products under their minimum, lines about to expire, lines past a use-by date (to throw
+     * away) and every pack already opened.
+     */
     alerts(expiringWithinDays = 3) {
       const opened = svc.list().filter((i) => i.opened);
       return {
         lowStock: svc.lowStock(),
         expiring: svc.list({ expiringWithinDays }),
+        toDiscard: svc.list().filter((i) => i.expiryState === 'discard'),
         opened: opened.sort((a, b) => (a.expiresOn ?? '9999').localeCompare(b.expiresOn ?? '9999')),
       };
     },

@@ -107,11 +107,16 @@ export interface StockItem {
   openedOn: string | null;
   /** The date printed on the pack; `expiresOn` is the one the opened shelf life makes of it. */
   printedExpiresOn: string | null;
+  /** What the date means: use by (unsafe after) or best before (quality only); null when not stated. */
+  dateKind: 'use_by' | 'best_before' | null;
+  /** Where the line stands against its date: past a use-by date it is for the bin, past a best-before date a check. */
+  expiryState: 'none' | 'ok' | 'soon' | 'check' | 'discard';
 }
 
 export interface StockAlerts {
   lowStock: { productId: number; name: string; unit: string; current: number; minStock: number }[];
   expiring: StockItem[];
+  toDiscard: StockItem[];
   opened: StockItem[];
 }
 

@@ -312,8 +312,10 @@ export function createRecipeService(
      */
     suggest({ withinDays, products: wanted, tag, servings, limit, ignoreDiet }: z.input<typeof suggestRecipes>) {
       const targets = new Map<number, { name: string; expiresOn: string | null }>();
+      // A line past its use-by date is not something to cook: it is for the bin.
       for (const item of stock.list({ expiringWithinDays: withinDays ?? 5 }))
-        if (!targets.has(item.productId)) targets.set(item.productId, { name: item.name, expiresOn: item.expiresOn });
+        if (item.expiryState !== 'discard' && !targets.has(item.productId))
+          targets.set(item.productId, { name: item.name, expiresOn: item.expiresOn });
       for (const name of wanted ?? []) {
         const product = productService.findByName(name);
         if (product && !targets.has(product.id)) targets.set(product.id, { name: product.name, expiresOn: null });

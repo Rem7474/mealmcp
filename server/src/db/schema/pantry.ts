@@ -1,5 +1,5 @@
 import { index, integer, real, sqliteTable, text, uniqueIndex } from 'drizzle-orm/sqlite-core';
-import { household, LOCATIONS } from './common.js';
+import { DATE_KINDS, household, LOCATIONS } from './common.js';
 
 // Products and what is at home: stock lines and what was thrown away.
 
@@ -76,6 +76,8 @@ export const stockItems = sqliteTable(
     openedOn: text('opened_on'),
     /** The date printed on the pack (ISO). `expiresOn` is what the rules make of it (opened shelf life); this one is kept so it can be recomputed. */
     printedExpiresOn: text('printed_expires_on'),
+    /** What the printed date means: a use-by date (unsafe after) or a best-before date (quality only). Null: unspecified, read as best-before. */
+    dateKind: text('date_kind', { enum: DATE_KINDS }),
   },
   (t) => [index('stock_household_idx').on(t.householdId)],
 );

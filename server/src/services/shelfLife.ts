@@ -1,3 +1,4 @@
+import type { DateKind } from '../db/schema/common.js';
 import { addDays } from '../domain/dates.js';
 
 /** What the shelf-life rules need to know about a stock line. */
@@ -39,4 +40,16 @@ export function effectiveExpiry(line: ShelfLifeLine, product: ShelfLifeProduct):
   const printed = printedDate(line, product);
   if (line.openedOn) return openedExpiry(product.openedShelfLifeDays, line.openedOn, printed);
   return printed;
+}
+
+export type ExpiryState = 'none' | 'ok' | 'soon' | 'check' | 'discard';
+
+/**
+ * Where a line stands against its date, at `today`: past a use-by date it should go (discard); past a best-before
+ * date (or an unspecified one) it is only worth a look (check); within `soonDays` it is soon.
+ */
+export function expiryState(line: { expiresOn: string | null; dateKind?: DateKind | null }, today: string, soonDays = 3): ExpiryState {
+  if (!line.expiresOn) return 'none';
+  if (line.expiresOn < today) return line.dateKind === 'use_by' ? 'discard' : 'check';
+  return line.expiresOn <= addDays(today, soonDays) ? 'soon' : 'ok';
 }

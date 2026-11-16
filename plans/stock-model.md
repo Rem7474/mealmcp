@@ -1,6 +1,6 @@
 # Plan: completing the stock model
 
-Status: phases 0 and 1 done (printed date kept, opening date editable). Splitting `domain/schemas.ts` is left for the first phase that adds many fields. Each phase is one pull request, stacked on the previous one.
+Status: phases 0 to 2 done (shelf-life module, printed date and editable opening date, use-by / best-before). Splitting `domain/schemas.ts` is left for the first phase that adds many fields. Each phase is one pull request, stacked on the previous one.
 
 ## Where we are
 
@@ -23,7 +23,7 @@ Status: phases 0 and 1 done (printed date kept, opening date editable). Splittin
 | 1 | Printed date and editable opening date | Column `printedExpiresOn`. `stockUpdate` accepts `openedOn` (opened lines only) and recomputes the effective date. Backfill `printedExpiresOn` from `expiresOn` for existing unopened lines. UI: field in the edit sheet. | M |
 | 2 | Use-by / best-before | Column `dateKind` (`use_by`, `best_before`, null = unspecified, treated as best-before). A passed use-by date means "throw away", a passed best-before date means "check". Touches stock alerts, use-it-up suggestions, the waste reason and the UI chips. | M |
 | 3 | Frozen / thawed | Columns `frozenOn`, `thawedOn`; per-product `frozenShelfLifeDays` and `thawedShelfLifeDays`, with defaults per category in a data file. Moving to the freezer freezes. New MCP tools `freeze_stock_item` and `thaw_stock_item`; warn before refreezing. | L |
-| 4 | Price paid per line | Column `priceCents`, filled by `complete_shopping` and manual entry. Waste valuation uses the line price first, then the product price. Later option: a `price_observations` table (product, price, date, store). | M |
+| 4 | Price tracking | Table `price_observations` (product, price per base unit, date, store, source: receipt or manual), written by `record_expense` and `set_product_price`; the latest one feeds `products.unitPrice`. Existing `expense_items` with a quantity are imported by the migration. A pure `unitPrice` module turns it into €/kg, €/L or €/piece (unit chosen automatically from the product type, with its conversions). Tool `get_price_history` (latest, average, min, max, trend, per store); UI: unit price on stock and shopping rows, price history in the product sheet. `stock_items.priceCents` per line (filled by `complete_shopping`) values the waste first. Lines without a quantity are kept but give no observation, and the history reports them as incomplete. | M |
 | 5 | Brand, notes, barcode | `products.brand`, `products.barcode` (linked to the existing nutrition lookup), `stock_items.note`. Camera scanning would come later, in the PWA. | S |
 
 ## Checklist for every phase
@@ -41,5 +41,5 @@ Phase 0 first. Phases 1 and 2 together are the most useful increment (editable o
 
 ## Open decisions
 
-- Existing lines without a date kind: default to best-before (less alarming) or leave unspecified with no effect?
+- Existing lines without a date kind: decided in phase 2, they stay unspecified and are read as best-before (a passed date means "check", never "throw away").
 - Default freezing durations: a small per-category file (meat, vegetables, bread...), overridable per product.

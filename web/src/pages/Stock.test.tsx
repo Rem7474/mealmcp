@@ -27,6 +27,8 @@ const opened: StockItem = {
   opened: true,
   openedOn: '2026-01-10',
   printedExpiresOn: '2026-02-01',
+  dateKind: null,
+  expiryState: 'ok',
 };
 
 function script() {
@@ -53,5 +55,15 @@ describe('EditStock', () => {
     script();
     renderApp(<EditStock item={{ ...opened, opened: false, openedOn: null, printedExpiresOn: null }} onClose={() => {}} />);
     expect(screen.queryByLabelText('Opened on')).not.toBeInTheDocument();
+  });
+});
+
+describe('EditStock date kind', () => {
+  it('lets the date be marked as use-by and sends it', async () => {
+    const { calls } = script();
+    renderApp(<EditStock item={opened} onClose={() => {}} />);
+    await userEvent.selectOptions(screen.getByLabelText('The date is'), 'use_by');
+    await userEvent.click(screen.getByRole('button', { name: 'Save' }));
+    expect(calls.find((c) => c.method === 'PATCH')?.body).toEqual({ location: 'fridge', dateKind: 'use_by' });
   });
 });
