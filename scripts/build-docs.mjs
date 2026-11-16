@@ -153,7 +153,11 @@ const t = {
         'One household, everyone in sync',
         'Invite the family. Changes show up on every device instantly, including the ones your AI makes.',
       ],
-      ['📱', 'On your phone', 'Install it like an app and use it one-handed in the shop: forms open as sheets you swipe down to close. Dark theme with your accent colour, English and French.'],
+      [
+        '📱',
+        'On your phone',
+        'Install it like an app and use it one-handed in the shop: forms open as sheets you swipe down to close. Dark theme with your accent colour, English and French.',
+      ],
     ],
     mHead: 'Say it, your AI does it',
     mLead:
