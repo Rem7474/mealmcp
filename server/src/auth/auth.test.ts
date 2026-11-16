@@ -151,6 +151,8 @@ describe('accounts', () => {
     // Shared data inside the household.
     await alice.call('/api/shopping', { method: 'POST', json: { name: 'Milk' } });
     expect(await (await bob.call('/api/shopping')).json()).toHaveLength(1);
+    // The landing page's answer is the household's too, and a household that has set little up is shown how to begin.
+    expect(await (await bob.call('/api/next-actions')).json()).toMatchObject({ cards: [{ id: 'getting-started' }] });
 
     // Login / logout.
     const again = browser();
@@ -167,6 +169,7 @@ describe('accounts', () => {
 
   it('rejects cross-origin writes and unauthenticated calls', async () => {
     expect((await fetch(`${base}/api/shopping`)).status).toBe(401);
+    expect((await fetch(`${base}/api/next-actions`)).status).toBe(401);
     const res = await fetch(`${base}/api/auth/login`, {
       method: 'POST',
       headers: { 'content-type': 'application/json', origin: 'https://evil.example' },
