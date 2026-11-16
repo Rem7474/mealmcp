@@ -17,7 +17,7 @@ import {
 import { type MessageKey, useT } from '../i18n';
 import type { BudgetStatus, Expense, ExpenseSummary, Product, SpendingSummary, User } from '../types';
 import { Accordion, Button, Card, Empty, Fab, Field, Input, Select, Sheet } from '../ui';
-import { parseQty, useProducts } from './shared';
+import { parseQty, TrendMark, usePriceOverview, useProducts } from './shared';
 
 const AISLES = ['produce', 'dairy', 'meat_fish', 'bakery', 'pantry', 'frozen', 'drinks', 'household', 'other'];
 
@@ -414,6 +414,7 @@ function PricesCard({ currency }: { currency: string }) {
   const t = useT();
   const { run } = useAction();
   const { data: products = [] } = useProducts();
+  const overview = usePriceOverview();
   const priced = products.filter(
     (p): p is Product & { unitPrice: number; priceUnit: string } => p.unitPrice !== null && p.priceUnit !== null,
   );
@@ -438,6 +439,7 @@ function PricesCard({ currency }: { currency: string }) {
             return (
               <li key={p.id} className="flex items-center gap-2">
                 <span className="min-w-0 flex-1 truncate">{p.name}</span>
+                <TrendMark trend={overview.get(p.id)?.trend} />
                 <Input
                   key={p.unitPrice}
                   defaultValue={((p.unitPrice * shown.factor) / 100).toFixed(2)}

@@ -213,6 +213,12 @@ export const fr: Messages = {
   'price.trend.down': 'En baisse',
   'price.trend.stable': 'Stable',
   'price.byStore': 'Par magasin',
+  'price.high': 'Cher',
+  'price.high.hint': 'Bien au-dessus de son prix habituel : mieux vaut attendre un meilleur prix',
+  'price.cheapest': 'Le moins cher chez {store}',
+  'price.paid': 'payé',
+  'price.freeform':
+    'Suivi tel que saisi : {price} par {unit}. Cette unité ne se lit pas au kilo ou au litre, les magasins ne sont donc pas comparés.',
   'price.source.manual': 'saisi',
   'stock.brand': 'Marque',
   'stock.barcode': 'Code-barres',

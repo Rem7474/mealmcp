@@ -7,7 +7,7 @@ import { type MessageKey, useI18n, useT } from '../i18n';
 import type { BudgetStatus, HouseholdSettings, ShoppingItem } from '../types';
 import { Badge, Button, Card, Disclose, Empty, Input, Select } from '../ui';
 import { deferDelete } from '../undo';
-import { LocationSelect, ProductDatalist, parseQty, UnitPrice, useCurrency } from './shared';
+import { LocationSelect, ProductDatalist, parseQty, UnitPrice, useCurrency, usePriceOverview } from './shared';
 
 const AISLES = ['produce', 'dairy', 'meat_fish', 'bakery', 'pantry', 'frozen', 'drinks', 'household', 'other'];
 type GroupBy = NonNullable<HouseholdSettings['shoppingGroupBy']>;
@@ -40,6 +40,7 @@ export function Shopping() {
     return [...buckets.values()].sort((a, b) => rank(a) - rank(b) || (a.key === '~' ? 1 : b.key === '~' ? -1 : a.key.localeCompare(b.key)));
   };
   const currency = useCurrency();
+  const prices = usePriceOverview();
   const { data: all = [] } = useQuery({ queryKey: ['shopping'], queryFn: () => api.get<ShoppingItem[]>('/shopping') });
   // Items deleted a moment ago stay out of sight while the deletion can still be undone.
   const [removed, setRemoved] = useState<number[]>([]);
@@ -199,6 +200,11 @@ export function Shopping() {
                                 {formatQty(item.quantity, item.unit)}
                               </span>
                               <UnitPrice price={item.pricePer?.main} className="text-xs whitespace-nowrap text-muted tabular-nums" />
+                              {!item.checked && prices.get(item.productId)?.high && (
+                                <span title={t('price.high.hint')}>
+                                  <Badge tone="warn">{t('price.high')}</Badge>
+                                </span>
+                              )}
                               {item.season === 'out' && !item.checked && (
                                 <span
                                   className="sm:hidden"

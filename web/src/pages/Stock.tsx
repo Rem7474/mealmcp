@@ -317,7 +317,13 @@ function StockRow({ item }: { item: StockItem }) {
           {item.brand && <span className="ml-1.5 text-xs font-normal text-muted">{item.brand}</span>}
         </div>
         {item.note && <div className="order-3 basis-full text-xs text-muted">{item.note}</div>}
-        {item.pricePer && <UnitPrice price={item.pricePer.main} className="order-3 basis-full text-xs text-muted" />}
+        {item.paidPer ? (
+          <span className="order-3 basis-full text-xs text-muted">
+            <UnitPrice price={item.paidPer.main} /> {t('price.paid')}
+          </span>
+        ) : (
+          item.pricePer && <UnitPrice price={item.pricePer.main} className="order-3 basis-full text-xs text-muted" />
+        )}
         {item.opened && item.openedOn && (
           <div className="order-3 basis-full text-xs text-accent">{t('stock.openedBadge', { date: formatDate(item.openedOn) })}</div>
         )}

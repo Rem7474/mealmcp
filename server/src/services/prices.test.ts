@@ -75,3 +75,39 @@ describe('price history', () => {
     expect(other.products.list()).toEqual([]);
   });
 });
+
+describe('price follow-up', () => {
+  it('flags a latest price well above the average, and names the cheapest shop', () => {
+    buy('2030-01-05', 'Market', 2);
+    buy('2030-02-05', 'Leclerc', 2);
+    buy('2030-03-05', 'Market', 3);
+    const id = svc.products.list()[0]!.id;
+    const h = svc.prices.history(id);
+    expect(h).toMatchObject({ high: true, cheapestStore: 'Leclerc' });
+    expect(svc.prices.overview()).toEqual([expect.objectContaining({ productId: id, high: true, trend: 'up', cheapestStore: 'Leclerc' })]);
+  });
+
+  it('does not flag a stable price, a single shop or too few observations', () => {
+    buy('2030-01-05', 'Market', 2);
+    buy('2030-02-05', 'Market', 5);
+    const id = svc.products.list()[0]!.id;
+    expect(svc.prices.history(id)).toMatchObject({ high: false, cheapestStore: null });
+    buy('2030-03-05', 'Market', 2.05, 1, 'kg', 'Rice');
+    expect(svc.prices.overview().find((p) => p.name === 'Rice')).toMatchObject({ high: false });
+  });
+
+  it('follows a price in a free-form unit as typed, flagged as not comparable per kg', () => {
+    svc.budget.setProductPrice({ name: 'Tuna', price: 1.5, quantity: 1, unit: 'can', date: '2030-01-05' });
+    svc.budget.setProductPrice({ name: 'Tuna', price: 1.8, quantity: 1, unit: 'can', date: '2030-02-05' });
+    const id = svc.products.list()[0]!.id;
+    const h = svc.prices.history(id);
+    expect(h.per).toBeNull();
+    expect(h.freeform).toMatchObject({ unit: 'can', latestCents: 180, trend: 'up' });
+  });
+
+  it('lists only the prices of the household', () => {
+    buy('2030-01-05', 'Market', 2);
+    const other = createServices(db, newHousehold());
+    expect(other.prices.overview()).toEqual([]);
+  });
+});
