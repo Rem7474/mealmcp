@@ -1,9 +1,12 @@
+import { Bread, Carrot, CookingPot, Egg, Fish, Leaf, Pepper } from '@phosphor-icons/react';
 import { type QueryClient, useQueryClient } from '@tanstack/react-query';
 import { type FormEvent, useState } from 'react';
 import { api } from '../api';
 import { LanguageSwitch, localizeError, useT } from '../i18n';
 import type { Me } from '../types';
-import { Button, Card, Input } from '../ui';
+import { Button, Input } from '../ui';
+
+const big = 'h-12 w-full rounded-xl px-4 text-base';
 
 /** Login and sign-up. Sign-up needs an invite code unless the server allows open registration. */
 export function AuthPage({ registrationOpen }: { registrationOpen: boolean }) {
@@ -40,93 +43,137 @@ export function AuthPage({ registrationOpen }: { registrationOpen: boolean }) {
   };
 
   return (
-    <main className="mx-auto max-w-sm px-4 py-12">
-      <div className="mb-6 flex items-center justify-between">
-        <h1 className="text-2xl font-bold text-accent">MealMCP</h1>
-        <LanguageSwitch />
-      </div>
-      <Card title={t(`auth.title.${mode}`)}>
-        <form onSubmit={submit} className="space-y-3">
-          {mode === 'register' && (
+    <main className="grid min-h-dvh lg:grid-cols-[1.1fr_1fr]">
+      {/* Brand side: the garden, big. On phones it is a short banner above the form. */}
+      <section className="relative flex flex-col justify-between overflow-hidden px-6 pt-8 pb-6 lg:px-14 lg:py-12">
+        <div className="relative flex items-center justify-between">
+          <span className="inline-flex items-center gap-2 text-sm font-medium text-muted">
+            <CookingPot size={20} weight="duotone" className="text-accent" />
+            MealMCP
+          </span>
+          <span className="lg:hidden">
+            <LanguageSwitch />
+          </span>
+        </div>
+        <div className="stagger relative mt-8 lg:mt-0">
+          <Harvest />
+          <h1 className="text-6xl leading-[0.95] text-ink lg:text-8xl">
+            Meal<span className="text-accent">MCP</span>
+          </h1>
+          <p className="mt-4 max-w-md text-lg text-muted text-pretty lg:mt-6 lg:text-xl">{t('auth.tagline')}</p>
+        </div>
+        <div className="max-lg:hidden" />
+      </section>
+      <section className="flex flex-col justify-center px-6 pb-12 lg:bg-surface lg:px-16 lg:py-12 lg:shadow-[inset_1px_0_0_var(--line)]">
+        <div className="mb-6 flex justify-end max-lg:hidden">
+          <LanguageSwitch />
+        </div>
+        <div className="stagger mx-auto w-full max-w-sm">
+          <h2 className="mb-6 text-3xl">{t(`auth.title.${mode}`)}</h2>
+          <form onSubmit={submit} className="space-y-3">
+            {mode === 'register' && (
+              <Input
+                required
+                autoComplete="name"
+                placeholder={t('auth.name')}
+                aria-label={t('auth.name')}
+                value={form.name}
+                onChange={(e) => set({ name: e.target.value })}
+                className={big}
+              />
+            )}
             <Input
               required
-              autoComplete="name"
-              placeholder={t('auth.name')}
-              aria-label={t('auth.name')}
-              value={form.name}
-              onChange={(e) => set({ name: e.target.value })}
-              className="w-full"
+              type="email"
+              autoComplete="email"
+              placeholder={t('auth.email')}
+              aria-label={t('auth.email')}
+              value={form.email}
+              onChange={(e) => set({ email: e.target.value })}
+              className={big}
             />
-          )}
-          <Input
-            required
-            type="email"
-            autoComplete="email"
-            placeholder={t('auth.email')}
-            aria-label={t('auth.email')}
-            value={form.email}
-            onChange={(e) => set({ email: e.target.value })}
-            className="w-full"
-          />
-          <Input
-            required
-            type="password"
-            minLength={mode === 'register' ? 10 : undefined}
-            autoComplete={mode === 'login' ? 'current-password' : 'new-password'}
-            placeholder={mode === 'register' ? t('auth.passwordNew') : t('auth.password')}
-            aria-label={t('auth.password')}
-            value={form.password}
-            onChange={(e) => set({ password: e.target.value })}
-            className="w-full"
-          />
-          {mode === 'register' && (
-            <>
-              <Input
-                required={!registrationOpen}
-                placeholder={registrationOpen ? t('auth.inviteOptional') : t('auth.invite')}
-                aria-label={t('auth.invite')}
-                value={form.inviteCode}
-                onChange={(e) => set({ inviteCode: e.target.value })}
-                className="w-full"
-              />
-              {registrationOpen && !joining && (
+            <Input
+              required
+              type="password"
+              minLength={mode === 'register' ? 10 : undefined}
+              autoComplete={mode === 'login' ? 'current-password' : 'new-password'}
+              placeholder={mode === 'register' ? t('auth.passwordNew') : t('auth.password')}
+              aria-label={t('auth.password')}
+              value={form.password}
+              onChange={(e) => set({ password: e.target.value })}
+              className={big}
+            />
+            {mode === 'register' && (
+              <>
                 <Input
-                  placeholder={t('auth.householdName')}
-                  aria-label={t('auth.householdName')}
-                  value={form.householdName}
-                  onChange={(e) => set({ householdName: e.target.value })}
-                  className="w-full"
+                  required={!registrationOpen}
+                  placeholder={registrationOpen ? t('auth.inviteOptional') : t('auth.invite')}
+                  aria-label={t('auth.invite')}
+                  value={form.inviteCode}
+                  onChange={(e) => set({ inviteCode: e.target.value })}
+                  className={big}
                 />
-              )}
-              <p className="text-sm text-muted">
-                {joining ? t('auth.hint.join') : registrationOpen ? t('auth.hint.open') : t('auth.hint.closed')}
+                {registrationOpen && !joining && (
+                  <Input
+                    placeholder={t('auth.householdName')}
+                    aria-label={t('auth.householdName')}
+                    value={form.householdName}
+                    onChange={(e) => set({ householdName: e.target.value })}
+                    className={big}
+                  />
+                )}
+                <p className="text-sm text-muted">
+                  {joining ? t('auth.hint.join') : registrationOpen ? t('auth.hint.open') : t('auth.hint.closed')}
+                </p>
+              </>
+            )}
+            {error && (
+              <p role="alert" className="text-sm text-danger">
+                {error}
               </p>
-            </>
-          )}
-          {error && (
-            <p role="alert" className="text-sm text-danger">
-              {error}
-            </p>
-          )}
-          <Button type="submit" variant="primary" disabled={busy} className="w-full">
-            {t(`auth.submit.${mode}`)}
-          </Button>
-        </form>
-      </Card>
-      <p className="mt-4 text-center text-sm text-muted">
-        {mode === 'login' ? t('auth.noAccount') : t('auth.haveAccount')}{' '}
-        <button
-          type="button"
-          className="cursor-pointer text-accent underline"
-          onClick={() => {
-            setMode(mode === 'login' ? 'register' : 'login');
-            setError(null);
-          }}
-        >
-          {mode === 'login' ? t('auth.toRegister') : t('auth.toLogin')}
-        </button>
-      </p>
+            )}
+            <Button type="submit" variant="primary" disabled={busy} className={big}>
+              {t(`auth.submit.${mode}`)}
+            </Button>
+          </form>
+          <p className="mt-6 text-center text-sm text-muted">
+            {mode === 'login' ? t('auth.noAccount') : t('auth.haveAccount')}{' '}
+            <button
+              type="button"
+              className="cursor-pointer text-accent underline"
+              onClick={() => {
+                setMode(mode === 'login' ? 'register' : 'login');
+                setError(null);
+              }}
+            >
+              {mode === 'login' ? t('auth.toRegister') : t('auth.toLogin')}
+            </button>
+          </p>
+        </div>
+      </section>
     </main>
+  );
+}
+
+/** A mosaic of ingredient tiles, the same rounded tiles the recipe list uses: the only picture on the sign-in page. */
+const TILES = [
+  { id: 'Carrot', Icon: Carrot, tone: 'bg-accent text-accent-ink', lift: '' },
+  { id: 'Fish', Icon: Fish, tone: 'bg-accent/20 text-accent-soft', lift: 'translate-y-5' },
+  { id: 'Bread', Icon: Bread, tone: 'bg-warn/80 text-bg', lift: '' },
+  { id: 'Leaf', Icon: Leaf, tone: 'bg-accent/20 text-accent-soft', lift: 'translate-y-5' },
+  { id: 'Egg', Icon: Egg, tone: 'bg-ink/90 text-bg', lift: '' },
+  { id: 'Pepper', Icon: Pepper, tone: 'bg-accent/45 text-ink', lift: 'translate-y-5' },
+] as const;
+
+function Harvest() {
+  return (
+    <div aria-hidden="true" className="mb-8 grid w-fit grid-cols-3 gap-3 pb-5 lg:gap-4">
+      {TILES.map(({ id, Icon, tone, lift }) => (
+        <div key={id} className={`grid size-16 place-items-center rounded-2xl lg:size-24 ${tone} ${lift}`}>
+          <Icon weight="duotone" className="size-8 lg:size-12" />
+        </div>
+      ))}
+    </div>
   );
 }
 

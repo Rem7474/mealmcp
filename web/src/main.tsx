@@ -4,6 +4,9 @@ import { createRoot } from 'react-dom/client';
 import { App } from './App';
 import { I18nProvider } from './i18n';
 import './index.css';
+import { applyAccent, savedAccent } from './theme';
+
+applyAccent(savedAccent());
 
 const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false, staleTime: 5_000 } } });
 

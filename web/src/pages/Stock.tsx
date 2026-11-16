@@ -1,11 +1,11 @@
-import { Package, Snowflake, Thermometer } from '@phosphor-icons/react';
+import { Package, Plus, Snowflake, Thermometer } from '@phosphor-icons/react';
 import { useQuery } from '@tanstack/react-query';
 import { type FormEvent, useState } from 'react';
 import { api, useAction } from '../api';
 import { daysUntil, formatDate, formatMoney, formatQty, LOCATIONS } from '../format';
 import { useT } from '../i18n';
 import type { Product, StockAlerts, StockItem, WasteSummary } from '../types';
-import { Accordion, Badge, Button, Card, Empty, Input } from '../ui';
+import { Accordion, Badge, Button, Card, Empty, Fab, Field, Input, Sheet } from '../ui';
 import { ProductNutritionCard } from './Nutrition';
 import { LocationSelect, ProductDatalist, parseQty, useCurrency, useProducts } from './shared';
 
@@ -56,30 +56,30 @@ export function Stock() {
         </Card>
       )}
       <AddForm />
-      <div className="grid gap-4 lg:grid-cols-3">
+      <div className="grid items-start gap-x-4 gap-y-6 lg:grid-cols-3">
         {LOCATIONS.map((location) => {
-          const here = items.filter((i) => i.location === location);
+          // What goes off first comes first; items without a date sink to the bottom.
+          const here = items
+            .filter((i) => i.location === location)
+            .sort((a, b) => (a.expiresOn ?? '9999').localeCompare(b.expiresOn ?? '9999'));
           return (
-            <Card
-              key={location}
-              title={
-                <span className="inline-flex items-center gap-2">
-                  {LOCATION_ICON[location]}
-                  {t(`location.${location}`)}
-                </span>
-              }
-              actions={<span className="text-sm text-muted">{here.length}</span>}
-            >
+            <section key={location}>
+              <h2 className="mb-2 flex items-center gap-2 px-1 text-xl">
+                {LOCATION_ICON[location]}
+                {t(`location.${location}`)}
+                <span className="font-sans text-sm text-muted tabular-nums">{here.length}</span>
+              </h2>
               {here.length === 0 ? (
-                <Empty>{t('stock.nothingHere')}</Empty>
+                // An empty place is one quiet line, not a card of its own.
+                <p className="rounded-xl border border-dashed border-line px-3 py-2.5 text-sm text-muted">{t('stock.nothingHere')}</p>
               ) : (
-                <ul className="divide-y divide-line">
+                <ul className="divide-y divide-line rounded-xl bg-surface px-3 shadow-[0_0_0_1px_var(--line)]">
                   {here.map((item) => (
                     <StockRow key={item.id} item={item} />
                   ))}
                 </ul>
               )}
-            </Card>
+            </section>
           );
         })}
       </div>
@@ -104,6 +104,7 @@ function AddForm() {
     opened: false,
   });
   const set = (patch: Partial<typeof form>) => setForm((f) => ({ ...f, ...patch }));
+  const [open, setOpen] = useState(false);
 
   const submit = async (e: FormEvent) => {
     e.preventDefault();
@@ -123,71 +124,98 @@ function AddForm() {
       }),
     );
     set({ name: '', quantity: '1', expiresOn: '', packSize: '', opened: false });
+    setOpen(false);
   };
 
   return (
-    <Accordion summary={t('stock.add.title')}>
-      <form onSubmit={submit} className="mt-3 flex flex-wrap gap-2">
-        <Input
-          required
-          list="product-names"
-          placeholder={t('common.product')}
-          aria-label={t('common.product')}
-          value={form.name}
-          onChange={(e) => set({ name: e.target.value })}
-          className="flex-1 basis-40"
-        />
-        <Input
-          required={!form.approximate}
-          disabled={form.approximate}
-          inputMode="decimal"
-          placeholder={t('common.qty')}
-          aria-label={t('common.quantity')}
-          value={form.approximate ? '' : form.quantity}
-          onChange={(e) => set({ quantity: e.target.value })}
-          className="w-20"
-        />
-        <Input
-          inputMode="decimal"
-          placeholder={t('stock.packSize')}
-          aria-label={t('stock.packSize')}
-          value={form.packSize}
-          onChange={(e) => set({ packSize: e.target.value })}
-          className="w-40"
-        />
-        <Input
-          list="unit-names"
-          placeholder={t('common.unit')}
-          aria-label={t('common.unit')}
-          value={form.unit}
-          onChange={(e) => set({ unit: e.target.value })}
-          className="w-24"
-        />
-        <LocationSelect value={form.location} onChange={(e) => set({ location: e.target.value })} />
-        <Input type="date" aria-label={t('stock.expiry')} value={form.expiresOn} onChange={(e) => set({ expiresOn: e.target.value })} />
-        <label className="flex h-10 items-center gap-2 text-sm">
-          <input
-            type="checkbox"
-            className="size-4 accent-(--accent)"
-            checked={form.approximate}
-            onChange={(e) => set({ approximate: e.target.checked })}
-          />
-          {t('stock.approximate')}
-        </label>
-        <label className="flex h-10 items-center gap-2 text-sm">
-          <input
-            type="checkbox"
-            className="size-4 accent-(--accent)"
-            checked={form.opened}
-            onChange={(e) => set({ opened: e.target.checked })}
-          />
-          {t('stock.alreadyOpened')}
-        </label>
-        <Button type="submit" variant="primary" disabled={pending} className="w-full sm:w-auto">
-          {t('common.add')}
+    <>
+      <div className="flex justify-end max-sm:hidden">
+        <Button variant="primary" onClick={() => setOpen(true)}>
+          <Plus size={16} />
+          {t('stock.add.title')}
         </Button>
-      </form>
-    </Accordion>
+      </div>
+      <Fab label={t('stock.add.title')} onClick={() => setOpen(true)} />
+      {open && (
+        <Sheet title={t('stock.add.title')} onClose={() => setOpen(false)}>
+          <form onSubmit={submit} className="space-y-3">
+            <Field label={t('common.product')}>
+              <Input
+                required
+                autoFocus
+                list="product-names"
+                placeholder={t('common.product')}
+                aria-label={t('common.product')}
+                value={form.name}
+                onChange={(e) => set({ name: e.target.value })}
+                className="w-full"
+              />
+            </Field>
+            <div className="grid grid-cols-2 gap-3">
+              <Field label={t('common.quantity')}>
+                <Input
+                  required={!form.approximate}
+                  disabled={form.approximate}
+                  inputMode="decimal"
+                  aria-label={t('common.quantity')}
+                  value={form.approximate ? '' : form.quantity}
+                  onChange={(e) => set({ quantity: e.target.value })}
+                  className="w-full"
+                />
+              </Field>
+              <Field label={t('common.unit')}>
+                <Input
+                  list="unit-names"
+                  aria-label={t('common.unit')}
+                  value={form.unit}
+                  onChange={(e) => set({ unit: e.target.value })}
+                  className="w-full"
+                />
+              </Field>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <Field label={t('location.label')}>
+                <LocationSelect value={form.location} onChange={(e) => set({ location: e.target.value })} className="w-full" />
+              </Field>
+              <Field label={t('stock.expiry')}>
+                <Input
+                  type="date"
+                  aria-label={t('stock.expiry')}
+                  value={form.expiresOn}
+                  onChange={(e) => set({ expiresOn: e.target.value })}
+                  className="w-full"
+                />
+              </Field>
+            </div>
+            <Field label={t('stock.packSize')}>
+              <Input
+                inputMode="decimal"
+                aria-label={t('stock.packSize')}
+                value={form.packSize}
+                onChange={(e) => set({ packSize: e.target.value })}
+                className="w-full"
+              />
+            </Field>
+            <label className="flex min-h-11 cursor-pointer items-center justify-between gap-3 rounded-lg border border-line px-3 text-sm">
+              {t('stock.approximate')}
+              <input
+                type="checkbox"
+                className="size-5"
+                checked={form.approximate}
+                onChange={(e) => set({ approximate: e.target.checked })}
+              />
+            </label>
+            <label className="flex min-h-11 cursor-pointer items-center justify-between gap-3 rounded-lg border border-line px-3 text-sm">
+              {t('stock.alreadyOpened')}
+              <input type="checkbox" className="size-5" checked={form.opened} onChange={(e) => set({ opened: e.target.checked })} />
+            </label>
+            <Button type="submit" variant="primary" disabled={pending} className="h-12 w-full text-base sm:h-12">
+              {t('common.add')}
+            </Button>
+          </form>
+        </Sheet>
+      )}
+    </>
   );
 }
 
@@ -195,6 +223,7 @@ function StockRow({ item }: { item: StockItem }) {
   const t = useT();
   const { run } = useAction();
   const days = item.expiresOn ? daysUntil(item.expiresOn) : null;
+  const [editing, setEditing] = useState(false);
 
   const saveQuantity = (value: string) => {
     const quantity = parseQty(value);
@@ -202,7 +231,9 @@ function StockRow({ item }: { item: StockItem }) {
     void run(() => api.patch(`/stock/${item.id}`, { quantity }));
   };
 
-  const actions: { key: string; label: string; aria: string; run: () => void }[] = [];
+  const actions: { key: string; label: string; aria: string; run: () => void }[] = [
+    { key: 'edit', label: t('stock.edit'), aria: t('stock.editTitle', { name: item.name }), run: () => setEditing(true) },
+  ];
   if (item.opened && (item.packSize === null || item.quantity >= item.packSize - 1e-9))
     actions.push({
       key: 'unopen',
@@ -233,20 +264,26 @@ function StockRow({ item }: { item: StockItem }) {
   return (
     <li className="flex flex-wrap items-center gap-x-2 gap-y-1 py-2 text-sm">
       {/* min-w keeps the name readable in a narrow column: the controls wrap to the next line instead of squeezing it. */}
-      <div className="min-w-32 flex-1">
-        <div className="font-medium wrap-break-word">{item.name}</div>
+      <div className="flex min-w-32 flex-1 flex-wrap items-center gap-x-2">
+        <div className="font-medium order-1 text-base wrap-break-word">{item.name}</div>
         {item.opened && item.openedOn && (
-          <div className="text-xs text-accent">{t('stock.openedBadge', { date: formatDate(item.openedOn) })}</div>
+          <div className="order-3 basis-full text-xs text-accent">{t('stock.openedBadge', { date: formatDate(item.openedOn) })}</div>
         )}
         {item.packCount !== null && item.packSize !== null && (
-          <div className="text-xs text-muted">
+          <div className="order-3 basis-full text-xs text-muted">
             {item.packCount} × {formatQty(item.packSize, item.unit)}
           </div>
         )}
         {item.expiresOn && days !== null && (
-          <div className={days < 0 ? 'text-danger' : days <= 3 ? 'text-warn' : 'text-muted'}>
-            {t(days < 0 ? 'stock.expired' : 'stock.useBy', { date: formatDate(item.expiresOn) })}
-          </div>
+          // The date is a chip that gets louder as it nears: calm, then amber, then red.
+          <span
+            title={t(days < 0 ? 'stock.expired' : 'stock.useBy', { date: formatDate(item.expiresOn) })}
+            className={`order-2 inline-block rounded-md px-1.5 py-0.5 text-xs ${
+              days < 0 ? 'bg-danger/15 text-danger' : days <= 3 ? 'bg-warn/15 text-warn' : 'bg-ink/5 text-muted'
+            }`}
+          >
+            {days < 0 ? t('stock.expiredShort') : days === 0 ? t('stock.today') : t('stock.daysLeft', { n: days })}
+          </span>
         )}
       </div>
       {item.approximate ? (
@@ -260,33 +297,20 @@ function StockRow({ item }: { item: StockItem }) {
             aria-label={t('stock.quantityOf', { name: item.name })}
             onBlur={(e) => saveQuantity(e.target.value)}
             onKeyDown={(e) => e.key === 'Enter' && e.currentTarget.blur()}
-            className="h-8 w-16 px-2 text-right"
+            className="h-9 w-16 rounded-b-none border-transparent border-b-control bg-transparent px-1 text-right text-base tabular-nums hover:border-b-muted focus:rounded-lg focus:bg-surface"
           />
-          <span className="w-10 text-muted">{item.unit === 'piece' ? '' : item.unit}</span>
+          <span className="w-8 text-muted">{item.unit === 'piece' ? '' : item.unit}</span>
         </>
       )}
-      {/* Phones: one "more" menu keeps the row to a single line. Wider screens show the actions as buttons. */}
-      <div className="hidden items-center justify-end gap-1 sm:ml-auto sm:flex">
-        {actions.map((a) => (
-          <Button
-            key={a.key}
-            variant={a.key === 'remove' ? 'ghost' : 'secondary'}
-            className={a.key === 'remove' ? 'size-8 px-0' : 'h-8 px-2 text-xs'}
-            aria-label={a.aria}
-            onClick={a.run}
-          >
-            {a.key === 'remove' ? '✕' : a.label}
-          </Button>
-        ))}
-      </div>
-      <details className="relative sm:hidden">
+      {/* One "more" menu on every screen keeps each row to a single line. */}
+      <details className="no-chev relative">
         <summary
           aria-label={t('common.more')}
-          className="flex size-9 cursor-pointer list-none items-center justify-center rounded-lg text-xl leading-none text-muted active:bg-ink/10 [&::-webkit-details-marker]:hidden"
+          className="flex size-11 sm:size-9 cursor-pointer list-none items-center justify-center rounded-lg text-xl leading-none text-muted active:bg-ink/10 [&::-webkit-details-marker]:hidden"
         >
           ⋯
         </summary>
-        <div className="absolute right-0 z-20 mt-1 w-48 rounded-xl border border-line bg-surface p-1 shadow-lg">
+        <div className="absolute right-0 z-20 mt-1 w-48 rounded-xl border border-line bg-surface p-1">
           {actions.map((a) => (
             <button
               key={a.key}
@@ -303,7 +327,97 @@ function StockRow({ item }: { item: StockItem }) {
           ))}
         </div>
       </details>
+      {editing && <EditStock item={item} onClose={() => setEditing(false)} />}
     </li>
+  );
+}
+
+/** Where an item is kept, when it goes off and how many packs there are: what the list row does not let you change. */
+function EditStock({ item, onClose }: { item: StockItem; onClose: () => void }) {
+  const t = useT();
+  const { run, pending } = useAction();
+  const [location, setLocation] = useState<string>(item.location);
+  const [expiresOn, setExpiresOn] = useState(item.expiresOn ?? '');
+  const [packs, setPacks] = useState(item.packCount === null ? '' : String(item.packCount));
+  const product = useProducts().data?.find((p) => p.id === item.productId);
+  const [shelfLife, setShelfLife] = useState<string | null>(null);
+  const [minStock, setMinStock] = useState<string | null>(null);
+
+  const submit = async (e: FormEvent) => {
+    e.preventDefault();
+    const count = parseQty(packs);
+    await run(() =>
+      api.patch(`/stock/${item.id}`, {
+        location,
+        expiresOn: expiresOn || null,
+        ...(item.packCount !== null && count !== undefined && !Number.isNaN(count) ? { packCount: count } : {}),
+      }),
+    );
+    // What the product keeps for good (shelf life once opened, low-stock alert) applies to every line of it.
+    const change: Record<string, unknown> = {};
+    const days = shelfLife === null ? undefined : parseQty(shelfLife);
+    if (shelfLife !== null && (days === undefined || (!Number.isNaN(days) && days !== product?.openedShelfLifeDays)))
+      change.openedShelfLifeDays = days ?? null;
+    const min = minStock === null ? undefined : parseQty(minStock);
+    if (minStock !== null && (min === undefined || (!Number.isNaN(min) && min !== product?.minStock))) change.minStock = min ?? null;
+    if (Object.keys(change).length > 0) await run(() => api.patch(`/products/${item.productId}`, change));
+    onClose();
+  };
+
+  return (
+    <Sheet title={t('stock.editTitle', { name: item.name })} onClose={onClose}>
+      <form onSubmit={submit} className="space-y-3">
+        <Field label={t('location.label')}>
+          <LocationSelect value={location} onChange={(e) => setLocation(e.target.value)} className="w-full" />
+        </Field>
+        <Field label={t('stock.expiry')}>
+          <Input
+            type="date"
+            aria-label={t('stock.expiry')}
+            value={expiresOn}
+            onChange={(e) => setExpiresOn(e.target.value)}
+            className="w-full"
+          />
+        </Field>
+        {item.packCount !== null && (
+          <Field label={t('stock.packs')}>
+            <Input
+              inputMode="numeric"
+              aria-label={t('stock.packs')}
+              value={packs}
+              onChange={(e) => setPacks(e.target.value)}
+              className="w-full"
+            />
+          </Field>
+        )}
+        {product && (
+          <fieldset className="space-y-3 rounded-xl border border-line p-3">
+            <legend className="px-1 text-xs font-medium text-muted">{t('stock.editProduct', { name: item.name })}</legend>
+            <Field label={t('stock.shelfLifeLabel')}>
+              <Input
+                inputMode="numeric"
+                aria-label={t('stock.shelfLifeAria', { name: item.name })}
+                value={shelfLife ?? product.openedShelfLifeDays ?? ''}
+                onChange={(e) => setShelfLife(e.target.value)}
+                className="w-full"
+              />
+            </Field>
+            <Field label={`${t('stock.minLabel')} (${item.unit === 'piece' ? '#' : item.unit})`}>
+              <Input
+                inputMode="decimal"
+                aria-label={t('stock.minFor', { name: item.name })}
+                value={minStock ?? product.minStock ?? ''}
+                onChange={(e) => setMinStock(e.target.value)}
+                className="w-full"
+              />
+            </Field>
+          </fieldset>
+        )}
+        <Button type="submit" variant="primary" disabled={pending} className="h-12 w-full text-base sm:h-12">
+          {t('common.save')}
+        </Button>
+      </form>
+    </Sheet>
   );
 }
 

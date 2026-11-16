@@ -1,9 +1,10 @@
 import { X } from '@phosphor-icons/react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { type FormEvent, useState } from 'react';
+import { type FormEvent, useEffect, useState } from 'react';
 import { api, useAction } from '../api';
 import { formatDate, MEALS, weekdayName } from '../format';
 import { type MessageKey, useI18n, useT } from '../i18n';
+import { ACCENTS, type AccentId, applyAccent, savedAccent } from '../theme';
 import {
   ALLERGENS,
   COUNTRIES,
@@ -28,6 +29,10 @@ export function Account({ user }: { user: User }) {
   const { t, rich } = useI18n();
   const queryClient = useQueryClient();
   const mcpUrl = `${location.origin}/mcp`;
+  // Links such as #account/connect land on the AI connection card.
+  useEffect(() => {
+    if (location.hash.endsWith('/connect')) document.getElementById('connect')?.scrollIntoView?.({ block: 'start' });
+  }, []);
 
   const logout = async () => {
     await api.post('/auth/logout');
@@ -43,6 +48,14 @@ export function Account({ user }: { user: User }) {
       </Card>
       <div className="grid grid-cols-1 items-start gap-4 lg:grid-cols-2">
         <div className="min-w-0 space-y-4">
+          <Fold id="connect" open title={t('account.connect.title')}>
+            <Card>
+              <p className="text-sm">{t('account.connect.address')}</p>
+              <code className="mt-1 block rounded-lg border border-line px-3 py-2 text-sm break-all">{mcpUrl}</code>
+              <p className="mt-2 text-sm text-muted">{rich('account.connect.help', { header: <code>Authorization: Bearer …</code> })}</p>
+            </Card>
+          </Fold>
+          <AccentCard />
           <HouseholdCard user={user} />
           <Fold title={t('settings.title')}>
             <SettingsCard />
@@ -52,13 +65,6 @@ export function Account({ user }: { user: User }) {
           </Fold>
         </div>
         <div className="min-w-0 space-y-4">
-          <Fold title={t('account.connect.title')}>
-            <Card>
-              <p className="text-sm">{t('account.connect.address')}</p>
-              <code className="mt-1 block rounded-lg border border-line px-3 py-2 text-sm break-all">{mcpUrl}</code>
-              <p className="mt-2 text-sm text-muted">{rich('account.connect.help', { header: <code>Authorization: Bearer …</code> })}</p>
-            </Card>
-          </Fold>
           <Fold title={t('tokens.title')}>
             <TokensCard />
           </Fold>
@@ -71,6 +77,37 @@ export function Account({ user }: { user: User }) {
         </div>
       </div>
     </>
+  );
+}
+
+function AccentCard() {
+  const t = useT();
+  const [accent, setAccent] = useState<AccentId>(savedAccent);
+  const choose = (id: AccentId) => {
+    applyAccent(id, true);
+    setAccent(id);
+  };
+  return (
+    <Card title={t('account.accent.title')}>
+      <div role="radiogroup" aria-label={t('account.accent.title')} className="flex flex-wrap gap-3">
+        {ACCENTS.map((a) => (
+          <button
+            type="button"
+            key={a.id}
+            role="radio"
+            aria-checked={accent === a.id}
+            aria-label={t(`accent.${a.id}`)}
+            title={t(`accent.${a.id}`)}
+            onClick={() => choose(a.id)}
+            style={{ backgroundColor: a.color }}
+            className={`size-11 cursor-pointer rounded-full ring-offset-2 ring-offset-surface ${
+              accent === a.id ? 'ring-2 ring-ink' : 'hover:ring-2 hover:ring-muted'
+            }`}
+          />
+        ))}
+      </div>
+      <p className="mt-2 text-sm text-muted">{t('account.accent.hint')}</p>
+    </Card>
   );
 }
 
@@ -277,7 +314,7 @@ function SettingsCard() {
       {draft && (
         <div
           role="status"
-          className="sticky bottom-20 z-10 mt-4 flex flex-wrap items-center justify-between gap-2 rounded-xl border border-accent bg-surface p-3 text-sm shadow-lg sm:bottom-4"
+          className="sticky bottom-20 z-10 mt-4 flex flex-wrap items-center justify-between gap-2 rounded-xl border border-accent bg-surface p-3 text-sm sm:bottom-4"
         >
           <span className="font-medium">{t('settings.unsaved')}</span>
           <span className="flex gap-2">
@@ -314,8 +351,8 @@ function ChipPicker({
             <Button
               key={o.value}
               type="button"
-              variant={on ? 'primary' : 'secondary'}
-              className="h-8 px-3"
+              variant={on ? 'active' : 'secondary'}
+              compact
               aria-pressed={on}
               onClick={() => onChange(on ? value.filter((v) => v !== o.value) : [...value, o.value])}
             >
@@ -384,7 +421,7 @@ function EquipmentCard() {
               </label>
               <Button
                 variant="ghost"
-                className="h-8 px-2"
+                compact
                 aria-label={t('equipment.remove', { name: item.name })}
                 onClick={() => run(() => api.del(`/equipment/${item.id}`))}
               >

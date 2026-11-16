@@ -6,6 +6,7 @@ import { addDays, currencySymbol, formatDay, formatMoney, formatQty, MEALS, toda
 import { type MessageKey, useI18n, useT } from '../i18n';
 import type { BudgetStatus, HouseholdSettings, ShoppingItem } from '../types';
 import { Badge, Button, Card, Disclose, Empty, Input, Select } from '../ui';
+import { deferDelete } from '../undo';
 import { LocationSelect, ProductDatalist, parseQty, useCurrency } from './shared';
 
 const AISLES = ['produce', 'dairy', 'meat_fish', 'bakery', 'pantry', 'frozen', 'drinks', 'household', 'other'];
@@ -39,7 +40,10 @@ export function Shopping() {
     return [...buckets.values()].sort((a, b) => rank(a) - rank(b) || (a.key === '~' ? 1 : b.key === '~' ? -1 : a.key.localeCompare(b.key)));
   };
   const currency = useCurrency();
-  const { data: items = [] } = useQuery({ queryKey: ['shopping'], queryFn: () => api.get<ShoppingItem[]>('/shopping') });
+  const { data: all = [] } = useQuery({ queryKey: ['shopping'], queryFn: () => api.get<ShoppingItem[]>('/shopping') });
+  // Items deleted a moment ago stay out of sight while the deletion can still be undone.
+  const [removed, setRemoved] = useState<number[]>([]);
+  const items = all.filter((i) => !removed.includes(i.id));
   const { data: budget } = useQuery({ queryKey: ['budget', 'status'], queryFn: () => api.get<BudgetStatus>('/budget/status') });
   const { data: settings } = useQuery({ queryKey: ['settings'], queryFn: () => api.get<HouseholdSettings>('/settings') });
   const groupBy: GroupBy = settings?.shoppingGroupBy ?? 'none';
@@ -80,13 +84,13 @@ export function Shopping() {
   return (
     <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_18.5rem]">
       <ProductDatalist />
-      <div className="min-w-0 space-y-4">
+      <div className="min-w-0 space-y-4 max-lg:pb-16">
         <div className="flex items-end gap-2">
           <div className="mr-auto">
             <h2 className="text-xl">{t('shopping.list.title')}</h2>
             <p className="text-sm text-muted">{t('shopping.list.toBuy', { n: open.length })}</p>
           </div>
-          <Button variant="primary" disabled={pending} onClick={() => run(() => api.post('/shopping/generate', range))}>
+          <Button disabled={pending} onClick={() => run(() => api.post('/shopping/generate', range))}>
             <ArrowsClockwise size={16} />
             {t('shopping.generate.button')}
           </Button>
@@ -115,8 +119,8 @@ export function Shopping() {
             {(['none', 'aisle', 'meal'] as const).map((mode) => (
               <Button
                 key={mode}
-                variant={groupBy === mode ? 'primary' : 'secondary'}
-                className="h-8 px-3"
+                variant={groupBy === mode ? 'active' : 'secondary'}
+                compact
                 aria-pressed={groupBy === mode}
                 onClick={() => run(() => api.put('/settings', { shoppingGroupBy: mode }))}
               >
@@ -126,8 +130,8 @@ export function Shopping() {
           </div>
         </Disclose>
 
-        <Disclose summary={t('shopping.addItem')}>
-          <form onSubmit={add} className="flex flex-wrap gap-2">
+        <div>
+          <form onSubmit={add} className="flex gap-2">
             <Input
               required
               list="product-names"
@@ -135,7 +139,7 @@ export function Shopping() {
               aria-label={t('shopping.list.item')}
               value={form.name}
               onChange={(e) => setForm({ ...form, name: e.target.value })}
-              className="flex-1 basis-40"
+              className="h-11 flex-1 basis-40 sm:h-9"
             />
             <Input
               inputMode="decimal"
@@ -143,7 +147,7 @@ export function Shopping() {
               aria-label={t('common.quantity')}
               value={form.quantity}
               onChange={(e) => setForm({ ...form, quantity: e.target.value })}
-              className="w-20"
+              className="h-11 w-16 sm:h-9 sm:w-20"
             />
             <Input
               list="unit-names"
@@ -151,14 +155,15 @@ export function Shopping() {
               aria-label={t('common.unit')}
               value={form.unit}
               onChange={(e) => setForm({ ...form, unit: e.target.value })}
-              className="w-24"
+              className="w-24 max-sm:hidden"
             />
-            <Button type="submit" disabled={pending}>
+            {/* Adding is the everyday action: the form stays open, and on phones its button is just the icon. */}
+            <Button type="submit" variant="primary" disabled={pending} aria-label={t('common.add')} className="max-sm:w-11 max-sm:px-0">
               <Plus size={16} />
-              {t('common.add')}
+              <span className="max-sm:hidden">{t('common.add')}</span>
             </Button>
           </form>
-        </Disclose>
+        </div>
 
         {items.length === 0 ? (
           <Empty>{t('shopping.list.empty')}</Empty>
@@ -173,100 +178,116 @@ export function Shopping() {
                   </h3>
                 )}
                 <ul>
-                  {g.items.map((item) => (
-                    <li key={item.id} className="relative flex items-center gap-x-2 px-2 py-1 hover:bg-ink/5 sm:gap-x-3">
-                      <label className="flex min-h-11 min-w-0 flex-1 cursor-pointer items-center gap-3">
-                        <input
-                          type="checkbox"
-                          className="size-[18px] shrink-0 accent-(--accent)"
-                          checked={item.checked}
-                          onChange={() => run(() => api.patch(`/shopping/${item.id}`, { checked: !item.checked }))}
-                        />
-                        <span className="flex min-w-0 flex-1 flex-col sm:flex-row sm:items-baseline sm:gap-3">
-                          <span className={`wrap-break-word ${item.checked ? 'text-muted line-through' : ''}`}>{item.name}</span>
-                          <span className="flex items-center gap-2">
-                            <span className="text-sm whitespace-nowrap text-muted tabular-nums">{formatQty(item.quantity, item.unit)}</span>
-                            {item.season === 'out' && !item.checked && (
-                              <span
-                                className="sm:hidden"
-                                title={
-                                  item.seasonAlternatives.length
-                                    ? t('season.instead', { list: item.seasonAlternatives.map((p) => p[lang]).join(', ') })
-                                    : undefined
-                                }
-                              >
-                                <Badge tone="warn">{t('season.out')}</Badge>
+                  {/* Ticked lines sink to the bottom of their section, so what is left to find stays on top. */}
+                  {[...g.items]
+                    .sort((a, b) => Number(a.checked) - Number(b.checked))
+                    .map((item) => (
+                      <li key={item.id} className="relative flex items-center gap-x-2 px-2 py-1 hover:bg-ink/5 sm:gap-x-3">
+                        <label className="flex min-h-11 min-w-0 flex-1 cursor-pointer items-center gap-3">
+                          <input
+                            type="checkbox"
+                            className="size-[18px] shrink-0 accent-(--accent)"
+                            checked={item.checked}
+                            onChange={() => run(() => api.patch(`/shopping/${item.id}`, { checked: !item.checked }))}
+                          />
+                          <span className="flex min-w-0 flex-1 flex-col sm:flex-row sm:items-baseline sm:gap-3">
+                            <span className="strike w-fit wrap-break-word" data-done={item.checked}>
+                              {item.name}
+                            </span>
+                            <span className="flex items-center gap-2">
+                              <span className="text-sm whitespace-nowrap text-muted tabular-nums">
+                                {formatQty(item.quantity, item.unit)}
                               </span>
-                            )}
+                              {item.season === 'out' && !item.checked && (
+                                <span
+                                  className="sm:hidden"
+                                  title={
+                                    item.seasonAlternatives.length
+                                      ? t('season.instead', { list: item.seasonAlternatives.map((p) => p[lang]).join(', ') })
+                                      : undefined
+                                  }
+                                >
+                                  <Badge tone="warn">{t('season.out')}</Badge>
+                                </span>
+                              )}
+                            </span>
                           </span>
-                        </span>
-                      </label>
-                      {groupBy === 'meal' && item.meals.length > 1 && (
-                        <span className="hidden text-xs text-muted sm:inline">
-                          {t('shopping.alsoFor', {
-                            meals: item.meals
-                              .slice(1)
-                              .map((m) => m.title)
-                              .join(', '),
-                          })}
-                        </span>
-                      )}
-                      {groupBy === 'aisle' && (
-                        <Select
-                          aria-label={t('products.aisle')}
-                          value={item.category ?? ''}
-                          onChange={(e) => run(() => api.patch(`/products/${item.productId}`, { category: e.target.value || null }))}
-                          className="hidden h-8 w-36 px-2 text-xs sm:block"
-                        >
-                          <option value="">{t('aisle.none')}</option>
-                          {AISLES.map((c) => (
-                            <option key={c} value={c}>
-                              {t(`aisle.${c}` as MessageKey)}
-                            </option>
-                          ))}
-                          {item.category && !AISLES.includes(item.category) && <option value={item.category}>{item.category}</option>}
-                        </Select>
-                      )}
-                      {item.source === 'plan' && groupBy !== 'meal' && (
-                        <span className="hidden sm:inline">
-                          <Badge tone="accent">{t('shopping.list.fromPlan')}</Badge>
-                        </span>
-                      )}
-                      {item.season === 'out' && !item.checked && (
-                        <span
-                          className="hidden sm:inline"
-                          title={
-                            item.seasonAlternatives.length
-                              ? t('season.instead', { list: item.seasonAlternatives.map((p) => p[lang]).join(', ') })
-                              : undefined
+                        </label>
+                        {groupBy === 'meal' && item.meals.length > 1 && (
+                          <span className="hidden text-xs text-muted sm:inline">
+                            {t('shopping.alsoFor', {
+                              meals: item.meals
+                                .slice(1)
+                                .map((m) => m.title)
+                                .join(', '),
+                            })}
+                          </span>
+                        )}
+                        {groupBy === 'aisle' && (
+                          <Select
+                            aria-label={t('products.aisle')}
+                            value={item.category ?? ''}
+                            onChange={(e) => run(() => api.patch(`/products/${item.productId}`, { category: e.target.value || null }))}
+                            className="hidden h-8 w-36 px-2 text-xs sm:block"
+                          >
+                            <option value="">{t('aisle.none')}</option>
+                            {AISLES.map((c) => (
+                              <option key={c} value={c}>
+                                {t(`aisle.${c}` as MessageKey)}
+                              </option>
+                            ))}
+                            {item.category && !AISLES.includes(item.category) && <option value={item.category}>{item.category}</option>}
+                          </Select>
+                        )}
+                        {item.source === 'plan' && groupBy !== 'meal' && (
+                          <span className="hidden sm:inline">
+                            <Badge tone="accent">{t('shopping.list.fromPlan')}</Badge>
+                          </span>
+                        )}
+                        {item.season === 'out' && !item.checked && (
+                          <span
+                            className="hidden sm:inline"
+                            title={
+                              item.seasonAlternatives.length
+                                ? t('season.instead', { list: item.seasonAlternatives.map((p) => p[lang]).join(', ') })
+                                : undefined
+                            }
+                          >
+                            <Badge tone="warn">{t('season.out')}</Badge>
+                          </span>
+                        )}
+                        <Input
+                          key={`${item.priceCents}-${item.estimatedCents}`}
+                          defaultValue={item.priceCents !== null ? item.priceCents / 100 : ''}
+                          placeholder={
+                            item.estimatedCents !== null ? `≈ ${formatMoney(item.estimatedCents, currency)}` : currencySymbol(currency)
                           }
+                          inputMode="decimal"
+                          aria-label={t('shopping.price', { name: item.name })}
+                          onBlur={(e) => savePrice(item, e.target.value)}
+                          onKeyDown={(e) => e.key === 'Enter' && e.currentTarget.blur()}
+                          className="h-8 w-[5.75rem] shrink-0 border-transparent bg-transparent px-1 text-right text-sm text-muted tabular-nums placeholder:text-muted/60 hover:border-control focus:border-accent focus:bg-surface focus:text-ink sm:w-24 sm:px-2"
+                        />
+                        <Button
+                          variant="ghost"
+                          className="size-11 shrink-0 px-0 sm:size-8"
+                          aria-label={t('stock.remove', { name: item.name })}
+                          onClick={() => {
+                            setRemoved((r) => [...r, item.id]);
+                            deferDelete({
+                              commit: () =>
+                                void run(() => api.del(`/shopping/${item.id}`)).finally(() =>
+                                  setRemoved((r) => r.filter((x) => x !== item.id)),
+                                ),
+                              undo: () => setRemoved((r) => r.filter((x) => x !== item.id)),
+                            });
+                          }}
                         >
-                          <Badge tone="warn">{t('season.out')}</Badge>
-                        </span>
-                      )}
-                      <Input
-                        key={`${item.priceCents}-${item.estimatedCents}`}
-                        defaultValue={item.priceCents !== null ? item.priceCents / 100 : ''}
-                        placeholder={
-                          item.estimatedCents !== null ? `≈ ${formatMoney(item.estimatedCents, currency)}` : currencySymbol(currency)
-                        }
-                        inputMode="decimal"
-                        aria-label={t('shopping.price', { name: item.name })}
-                        onBlur={(e) => savePrice(item, e.target.value)}
-                        onKeyDown={(e) => e.key === 'Enter' && e.currentTarget.blur()}
-                        className="h-8 w-[5.75rem] shrink-0 border-transparent bg-transparent px-1 text-right text-sm text-muted tabular-nums placeholder:text-muted/60 hover:border-control focus:border-accent focus:bg-surface focus:text-ink sm:w-24 sm:px-2"
-                      />
-                      <Button
-                        variant="ghost"
-                        className="size-10 shrink-0 px-0 sm:size-8"
-                        aria-label={t('stock.remove', { name: item.name })}
-                        onClick={() => run(() => api.del(`/shopping/${item.id}`))}
-                      >
-                        <X size={14} />
-                      </Button>
-                      <span className="fade-rule absolute inset-x-0 bottom-0 opacity-50" />
-                    </li>
-                  ))}
+                          <X size={14} />
+                        </Button>
+                        <span className="fade-rule absolute inset-x-0 bottom-0 opacity-50" />
+                      </li>
+                    ))}
                 </ul>
               </section>
             ))}
@@ -304,10 +325,25 @@ export function Shopping() {
         )}
       </div>
 
-      <aside className="space-y-3 lg:pt-2">
+      {/* Phones: the total stays in view above the tab bar while you walk the aisles. */}
+      <div className="fixed inset-x-3 bottom-[calc(4.6rem+env(safe-area-inset-bottom))] z-10 flex items-center justify-between gap-3 rounded-xl bg-surface px-4 py-2.5 shadow-[0_0_0_1px_var(--line),0_8px_24px_rgba(0,0,0,0.5)] lg:hidden">
+        <div>
+          <div className="text-[11px] tracking-wider text-muted uppercase">{t('shopping.rail.toBuy')}</div>
+          <div className="font-semibold tracking-tight text-2xl leading-none tabular-nums">≈ {formatMoney(toBuy, currency)}</div>
+        </div>
+        <div className="text-right text-sm text-muted tabular-nums">
+          {basket.length > 0 && (
+            <div className="text-herb">
+              {basket.length} · {formatMoney(inBasket, currency)}
+            </div>
+          )}
+          {budget?.budgetCents ? <div>≈ {formatMoney(budget.budgetCents - budget.spentCents - toBuy - inBasket, currency)}</div> : null}
+        </div>
+      </div>
+      <aside className="space-y-3 max-lg:hidden lg:pt-2">
         <Card>
           <h3 className="text-[11px] font-normal tracking-wider text-muted uppercase">{t('shopping.rail.toBuy')}</h3>
-          <div className="mt-2 text-3xl tracking-tight tabular-nums">≈ {formatMoney(toBuy, currency)}</div>
+          <div className="font-semibold tracking-tight mt-2 text-4xl tracking-tight tabular-nums">≈ {formatMoney(toBuy, currency)}</div>
           {unpriced > 0 && <p className="mt-1 text-xs text-muted">{t('shopping.unpriced', { n: unpriced })}</p>}
           <dl className="mt-4 space-y-1.5 text-sm">
             <div className="flex justify-between">

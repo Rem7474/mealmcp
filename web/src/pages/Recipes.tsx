@@ -1,13 +1,23 @@
-import { Heart } from '@phosphor-icons/react';
+import { Heart, Plus } from '@phosphor-icons/react';
 import { useQuery } from '@tanstack/react-query';
 import { type FormEvent, useState } from 'react';
 import { api, useAction } from '../api';
-import { formatDate, formatMoney, formatQty } from '../format';
+import { formatDate, formatMoney, formatQty, MEALS, today } from '../format';
 import { locale, type MessageKey, useI18n, useT } from '../i18n';
-import type { Availability, Produce, Recipe, RecipeCost, RecipeSummary, Seasonal } from '../types';
-import { Accordion, Badge, Button, Card, Empty, Input, Select, Stars } from '../ui';
+import type { Availability, MealType, Produce, Recipe, RecipeCost, RecipeSummary, Seasonal } from '../types';
+import { Accordion, Badge, Button, Card, Empty, Field, Input, Select, Sheet, Stars } from '../ui';
 import { RecipeNutrition } from './Nutrition';
 import { ProductDatalist, parseQty, useCurrency } from './shared';
+
+const TILE_TONES = [
+  'bg-accent/20 text-accent-soft',
+  'bg-herb/20 text-herb',
+  'bg-warn/20 text-warn',
+  'bg-danger/15 text-danger',
+  'bg-ink/10 text-ink',
+];
+/** The same name always gets the same tile colour. */
+const tileTone = (name: string) => [...name].reduce((sum, c) => sum + c.charCodeAt(0), 0) % TILE_TONES.length;
 
 type View = { mode: 'list' } | { mode: 'detail'; id: number } | { mode: 'edit'; recipe?: Recipe };
 
@@ -48,7 +58,6 @@ export function Recipes() {
 
   const list = (
     <div className="min-w-0 space-y-3">
-      <SeasonCard />
       <div className="flex gap-2">
         <Input
           type="search"
@@ -56,9 +65,9 @@ export function Recipes() {
           aria-label={t('recipes.searchAria')}
           value={search}
           onChange={(e) => setSearch(e.target.value)}
-          className="flex-1"
+          className="h-11 flex-1"
         />
-        <Button variant="primary" onClick={() => setView({ mode: 'edit' })}>
+        <Button variant="primary" className="h-11 max-sm:hidden" onClick={() => setView({ mode: 'edit' })}>
           {t('recipes.new')}
         </Button>
       </div>
@@ -74,8 +83,8 @@ export function Recipes() {
           <option value="rating">{t('recipes.sort.rating')}</option>
         </Select>
         <Button
-          variant={favoritesOnly ? 'primary' : 'secondary'}
-          className="h-8 px-3"
+          variant={favoritesOnly ? 'active' : 'secondary'}
+          compact
           aria-pressed={favoritesOnly}
           onClick={() => setFavoritesOnly(!favoritesOnly)}
         >
@@ -86,8 +95,8 @@ export function Recipes() {
           ['', ...tags].map((value) => (
             <Button
               key={value}
-              variant={tag === value ? 'primary' : 'secondary'}
-              className="h-8 px-3"
+              variant={tag === value ? 'active' : 'secondary'}
+              compact
               aria-pressed={tag === value}
               onClick={() => setTag(value)}
             >
@@ -104,33 +113,65 @@ export function Recipes() {
               <button
                 type="button"
                 onClick={() => setView({ mode: 'detail', id: r.id })}
-                className={`h-full w-full cursor-pointer rounded-xl bg-surface p-3.5 text-left hover:shadow-[0_0_0_1px_var(--muted)] ${shown === r.id ? 'shadow-[0_0_0_1px_var(--accent)]' : 'shadow-[0_0_0_1px_var(--line)]'}`}
+                className={`flex h-full w-full cursor-pointer items-start gap-3 rounded-xl bg-surface p-3 text-left hover:shadow-[0_0_0_1px_var(--muted)] ${shown === r.id ? 'shadow-[0_0_0_1px_var(--accent)]' : 'shadow-[0_0_0_1px_var(--line)]'}`}
               >
-                <div className="flex items-center gap-2">
-                  <span className="line-clamp-2 min-w-0 flex-1 font-medium">{r.name}</span>
-                  {r.favorite && <Heart size={14} weight="fill" className="shrink-0 text-accent" aria-label={t('recipes.favorite')} />}
-                </div>
-                <div className="mt-1 flex flex-wrap items-center gap-x-2 text-sm text-muted">
-                  {r.rating ? <Stars value={r.rating} size={13} /> : null}
-                  <span>
-                    {t('common.servings', { n: r.servings })} · {t('recipes.ingredientCount', { n: r.ingredientCount })}
-                    {r.prepMinutes || r.cookMinutes ? ` · ${t('common.minutes', { n: (r.prepMinutes ?? 0) + (r.cookMinutes ?? 0) })}` : ''}
+                {/* A monogram tile gives every recipe a colour to find it by, until recipes carry photos. */}
+                <span
+                  aria-hidden="true"
+                  className={`font-semibold tracking-tight grid size-14 shrink-0 place-items-center rounded-lg text-3xl ${TILE_TONES[tileTone(r.name)]}`}
+                >
+                  {r.name.trim().charAt(0).toUpperCase()}
+                </span>
+                <span className="min-w-0 flex-1">
+                  <span className="flex items-start gap-2">
+                    <span className="font-semibold tracking-tight line-clamp-2 min-w-0 flex-1 text-lg leading-snug">{r.name}</span>
+                    {r.favorite && (
+                      <Heart size={14} weight="fill" className="mt-1.5 shrink-0 text-accent" aria-label={t('recipes.favorite')} />
+                    )}
                   </span>
-                </div>
-                {r.description && <p className="mt-2 line-clamp-2 text-sm">{r.description}</p>}
-                <div className="mt-2 flex flex-wrap gap-1">
-                  {r.tags.map((x) => (
-                    <Badge key={x}>{x}</Badge>
-                  ))}
-                  <Badge>{r.lastMadeOn ? t('recipes.lastMade', { date: formatDate(r.lastMadeOn) }) : t('recipes.neverMade')}</Badge>
-                  {r.dietConflicts.length > 0 && (
-                    <Badge tone="danger">{t('recipes.dietConflict', { items: r.dietConflicts.map((c) => c.ingredient).join(', ') })}</Badge>
-                  )}
-                </div>
+                  <span className="mt-1 flex flex-wrap items-center gap-x-2.5 gap-y-1 text-sm text-muted">
+                    {r.prepMinutes || r.cookMinutes ? (
+                      <span className="rounded-md bg-accent/15 px-1.5 py-0.5 text-xs text-accent-soft tabular-nums">
+                        {t('common.minutes', { n: (r.prepMinutes ?? 0) + (r.cookMinutes ?? 0) })}
+                      </span>
+                    ) : null}
+                    {r.rating ? <Stars value={r.rating} size={12} /> : null}
+                    <span>{t('common.servings', { n: r.servings })}</span>
+                  </span>
+                  {r.description && <span className="mt-1.5 line-clamp-2 block text-sm">{r.description}</span>}
+                  <span className="mt-1.5 flex flex-wrap items-center gap-1">
+                    {r.tags.map((x) => (
+                      <Badge key={x}>{x}</Badge>
+                    ))}
+                    {r.dietConflicts.length > 0 && (
+                      <Badge tone="danger">
+                        {t('recipes.dietConflict', { items: r.dietConflicts.map((c) => c.ingredient).join(', ') })}
+                      </Badge>
+                    )}
+                    {/* Only a recipe already cooked says so; "never made" is the default and stays quiet. */}
+                    {r.lastMadeOn && (
+                      <span className="text-xs text-muted">{t('recipes.lastMade', { date: formatDate(r.lastMadeOn) })}</span>
+                    )}
+                  </span>
+                </span>
               </button>
             </li>
           ))}
         </ul>
+      )}
+      {/* Seasonal produce is a side note: it comes after the recipes, not before them. */}
+      <SeasonCard />
+      {/* Phones: the main action floats within thumb reach, like on the planning. */}
+      {selected === null && (
+        <button
+          type="button"
+          aria-label={t('recipes.new')}
+          title={t('recipes.new')}
+          onClick={() => setView({ mode: 'edit' })}
+          className="fixed right-4 bottom-[calc(4.75rem+env(safe-area-inset-bottom))] z-10 grid size-14 cursor-pointer place-items-center rounded-full bg-accent text-accent-ink active:scale-95 sm:hidden"
+        >
+          <Plus size={24} weight="bold" />
+        </button>
       )}
     </div>
   );
@@ -204,6 +245,8 @@ function SeasonCard() {
 }
 
 function RecipeDetail({ id, onBack, onEdit }: { id: number; onBack: () => void; onEdit: (recipe: Recipe) => void }) {
+  const [planning, setPlanning] = useState(false);
+  const [planned, setPlanned] = useState<string | null>(null);
   const t = useT();
   const { data: recipe } = useQuery({ queryKey: ['recipe', id], queryFn: () => api.get<Recipe>(`/recipes/${id}`) });
   const { data: availability } = useQuery({
@@ -229,6 +272,15 @@ function RecipeDetail({ id, onBack, onEdit }: { id: number; onBack: () => void; 
 
   return (
     <>
+      {planning && <PlanRecipe recipe={recipe} onClose={() => setPlanning(false)} onPlanned={(date) => setPlanned(date)} />}
+      {planned && (
+        <p role="status" className="rounded-lg border border-accent/60 bg-accent/10 px-3 py-2 text-sm">
+          {t('recipes.planned', { date: formatDate(planned) })}{' '}
+          <a href="#planning" className="text-accent underline">
+            {t('recipes.seePlan')}
+          </a>
+        </p>
+      )}
       <Button variant="ghost" className="px-0 lg:hidden" onClick={onBack}>
         {t('recipes.back')}
       </Button>
@@ -236,6 +288,9 @@ function RecipeDetail({ id, onBack, onEdit }: { id: number; onBack: () => void; 
         title={<span className="text-xl">{recipe.name}</span>}
         actions={
           <div className="flex gap-2">
+            <Button variant="primary" onClick={() => setPlanning(true)}>
+              {t('recipes.plan')}
+            </Button>
             <Button onClick={() => onEdit(recipe)}>{t('recipes.edit')}</Button>
             <Button variant="danger" disabled={pending} onClick={remove}>
               {t('recipes.delete')}
@@ -251,7 +306,7 @@ function RecipeDetail({ id, onBack, onEdit }: { id: number; onBack: () => void; 
           />
           <Button
             variant="ghost"
-            className="h-8 px-2"
+            compact
             aria-pressed={recipe.favorite}
             onClick={() => run(() => api.patch(`/recipes/${id}`, { favorite: !recipe.favorite }))}
           >
@@ -373,6 +428,68 @@ const positive = (value: string) => {
   const n = parseQty(value);
   return n !== undefined && Number.isFinite(n) && n > 0 ? Math.round(n) : undefined;
 };
+
+/** Puts a recipe on the planning without leaving its page. */
+function PlanRecipe({ recipe, onClose, onPlanned }: { recipe: Recipe; onClose: () => void; onPlanned: (date: string) => void }) {
+  const t = useT();
+  const { run, pending } = useAction();
+  const [date, setDate] = useState(today());
+  const [mealType, setMealType] = useState<MealType>('dinner');
+  const [servings, setServings] = useState(String(recipe.servings));
+
+  const submit = async (e: FormEvent) => {
+    e.preventDefault();
+    await run(() => api.post('/plan', { date, mealType, recipeId: recipe.id, servings: servings ? Number(servings) : undefined }));
+    onPlanned(date);
+    onClose();
+  };
+
+  return (
+    <Sheet title={recipe.name} onClose={onClose}>
+      <form onSubmit={submit} className="space-y-3">
+        <div className="grid grid-cols-2 gap-3">
+          <Field label={t('plan.add.date')}>
+            <Input
+              type="date"
+              required
+              aria-label={t('plan.add.date')}
+              value={date}
+              onChange={(e) => setDate(e.target.value)}
+              className="w-full"
+            />
+          </Field>
+          <Field label={t('plan.add.meal')}>
+            <Select
+              aria-label={t('plan.add.meal')}
+              value={mealType}
+              onChange={(e) => setMealType(e.target.value as MealType)}
+              className="w-full"
+            >
+              {MEALS.map((value) => (
+                <option key={value} value={value}>
+                  {t(`meal.${value}`)}
+                </option>
+              ))}
+            </Select>
+          </Field>
+        </div>
+        <Field label={t('plan.add.servingsAria')}>
+          <Input
+            type="number"
+            min={1}
+            aria-label={t('plan.add.servingsAria')}
+            value={servings}
+            onChange={(e) => setServings(e.target.value)}
+            className="w-full"
+          />
+        </Field>
+        <Button type="submit" variant="primary" disabled={pending} className="h-12 w-full text-base sm:h-12">
+          {t('plan.add.submit')}
+        </Button>
+      </form>
+    </Sheet>
+  );
+}
 
 function RecipeForm({ recipe, onDone }: { recipe?: Recipe; onDone: (id?: number) => void }) {
   const t = useT();
