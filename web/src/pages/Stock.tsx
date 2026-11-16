@@ -264,6 +264,24 @@ function StockRow({ item }: { item: StockItem }) {
       aria: t('stock.openAria', { name: item.name }),
       run: () => void run(() => api.post(`/stock/${item.id}/open`, {})),
     });
+  if (!item.approximate && !item.frozen)
+    actions.push({
+      key: 'freeze',
+      label: t('stock.freeze'),
+      aria: t('stock.freezeAria', { name: item.name }),
+      run: () => {
+        // A thawed line is only frozen again on purpose.
+        if (item.thawed && !window.confirm(t('stock.refreezeConfirm'))) return;
+        void run(() => api.post(`/stock/${item.id}/freeze`, item.thawed ? { refreeze: true } : {}));
+      },
+    });
+  if (item.frozen || item.location === 'freezer')
+    actions.push({
+      key: 'thaw',
+      label: t('stock.thaw'),
+      aria: t('stock.thawAria', { name: item.name }),
+      run: () => void run(() => api.post(`/stock/${item.id}/thaw`, {})),
+    });
   actions.push({
     key: 'discard',
     label: t('stock.discard'),
@@ -284,6 +302,13 @@ function StockRow({ item }: { item: StockItem }) {
         <div className="font-medium order-1 text-base wrap-break-word">{item.name}</div>
         {item.opened && item.openedOn && (
           <div className="order-3 basis-full text-xs text-accent">{t('stock.openedBadge', { date: formatDate(item.openedOn) })}</div>
+        )}
+        {(item.frozenOn || item.thawedOn) && (
+          <div className="order-3 basis-full text-xs text-accent">
+            {item.frozenOn
+              ? t('stock.frozenBadge', { date: formatDate(item.frozenOn) })
+              : t('stock.thawedBadge', { date: formatDate(item.thawedOn as string) })}
+          </div>
         )}
         {item.packCount !== null && item.packSize !== null && (
           <div className="order-3 basis-full text-xs text-muted">
@@ -371,6 +396,8 @@ export function EditStock({ item, onClose }: { item: StockItem; onClose: () => v
   const [packs, setPacks] = useState(item.packCount === null ? '' : String(item.packCount));
   const product = useProducts().data?.find((p) => p.id === item.productId);
   const [shelfLife, setShelfLife] = useState<string | null>(null);
+  const [frozenDays, setFrozenDays] = useState<string | null>(null);
+  const [thawedDays, setThawedDays] = useState<string | null>(null);
   const [minStock, setMinStock] = useState<string | null>(null);
 
   const submit = async (e: FormEvent) => {
@@ -391,6 +418,13 @@ export function EditStock({ item, onClose }: { item: StockItem; onClose: () => v
     const days = shelfLife === null ? undefined : parseQty(shelfLife);
     if (shelfLife !== null && (days === undefined || (!Number.isNaN(days) && days !== product?.openedShelfLifeDays)))
       change.openedShelfLifeDays = days ?? null;
+    for (const [key, typed, saved] of [
+      ['frozenShelfLifeDays', frozenDays, product?.frozenShelfLifeDays],
+      ['thawedShelfLifeDays', thawedDays, product?.thawedShelfLifeDays],
+    ] as const) {
+      const n = typed === null ? undefined : parseQty(typed);
+      if (typed !== null && (n === undefined || (!Number.isNaN(n) && n !== saved))) change[key] = n ?? null;
+    }
     const min = minStock === null ? undefined : parseQty(minStock);
     if (minStock !== null && (min === undefined || (!Number.isNaN(min) && min !== product?.minStock))) change.minStock = min ?? null;
     if (Object.keys(change).length > 0) await run(() => api.patch(`/products/${item.productId}`, change));
@@ -451,6 +485,26 @@ export function EditStock({ item, onClose }: { item: StockItem; onClose: () => v
                 className="w-full"
               />
             </Field>
+            <div className="grid grid-cols-2 gap-3">
+              <Field label={t('stock.frozenLifeLabel')}>
+                <Input
+                  inputMode="numeric"
+                  aria-label={t('stock.frozenLifeAria', { name: item.name })}
+                  value={frozenDays ?? product.frozenShelfLifeDays ?? ''}
+                  onChange={(e) => setFrozenDays(e.target.value)}
+                  className="w-full"
+                />
+              </Field>
+              <Field label={t('stock.thawedLifeLabel')}>
+                <Input
+                  inputMode="numeric"
+                  aria-label={t('stock.thawedLifeAria', { name: item.name })}
+                  value={thawedDays ?? product.thawedShelfLifeDays ?? ''}
+                  onChange={(e) => setThawedDays(e.target.value)}
+                  className="w-full"
+                />
+              </Field>
+            </div>
             <Field label={`${t('stock.minLabel')} (${item.unit === 'piece' ? '#' : item.unit})`}>
               <Input
                 inputMode="decimal"

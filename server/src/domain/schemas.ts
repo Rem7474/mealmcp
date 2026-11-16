@@ -72,6 +72,22 @@ export const productUpdate = z.object({
     .nullable()
     .optional()
     .describe('Days a pack keeps once opened (tomato sauce 3, coconut milk 4). Used to set the expiry when a pack is opened.'),
+  frozenShelfLifeDays: z
+    .number()
+    .int()
+    .positive()
+    .max(1500)
+    .nullable()
+    .optional()
+    .describe('Days it keeps in the freezer. Null: the default for its category (meat and fish 90, vegetables 240...).'),
+  thawedShelfLifeDays: z
+    .number()
+    .int()
+    .positive()
+    .max(30)
+    .nullable()
+    .optional()
+    .describe('Days it keeps once thawed (2 for meat, fish and bread). Null: the default for its category.'),
   allergens: z
     .array(z.enum(ALLERGENS))
     .nullable()
@@ -149,6 +165,11 @@ export const stockUpdate = z.object({
     .describe(
       'Correct the opening date of an opened pack (not in the future); its expiry is recomputed from the product opened shelf life',
     ),
+});
+
+export const stockFreeze = z.object({
+  id,
+  refreeze: z.boolean().optional().describe('Freeze a line that was already thawed anyway (not recommended: quality and safety suffer)'),
 });
 
 export const stockConsume = z.object({

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { effectiveExpiry, expiryState, openedExpiry, printedDate } from './shelfLife.js';
+import { effectiveExpiry, effectiveKind, expiryState, freezerDays, openedExpiry, printedDate } from './shelfLife.js';
 
 describe('openedExpiry', () => {
   it('keeps the printed date when the product has no opened shelf life', () => {
@@ -71,5 +71,39 @@ describe('expiryState', () => {
     expect(expiryState({ expiresOn: '2026-01-09', dateKind: 'use_by' }, now)).toBe('discard');
     expect(expiryState({ expiresOn: '2026-01-09', dateKind: 'best_before' }, now)).toBe('check');
     expect(expiryState({ expiresOn: '2026-01-09', dateKind: null }, now)).toBe('check');
+  });
+});
+
+describe('freezing', () => {
+  const meat = { category: 'meat_fish' };
+
+  it('reads the product figures first, then the category, then a general default', () => {
+    expect(freezerDays({ frozenShelfLifeDays: 30, thawedShelfLifeDays: 1 })).toEqual({ frozenDays: 30, thawedDays: 1 });
+    expect(freezerDays(meat)).toEqual({ frozenDays: 90, thawedDays: 2 });
+    expect(freezerDays({ category: 'produce' }).frozenDays).toBe(240);
+    expect(freezerDays({ category: 'unheard-of' })).toEqual({ frozenDays: 90, thawedDays: 2 });
+  });
+
+  it('replaces the printed date by the freezing date plus the frozen shelf life', () => {
+    const line = { expiresOn: '2026-01-12', printedExpiresOn: '2026-01-12', openedOn: null, frozenOn: '2026-01-10' };
+    expect(effectiveExpiry(line, meat)).toBe('2026-04-10');
+    expect(effectiveExpiry(line, { ...meat, frozenShelfLifeDays: 30 })).toBe('2026-02-09');
+  });
+
+  it('starts the short thawed clock on thawing, and an opened thawed pack keeps the earlier date', () => {
+    const line = { expiresOn: null, printedExpiresOn: '2026-01-12', openedOn: null, thawedOn: '2026-01-10' };
+    expect(effectiveExpiry(line, meat)).toBe('2026-01-12');
+    expect(effectiveExpiry({ ...line, openedOn: '2026-01-10' }, { ...meat, openedShelfLifeDays: 1 })).toBe('2026-01-11');
+  });
+
+  it('flags a thawed line as use-by and a frozen one as best-before', () => {
+    expect(effectiveKind({ thawedOn: '2026-01-10', dateKind: 'best_before' })).toBe('use_by');
+    expect(effectiveKind({ frozenOn: '2026-01-10', dateKind: 'use_by' })).toBe('best_before');
+    expect(expiryState({ expiresOn: '2026-01-09', thawedOn: '2026-01-07' }, '2026-01-10')).toBe('discard');
+    expect(expiryState({ expiresOn: '2026-01-09', frozenOn: '2026-01-07' }, '2026-01-10')).toBe('check');
+  });
+
+  it('does not take a freezing-derived expiry for a printed date', () => {
+    expect(printedDate({ expiresOn: '2026-04-10', openedOn: null, frozenOn: '2026-01-10' }, {})).toBeNull();
   });
 });

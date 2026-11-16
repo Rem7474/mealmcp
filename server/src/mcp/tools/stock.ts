@@ -34,6 +34,20 @@ export function registerStockTools({ stock, tool, ro, rw, del }: ToolContext) {
     (a) => stock.open(a),
   );
   tool(
+    'freeze_stock_item',
+    'Put a stock line in the freezer. The freezing date replaces the printed date as the clock: it keeps the product frozen shelf life (update_product frozenShelfLifeDays; a default per category otherwise). Refuses a line that was already thawed unless refreeze=true. Moving a line to the freezer with update_stock_item location does the same.',
+    s.stockFreeze.shape,
+    rw,
+    (a) => stock.freeze(a),
+  );
+  tool(
+    'thaw_stock_item',
+    'Take a line out of the freezer (it moves to the fridge). It must now be used within the product thawed shelf life (update_product thawedShelfLifeDays, 2 days by default for meat, fish and bread) and is flagged use-by.',
+    s.idParam.shape,
+    rw,
+    (a) => stock.thaw(a.id),
+  );
+  tool(
     'unopen_stock_item',
     'Undo a mistaken open_stock_item: a pack that is still full becomes sealed again. Fails if part of it was already used.',
     s.idParam.shape,

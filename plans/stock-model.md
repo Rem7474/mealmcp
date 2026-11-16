@@ -1,6 +1,6 @@
 # Plan: completing the stock model
 
-Status: phases 0 to 2 done (shelf-life module, printed date and editable opening date, use-by / best-before). Splitting `domain/schemas.ts` is left for the first phase that adds many fields. Each phase is one pull request, stacked on the previous one.
+Status: phases 0 to 3 done (shelf-life module, printed date and editable opening date, use-by / best-before, freezing and thawing). Splitting `domain/schemas.ts` is left for the first phase that adds many fields. Each phase is one pull request, stacked on the previous one.
 
 ## Where we are
 
