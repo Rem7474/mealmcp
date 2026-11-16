@@ -6,6 +6,7 @@ import { addDays, currencySymbol, formatDay, formatMoney, formatQty, MEALS, toda
 import { type MessageKey, useI18n, useT } from '../i18n';
 import type { BudgetStatus, HouseholdSettings, ShoppingItem } from '../types';
 import { Badge, Button, Card, Disclose, Empty, Input, Select } from '../ui';
+import { deferDelete } from '../undo';
 import { LocationSelect, ProductDatalist, parseQty, useCurrency } from './shared';
 
 const AISLES = ['produce', 'dairy', 'meat_fish', 'bakery', 'pantry', 'frozen', 'drinks', 'household', 'other'];
@@ -39,7 +40,10 @@ export function Shopping() {
     return [...buckets.values()].sort((a, b) => rank(a) - rank(b) || (a.key === '~' ? 1 : b.key === '~' ? -1 : a.key.localeCompare(b.key)));
   };
   const currency = useCurrency();
-  const { data: items = [] } = useQuery({ queryKey: ['shopping'], queryFn: () => api.get<ShoppingItem[]>('/shopping') });
+  const { data: all = [] } = useQuery({ queryKey: ['shopping'], queryFn: () => api.get<ShoppingItem[]>('/shopping') });
+  // Items deleted a moment ago stay out of sight while the deletion can still be undone.
+  const [removed, setRemoved] = useState<number[]>([]);
+  const items = all.filter((i) => !removed.includes(i.id));
   const { data: budget } = useQuery({ queryKey: ['budget', 'status'], queryFn: () => api.get<BudgetStatus>('/budget/status') });
   const { data: settings } = useQuery({ queryKey: ['settings'], queryFn: () => api.get<HouseholdSettings>('/settings') });
   const groupBy: GroupBy = settings?.shoppingGroupBy ?? 'none';
@@ -268,7 +272,16 @@ export function Shopping() {
                           variant="ghost"
                           className="size-11 shrink-0 px-0 sm:size-8"
                           aria-label={t('stock.remove', { name: item.name })}
-                          onClick={() => run(() => api.del(`/shopping/${item.id}`))}
+                          onClick={() => {
+                            setRemoved((r) => [...r, item.id]);
+                            deferDelete({
+                              commit: () =>
+                                void run(() => api.del(`/shopping/${item.id}`)).finally(() =>
+                                  setRemoved((r) => r.filter((x) => x !== item.id)),
+                                ),
+                              undo: () => setRemoved((r) => r.filter((x) => x !== item.id)),
+                            });
+                          }}
                         >
                           <X size={14} />
                         </Button>
@@ -316,7 +329,7 @@ export function Shopping() {
       <div className="fixed inset-x-3 bottom-[calc(4.6rem+env(safe-area-inset-bottom))] z-10 flex items-center justify-between gap-3 rounded-xl bg-surface px-4 py-2.5 shadow-[0_0_0_1px_var(--line),0_8px_24px_rgba(0,0,0,0.5)] lg:hidden">
         <div>
           <div className="text-[11px] tracking-wider text-muted uppercase">{t('shopping.rail.toBuy')}</div>
-          <div className="font-display text-2xl leading-none tabular-nums">≈ {formatMoney(toBuy, currency)}</div>
+          <div className="font-semibold tracking-tight text-2xl leading-none tabular-nums">≈ {formatMoney(toBuy, currency)}</div>
         </div>
         <div className="text-right text-sm text-muted tabular-nums">
           {basket.length > 0 && (
@@ -330,7 +343,7 @@ export function Shopping() {
       <aside className="space-y-3 max-lg:hidden lg:pt-2">
         <Card>
           <h3 className="text-[11px] font-normal tracking-wider text-muted uppercase">{t('shopping.rail.toBuy')}</h3>
-          <div className="font-display mt-2 text-4xl tracking-tight tabular-nums">≈ {formatMoney(toBuy, currency)}</div>
+          <div className="font-semibold tracking-tight mt-2 text-4xl tracking-tight tabular-nums">≈ {formatMoney(toBuy, currency)}</div>
           {unpriced > 0 && <p className="mt-1 text-xs text-muted">{t('shopping.unpriced', { n: unpriced })}</p>}
           <dl className="mt-4 space-y-1.5 text-sm">
             <div className="flex justify-between">

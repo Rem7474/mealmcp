@@ -14,6 +14,7 @@ import { Recipes } from './pages/Recipes';
 import { Shopping } from './pages/Shopping';
 import { Stock } from './pages/Stock';
 import type { User } from './types';
+import { UndoHost } from './undo';
 
 const TABS = ['planning', 'recipes', 'shopping', 'stock', 'budget', 'account'] as const;
 type TabId = (typeof TABS)[number];
@@ -91,7 +92,7 @@ function Shell({ user }: { user: User }) {
 
   return (
     <ErrorContext.Provider value={report}>
-      <header className="sticky top-0 z-10 bg-linear-to-b from-surface to-bg">
+      <header className="sticky top-0 z-10 border-b border-line bg-bg">
         <div className="mx-auto flex max-w-6xl flex-wrap items-center gap-x-5 px-4">
           <h1 className="flex flex-1 items-center gap-2 py-3 text-xl sm:flex-none">
             <CookingPot size={22} weight="duotone" className="text-accent" />
@@ -110,9 +111,7 @@ function Shell({ user }: { user: User }) {
               >
                 <Icon size={16} className={tab === id ? 'text-accent' : ''} />
                 {t(`tab.${id}`)}
-                {tab === id && (
-                  <span className="absolute inset-x-2.5 bottom-0 h-0.5 rounded-full bg-accent shadow-[0_0_12px_var(--accent)]" />
-                )}
+                {tab === id && <span className="absolute inset-x-2.5 bottom-0 h-0.5 rounded-full bg-accent" />}
               </button>
             ))}
           </nav>
@@ -120,7 +119,7 @@ function Shell({ user }: { user: User }) {
             role="status"
             title={live ? t('app.live') : t('app.liveOff')}
             aria-label={live ? t('app.live') : t('app.liveOff')}
-            className={`size-2 rounded-full ${live ? 'bg-herb shadow-[0_0_8px_var(--herb)] max-sm:hidden' : 'bg-warn'}`}
+            className={`size-2 rounded-full ${live ? 'bg-herb max-sm:hidden' : 'bg-warn'}`}
           />
           <span className="hidden sm:block">
             <LanguageSwitch />
@@ -131,16 +130,19 @@ function Shell({ user }: { user: User }) {
             title={t('tab.account')}
             aria-label={t('tab.account')}
             aria-current={tab === 'account' ? 'page' : undefined}
-            className={`grid size-8 cursor-pointer place-items-center rounded-full text-xs ${
-              tab === 'account'
-                ? 'bg-accent-deep text-accent-soft shadow-[0_0_0_1px_var(--accent),0_0_12px_var(--glow)]'
-                : 'bg-line text-ink hover:bg-muted/40'
-            }`}
+            className="-mr-1.5 grid size-11 cursor-pointer place-items-center rounded-full sm:mr-0 sm:size-8"
           >
-            {initials(user.name)}
+            <span
+              className={`grid size-8 place-items-center rounded-full text-xs ${
+                tab === 'account'
+                  ? 'bg-accent-deep text-accent-soft shadow-[0_0_0_1px_var(--accent)]'
+                  : 'bg-line text-ink hover:bg-muted/40'
+              }`}
+            >
+              {initials(user.name)}
+            </span>
           </button>
         </div>
-        <div className="fade-rule absolute inset-x-0 bottom-0" />
       </header>
       <main className="mx-auto max-w-6xl space-y-4 px-4 py-4 pb-24 sm:pb-4">
         {error && (
@@ -165,9 +167,9 @@ function Shell({ user }: { user: User }) {
           <Page tab={tab} user={user} />
         </div>
       </main>
+      <UndoHost />
       {/* Phones: the tabs move to a bar under the thumb. */}
-      <nav className="fixed inset-x-0 bottom-0 z-10 flex bg-linear-to-t from-surface to-bg pb-[env(safe-area-inset-bottom)] sm:hidden">
-        <div className="fade-rule absolute inset-x-0 top-0" />
+      <nav className="fixed inset-x-0 bottom-0 z-10 flex border-t border-line bg-bg pb-[env(safe-area-inset-bottom)] sm:hidden">
         {NAV.map(({ id, Icon }) => (
           <button
             type="button"

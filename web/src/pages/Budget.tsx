@@ -1,3 +1,4 @@
+import { Plus } from '@phosphor-icons/react';
 import { useQuery } from '@tanstack/react-query';
 import { type FormEvent, useState } from 'react';
 import { api, useAction } from '../api';
@@ -15,7 +16,7 @@ import {
 } from '../format';
 import { type MessageKey, useT } from '../i18n';
 import type { BudgetStatus, Expense, ExpenseSummary, Product, SpendingSummary, User } from '../types';
-import { Accordion, Button, Card, Empty, Input, Select } from '../ui';
+import { Accordion, Button, Card, Empty, Fab, Field, Input, Select, Sheet } from '../ui';
 import { parseQty, useProducts } from './shared';
 
 const AISLES = ['produce', 'dairy', 'meat_fish', 'bakery', 'pantry', 'frozen', 'drinks', 'household', 'other'];
@@ -130,10 +131,7 @@ function MonthCard({ currency }: { currency: string }) {
             })}
             className="h-2 rounded-full bg-line"
           >
-            <div
-              className={`h-2 rounded-full ${over ? 'bg-danger' : 'bg-accent shadow-[0_0_10px_var(--glow)]'}`}
-              style={{ width: `${pct}%` }}
-            />
+            <div className={`h-2 rounded-full ${over ? 'bg-danger' : 'bg-accent'}`} style={{ width: `${pct}%` }} />
           </div>
           <p className="mt-1 text-xs text-muted">
             {t('budget.progress', { spent: formatMoney(status.spentCents, currency), budget: formatMoney(status.budgetCents, currency) })}
@@ -257,6 +255,7 @@ function AddExpense() {
   const { run, pending } = useAction();
   const [form, setForm] = useState({ date: today(), store: '', total: '', note: '' });
   const set = (patch: Partial<typeof form>) => setForm((f) => ({ ...f, ...patch }));
+  const [open, setOpen] = useState(false);
 
   const submit = async (e: FormEvent) => {
     e.preventDefault();
@@ -269,40 +268,65 @@ function AddExpense() {
       }),
     );
     set({ store: '', total: '', note: '' });
+    setOpen(false);
   };
 
   return (
-    <Accordion summary={t('budget.add.title')}>
-      <form onSubmit={submit} className="mt-3 flex flex-wrap gap-2">
-        <Input type="date" required aria-label={t('budget.add.date')} value={form.date} onChange={(e) => set({ date: e.target.value })} />
-        <Input
-          placeholder={t('budget.add.store')}
-          aria-label={t('budget.add.store')}
-          value={form.store}
-          onChange={(e) => set({ store: e.target.value })}
-          className="flex-1 basis-36"
-        />
-        <Input
-          required
-          inputMode="decimal"
-          placeholder={t('budget.add.total')}
-          aria-label={t('budget.add.total')}
-          value={form.total}
-          onChange={(e) => set({ total: e.target.value })}
-          className="w-28"
-        />
-        <Input
-          placeholder={t('budget.add.note')}
-          aria-label={t('budget.add.note')}
-          value={form.note}
-          onChange={(e) => set({ note: e.target.value })}
-          className="flex-1 basis-36"
-        />
-        <Button type="submit" variant="primary" disabled={pending}>
-          {t('budget.add.submit')}
-        </Button>
-      </form>
-    </Accordion>
+    <>
+      <Button variant="primary" className="max-sm:hidden" onClick={() => setOpen(true)}>
+        <Plus size={16} />
+        {t('budget.add.title')}
+      </Button>
+      <Fab label={t('budget.add.title')} onClick={() => setOpen(true)} />
+      {open && (
+        <Sheet title={t('budget.add.title')} onClose={() => setOpen(false)}>
+          <form onSubmit={submit} className="space-y-3">
+            <Field label={t('budget.add.total')}>
+              <Input
+                required
+                autoFocus
+                inputMode="decimal"
+                aria-label={t('budget.add.total')}
+                value={form.total}
+                onChange={(e) => set({ total: e.target.value })}
+                className="w-full text-xl"
+              />
+            </Field>
+            <div className="grid grid-cols-2 gap-3">
+              <Field label={t('budget.add.date')}>
+                <Input
+                  type="date"
+                  required
+                  aria-label={t('budget.add.date')}
+                  value={form.date}
+                  onChange={(e) => set({ date: e.target.value })}
+                  className="w-full"
+                />
+              </Field>
+              <Field label={t('budget.add.store')}>
+                <Input
+                  aria-label={t('budget.add.store')}
+                  value={form.store}
+                  onChange={(e) => set({ store: e.target.value })}
+                  className="w-full"
+                />
+              </Field>
+            </div>
+            <Field label={t('budget.add.note')}>
+              <Input
+                aria-label={t('budget.add.note')}
+                value={form.note}
+                onChange={(e) => set({ note: e.target.value })}
+                className="w-full"
+              />
+            </Field>
+            <Button type="submit" variant="primary" disabled={pending} className="h-12 w-full text-base sm:h-12">
+              {t('budget.add.submit')}
+            </Button>
+          </form>
+        </Sheet>
+      )}
+    </>
   );
 }
 

@@ -1,11 +1,11 @@
-import { Package, Snowflake, Thermometer } from '@phosphor-icons/react';
+import { Package, Plus, Snowflake, Thermometer } from '@phosphor-icons/react';
 import { useQuery } from '@tanstack/react-query';
 import { type FormEvent, useState } from 'react';
 import { api, useAction } from '../api';
 import { daysUntil, formatDate, formatMoney, formatQty, LOCATIONS } from '../format';
 import { useT } from '../i18n';
 import type { Product, StockAlerts, StockItem, WasteSummary } from '../types';
-import { Accordion, Badge, Button, Card, Empty, Input } from '../ui';
+import { Accordion, Badge, Button, Card, Empty, Fab, Field, Input, Sheet } from '../ui';
 import { ProductNutritionCard } from './Nutrition';
 import { LocationSelect, ProductDatalist, parseQty, useCurrency, useProducts } from './shared';
 
@@ -104,6 +104,7 @@ function AddForm() {
     opened: false,
   });
   const set = (patch: Partial<typeof form>) => setForm((f) => ({ ...f, ...patch }));
+  const [open, setOpen] = useState(false);
 
   const submit = async (e: FormEvent) => {
     e.preventDefault();
@@ -123,71 +124,98 @@ function AddForm() {
       }),
     );
     set({ name: '', quantity: '1', expiresOn: '', packSize: '', opened: false });
+    setOpen(false);
   };
 
   return (
-    <Accordion summary={t('stock.add.title')}>
-      <form onSubmit={submit} className="mt-3 flex flex-wrap gap-2">
-        <Input
-          required
-          list="product-names"
-          placeholder={t('common.product')}
-          aria-label={t('common.product')}
-          value={form.name}
-          onChange={(e) => set({ name: e.target.value })}
-          className="flex-1 basis-40"
-        />
-        <Input
-          required={!form.approximate}
-          disabled={form.approximate}
-          inputMode="decimal"
-          placeholder={t('common.qty')}
-          aria-label={t('common.quantity')}
-          value={form.approximate ? '' : form.quantity}
-          onChange={(e) => set({ quantity: e.target.value })}
-          className="w-20"
-        />
-        <Input
-          inputMode="decimal"
-          placeholder={t('stock.packSize')}
-          aria-label={t('stock.packSize')}
-          value={form.packSize}
-          onChange={(e) => set({ packSize: e.target.value })}
-          className="w-40"
-        />
-        <Input
-          list="unit-names"
-          placeholder={t('common.unit')}
-          aria-label={t('common.unit')}
-          value={form.unit}
-          onChange={(e) => set({ unit: e.target.value })}
-          className="w-24"
-        />
-        <LocationSelect value={form.location} onChange={(e) => set({ location: e.target.value })} />
-        <Input type="date" aria-label={t('stock.expiry')} value={form.expiresOn} onChange={(e) => set({ expiresOn: e.target.value })} />
-        <label className="flex h-10 items-center gap-2 text-sm">
-          <input
-            type="checkbox"
-            className="size-4 accent-(--accent)"
-            checked={form.approximate}
-            onChange={(e) => set({ approximate: e.target.checked })}
-          />
-          {t('stock.approximate')}
-        </label>
-        <label className="flex h-10 items-center gap-2 text-sm">
-          <input
-            type="checkbox"
-            className="size-4 accent-(--accent)"
-            checked={form.opened}
-            onChange={(e) => set({ opened: e.target.checked })}
-          />
-          {t('stock.alreadyOpened')}
-        </label>
-        <Button type="submit" variant="primary" disabled={pending} className="w-full sm:w-auto">
-          {t('common.add')}
+    <>
+      <div className="flex justify-end max-sm:hidden">
+        <Button variant="primary" onClick={() => setOpen(true)}>
+          <Plus size={16} />
+          {t('stock.add.title')}
         </Button>
-      </form>
-    </Accordion>
+      </div>
+      <Fab label={t('stock.add.title')} onClick={() => setOpen(true)} />
+      {open && (
+        <Sheet title={t('stock.add.title')} onClose={() => setOpen(false)}>
+          <form onSubmit={submit} className="space-y-3">
+            <Field label={t('common.product')}>
+              <Input
+                required
+                autoFocus
+                list="product-names"
+                placeholder={t('common.product')}
+                aria-label={t('common.product')}
+                value={form.name}
+                onChange={(e) => set({ name: e.target.value })}
+                className="w-full"
+              />
+            </Field>
+            <div className="grid grid-cols-2 gap-3">
+              <Field label={t('common.quantity')}>
+                <Input
+                  required={!form.approximate}
+                  disabled={form.approximate}
+                  inputMode="decimal"
+                  aria-label={t('common.quantity')}
+                  value={form.approximate ? '' : form.quantity}
+                  onChange={(e) => set({ quantity: e.target.value })}
+                  className="w-full"
+                />
+              </Field>
+              <Field label={t('common.unit')}>
+                <Input
+                  list="unit-names"
+                  aria-label={t('common.unit')}
+                  value={form.unit}
+                  onChange={(e) => set({ unit: e.target.value })}
+                  className="w-full"
+                />
+              </Field>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <Field label={t('location.label')}>
+                <LocationSelect value={form.location} onChange={(e) => set({ location: e.target.value })} className="w-full" />
+              </Field>
+              <Field label={t('stock.expiry')}>
+                <Input
+                  type="date"
+                  aria-label={t('stock.expiry')}
+                  value={form.expiresOn}
+                  onChange={(e) => set({ expiresOn: e.target.value })}
+                  className="w-full"
+                />
+              </Field>
+            </div>
+            <Field label={t('stock.packSize')}>
+              <Input
+                inputMode="decimal"
+                aria-label={t('stock.packSize')}
+                value={form.packSize}
+                onChange={(e) => set({ packSize: e.target.value })}
+                className="w-full"
+              />
+            </Field>
+            <label className="flex min-h-11 cursor-pointer items-center justify-between gap-3 rounded-lg border border-line px-3 text-sm">
+              {t('stock.approximate')}
+              <input
+                type="checkbox"
+                className="size-5"
+                checked={form.approximate}
+                onChange={(e) => set({ approximate: e.target.checked })}
+              />
+            </label>
+            <label className="flex min-h-11 cursor-pointer items-center justify-between gap-3 rounded-lg border border-line px-3 text-sm">
+              {t('stock.alreadyOpened')}
+              <input type="checkbox" className="size-5" checked={form.opened} onChange={(e) => set({ opened: e.target.checked })} />
+            </label>
+            <Button type="submit" variant="primary" disabled={pending} className="h-12 w-full text-base sm:h-12">
+              {t('common.add')}
+            </Button>
+          </form>
+        </Sheet>
+      )}
+    </>
   );
 }
 
@@ -195,6 +223,7 @@ function StockRow({ item }: { item: StockItem }) {
   const t = useT();
   const { run } = useAction();
   const days = item.expiresOn ? daysUntil(item.expiresOn) : null;
+  const [editing, setEditing] = useState(false);
 
   const saveQuantity = (value: string) => {
     const quantity = parseQty(value);
@@ -202,7 +231,9 @@ function StockRow({ item }: { item: StockItem }) {
     void run(() => api.patch(`/stock/${item.id}`, { quantity }));
   };
 
-  const actions: { key: string; label: string; aria: string; run: () => void }[] = [];
+  const actions: { key: string; label: string; aria: string; run: () => void }[] = [
+    { key: 'edit', label: t('stock.edit'), aria: t('stock.editTitle', { name: item.name }), run: () => setEditing(true) },
+  ];
   if (item.opened && (item.packSize === null || item.quantity >= item.packSize - 1e-9))
     actions.push({
       key: 'unopen',
@@ -234,7 +265,7 @@ function StockRow({ item }: { item: StockItem }) {
     <li className="flex flex-wrap items-center gap-x-2 gap-y-1 py-2 text-sm">
       {/* min-w keeps the name readable in a narrow column: the controls wrap to the next line instead of squeezing it. */}
       <div className="flex min-w-32 flex-1 flex-wrap items-center gap-x-2">
-        <div className="font-display order-1 text-base wrap-break-word">{item.name}</div>
+        <div className="font-medium order-1 text-base wrap-break-word">{item.name}</div>
         {item.opened && item.openedOn && (
           <div className="order-3 basis-full text-xs text-accent">{t('stock.openedBadge', { date: formatDate(item.openedOn) })}</div>
         )}
@@ -266,7 +297,7 @@ function StockRow({ item }: { item: StockItem }) {
             aria-label={t('stock.quantityOf', { name: item.name })}
             onBlur={(e) => saveQuantity(e.target.value)}
             onKeyDown={(e) => e.key === 'Enter' && e.currentTarget.blur()}
-            className="h-9 w-16 border-transparent bg-transparent px-1 text-right text-base tabular-nums focus:bg-surface"
+            className="h-9 w-16 rounded-b-none border-transparent border-b-control bg-transparent px-1 text-right text-base tabular-nums hover:border-b-muted focus:rounded-lg focus:bg-surface"
           />
           <span className="w-8 text-muted">{item.unit === 'piece' ? '' : item.unit}</span>
         </>
@@ -279,7 +310,7 @@ function StockRow({ item }: { item: StockItem }) {
         >
           ⋯
         </summary>
-        <div className="absolute right-0 z-20 mt-1 w-48 rounded-xl border border-line bg-surface p-1 shadow-lg">
+        <div className="absolute right-0 z-20 mt-1 w-48 rounded-xl border border-line bg-surface p-1">
           {actions.map((a) => (
             <button
               key={a.key}
@@ -296,7 +327,97 @@ function StockRow({ item }: { item: StockItem }) {
           ))}
         </div>
       </details>
+      {editing && <EditStock item={item} onClose={() => setEditing(false)} />}
     </li>
+  );
+}
+
+/** Where an item is kept, when it goes off and how many packs there are: what the list row does not let you change. */
+function EditStock({ item, onClose }: { item: StockItem; onClose: () => void }) {
+  const t = useT();
+  const { run, pending } = useAction();
+  const [location, setLocation] = useState<string>(item.location);
+  const [expiresOn, setExpiresOn] = useState(item.expiresOn ?? '');
+  const [packs, setPacks] = useState(item.packCount === null ? '' : String(item.packCount));
+  const product = useProducts().data?.find((p) => p.id === item.productId);
+  const [shelfLife, setShelfLife] = useState<string | null>(null);
+  const [minStock, setMinStock] = useState<string | null>(null);
+
+  const submit = async (e: FormEvent) => {
+    e.preventDefault();
+    const count = parseQty(packs);
+    await run(() =>
+      api.patch(`/stock/${item.id}`, {
+        location,
+        expiresOn: expiresOn || null,
+        ...(item.packCount !== null && count !== undefined && !Number.isNaN(count) ? { packCount: count } : {}),
+      }),
+    );
+    // What the product keeps for good (shelf life once opened, low-stock alert) applies to every line of it.
+    const change: Record<string, unknown> = {};
+    const days = shelfLife === null ? undefined : parseQty(shelfLife);
+    if (shelfLife !== null && (days === undefined || (!Number.isNaN(days) && days !== product?.openedShelfLifeDays)))
+      change.openedShelfLifeDays = days ?? null;
+    const min = minStock === null ? undefined : parseQty(minStock);
+    if (minStock !== null && (min === undefined || (!Number.isNaN(min) && min !== product?.minStock))) change.minStock = min ?? null;
+    if (Object.keys(change).length > 0) await run(() => api.patch(`/products/${item.productId}`, change));
+    onClose();
+  };
+
+  return (
+    <Sheet title={t('stock.editTitle', { name: item.name })} onClose={onClose}>
+      <form onSubmit={submit} className="space-y-3">
+        <Field label={t('location.label')}>
+          <LocationSelect value={location} onChange={(e) => setLocation(e.target.value)} className="w-full" />
+        </Field>
+        <Field label={t('stock.expiry')}>
+          <Input
+            type="date"
+            aria-label={t('stock.expiry')}
+            value={expiresOn}
+            onChange={(e) => setExpiresOn(e.target.value)}
+            className="w-full"
+          />
+        </Field>
+        {item.packCount !== null && (
+          <Field label={t('stock.packs')}>
+            <Input
+              inputMode="numeric"
+              aria-label={t('stock.packs')}
+              value={packs}
+              onChange={(e) => setPacks(e.target.value)}
+              className="w-full"
+            />
+          </Field>
+        )}
+        {product && (
+          <fieldset className="space-y-3 rounded-xl border border-line p-3">
+            <legend className="px-1 text-xs font-medium text-muted">{t('stock.editProduct', { name: item.name })}</legend>
+            <Field label={t('stock.shelfLifeLabel')}>
+              <Input
+                inputMode="numeric"
+                aria-label={t('stock.shelfLifeAria', { name: item.name })}
+                value={shelfLife ?? product.openedShelfLifeDays ?? ''}
+                onChange={(e) => setShelfLife(e.target.value)}
+                className="w-full"
+              />
+            </Field>
+            <Field label={`${t('stock.minLabel')} (${item.unit === 'piece' ? '#' : item.unit})`}>
+              <Input
+                inputMode="decimal"
+                aria-label={t('stock.minFor', { name: item.name })}
+                value={minStock ?? product.minStock ?? ''}
+                onChange={(e) => setMinStock(e.target.value)}
+                className="w-full"
+              />
+            </Field>
+          </fieldset>
+        )}
+        <Button type="submit" variant="primary" disabled={pending} className="h-12 w-full text-base sm:h-12">
+          {t('common.save')}
+        </Button>
+      </form>
+    </Sheet>
   );
 }
 

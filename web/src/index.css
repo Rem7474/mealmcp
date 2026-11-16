@@ -1,11 +1,10 @@
 @import 'tailwindcss';
-@import '@fontsource-variable/fraunces';
-@import '@fontsource-variable/bricolage-grotesque';
+@import '@fontsource-variable/plus-jakarta-sans';
 
 /*
- * Market-kitchen theme: a charcoal ground, cream ink and a sage accent (user-selectable), with a serif for
- * titles and recipe names and a warm grotesque for everything else. Everything in the app takes its
- * colours from the semantic variables below, so restyling means editing this block.
+ * Flat theme: a charcoal ground, cream ink and one accent (sage by default, user-selectable), set in a single
+ * geometric sans. No gradients, glows, grain or shadows: depth comes from surface tones and 1px outlines.
+ * Everything in the app takes its colours from the semantic variables below, so restyling means editing this block.
  */
 :root {
   --bg: #131212;
@@ -30,7 +29,6 @@
   --accent-700: color-mix(in srgb, var(--accent) 55%, black);
   --accent-800: color-mix(in srgb, var(--accent) 35%, black);
   --accent-900: color-mix(in srgb, var(--accent) 18%, var(--bg));
-  --glow: color-mix(in srgb, var(--accent) 40%, transparent);
 }
 @theme inline {
   --color-bg: var(--bg);
@@ -47,8 +45,7 @@
   --color-warn: var(--warn);
   --color-danger: var(--danger);
   --color-herb: var(--herb);
-  --font-sans: 'Bricolage Grotesque Variable', system-ui, -apple-system, 'Segoe UI', sans-serif;
-  --font-display: 'Fraunces Variable', Georgia, 'Times New Roman', serif;
+  --font-sans: 'Plus Jakarta Sans Variable', system-ui, -apple-system, 'Segoe UI', sans-serif;
   --radius-lg: 8px;
   --radius-xl: 14px;
 }
@@ -79,22 +76,6 @@ body {
   line-height: 1.55;
   color-scheme: dark;
   min-height: 100dvh;
-  /* A glow of the accent from the top right, a softer one bottom left: the ground is never flat. */
-  background-image:
-    radial-gradient(60rem 28rem at 88% -8%, color-mix(in srgb, var(--accent) 13%, transparent), transparent 65%),
-    radial-gradient(44rem 30rem at -12% 105%, color-mix(in srgb, var(--herb) 9%, transparent), transparent 65%);
-  background-attachment: fixed;
-}
-/* Paper grain over the ground, behind the content. */
-body::before {
-  content: '';
-  position: fixed;
-  inset: 0;
-  z-index: -1;
-  pointer-events: none;
-  opacity: 0.07;
-  mix-blend-mode: screen;
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
 }
 ::selection {
   background: color-mix(in srgb, var(--accent) 35%, transparent);
@@ -106,21 +87,14 @@ body::before {
 h1,
 h2,
 h3 {
-  font-weight: 500;
-  letter-spacing: -0.015em;
-}
-/* Titles are set in the serif; h3 stays a small sans label. */
-h1,
-h2 {
-  font-family: var(--font-display);
-  font-variation-settings: 'opsz' 72, 'SOFT' 50;
-  letter-spacing: -0.01em;
+  font-weight: 650;
+  letter-spacing: -0.02em;
 }
 
-/* A rule that fades out at both ends instead of stopping cleanly. */
+/* A plain 1px rule. */
 .fade-rule {
   height: 1px;
-  background: linear-gradient(to right, transparent, var(--divider) 48px, var(--divider) calc(100% - 48px), transparent);
+  background: var(--line);
 }
 
 /* Page entrance: elements rise and fade in, one after another (--i is the position in the group). */
@@ -233,4 +207,31 @@ input[type='checkbox']:checked {
 }
 input[type='checkbox']:checked::after {
   transform: rotate(-45deg) scale(1);
+}
+
+/* Sheets: slide up from the bottom on phones, fade in on wide screens; the page behind does not scroll. */
+dialog.sheet::backdrop {
+  background: rgb(0 0 0 / 0.6);
+}
+dialog.sheet[open] {
+  animation: sheet-up 0.28s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+@keyframes sheet-up {
+  from {
+    transform: translateY(40px);
+    opacity: 0;
+  }
+}
+@media (min-width: 640px) {
+  dialog.sheet[open] {
+    animation-name: rise;
+  }
+}
+body:has(dialog[open]) {
+  overflow: hidden;
+}
+@media (prefers-reduced-motion: reduce) {
+  dialog.sheet[open] {
+    animation: none;
+  }
 }

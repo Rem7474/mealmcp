@@ -1,6 +1,6 @@
 import { X } from '@phosphor-icons/react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { type FormEvent, useState } from 'react';
+import { type FormEvent, useEffect, useState } from 'react';
 import { api, useAction } from '../api';
 import { formatDate, MEALS, weekdayName } from '../format';
 import { type MessageKey, useI18n, useT } from '../i18n';
@@ -29,6 +29,10 @@ export function Account({ user }: { user: User }) {
   const { t, rich } = useI18n();
   const queryClient = useQueryClient();
   const mcpUrl = `${location.origin}/mcp`;
+  // Links such as #account/connect land on the AI connection card.
+  useEffect(() => {
+    if (location.hash.endsWith('/connect')) document.getElementById('connect')?.scrollIntoView?.({ block: 'start' });
+  }, []);
 
   const logout = async () => {
     await api.post('/auth/logout');
@@ -44,6 +48,13 @@ export function Account({ user }: { user: User }) {
       </Card>
       <div className="grid grid-cols-1 items-start gap-4 lg:grid-cols-2">
         <div className="min-w-0 space-y-4">
+          <Fold id="connect" open title={t('account.connect.title')}>
+            <Card>
+              <p className="text-sm">{t('account.connect.address')}</p>
+              <code className="mt-1 block rounded-lg border border-line px-3 py-2 text-sm break-all">{mcpUrl}</code>
+              <p className="mt-2 text-sm text-muted">{rich('account.connect.help', { header: <code>Authorization: Bearer …</code> })}</p>
+            </Card>
+          </Fold>
           <AccentCard />
           <HouseholdCard user={user} />
           <Fold title={t('settings.title')}>
@@ -54,13 +65,6 @@ export function Account({ user }: { user: User }) {
           </Fold>
         </div>
         <div className="min-w-0 space-y-4">
-          <Fold title={t('account.connect.title')}>
-            <Card>
-              <p className="text-sm">{t('account.connect.address')}</p>
-              <code className="mt-1 block rounded-lg border border-line px-3 py-2 text-sm break-all">{mcpUrl}</code>
-              <p className="mt-2 text-sm text-muted">{rich('account.connect.help', { header: <code>Authorization: Bearer …</code> })}</p>
-            </Card>
-          </Fold>
           <Fold title={t('tokens.title')}>
             <TokensCard />
           </Fold>
@@ -310,7 +314,7 @@ function SettingsCard() {
       {draft && (
         <div
           role="status"
-          className="sticky bottom-20 z-10 mt-4 flex flex-wrap items-center justify-between gap-2 rounded-xl border border-accent bg-surface p-3 text-sm shadow-lg sm:bottom-4"
+          className="sticky bottom-20 z-10 mt-4 flex flex-wrap items-center justify-between gap-2 rounded-xl border border-accent bg-surface p-3 text-sm sm:bottom-4"
         >
           <span className="font-medium">{t('settings.unsaved')}</span>
           <span className="flex gap-2">

@@ -46,10 +46,6 @@ export function AuthPage({ registrationOpen }: { registrationOpen: boolean }) {
     <main className="grid min-h-dvh lg:grid-cols-[1.1fr_1fr]">
       {/* Brand side: the garden, big. On phones it is a short banner above the form. */}
       <section className="relative flex flex-col justify-between overflow-hidden px-6 pt-8 pb-6 lg:px-14 lg:py-12">
-        <div
-          aria-hidden="true"
-          className="pointer-events-none absolute -top-24 -right-24 size-[26rem] rounded-full bg-accent/20 blur-3xl lg:size-[40rem]"
-        />
         <div className="relative flex items-center justify-between">
           <span className="inline-flex items-center gap-2 text-sm font-medium text-muted">
             <CookingPot size={20} weight="duotone" className="text-accent" />
@@ -62,13 +58,13 @@ export function AuthPage({ registrationOpen }: { registrationOpen: boolean }) {
         <div className="stagger relative mt-8 lg:mt-0">
           <Harvest />
           <h1 className="text-6xl leading-[0.95] text-ink lg:text-8xl">
-            Meal<span className="text-accent italic">MCP</span>
+            Meal<span className="text-accent">MCP</span>
           </h1>
           <p className="mt-4 max-w-md text-lg text-muted text-pretty lg:mt-6 lg:text-xl">{t('auth.tagline')}</p>
         </div>
         <div className="max-lg:hidden" />
       </section>
-      <section className="flex flex-col justify-center px-6 pb-12 lg:bg-surface/60 lg:px-16 lg:py-12 lg:shadow-[inset_1px_0_0_var(--line)]">
+      <section className="flex flex-col justify-center px-6 pb-12 lg:bg-surface lg:px-16 lg:py-12 lg:shadow-[inset_1px_0_0_var(--line)]">
         <div className="mb-6 flex justify-end max-lg:hidden">
           <LanguageSwitch />
         </div>

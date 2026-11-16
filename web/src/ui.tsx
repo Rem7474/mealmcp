@@ -1,8 +1,9 @@
-import { Star } from '@phosphor-icons/react';
-import type { ButtonHTMLAttributes, InputHTMLAttributes, ReactNode, SelectHTMLAttributes } from 'react';
+import { Plus, Star, X } from '@phosphor-icons/react';
+import { type ButtonHTMLAttributes, type InputHTMLAttributes, type ReactNode, type SelectHTMLAttributes, useEffect, useRef } from 'react';
+import { useT } from './i18n';
 
 const field =
-  'h-9 min-w-0 rounded-lg border border-control bg-surface px-3 text-sm text-ink placeholder:text-muted hover:border-muted focus:border-accent focus-visible:outline-2 disabled:opacity-45';
+  'h-11 min-w-0 rounded-lg border border-control bg-surface px-3 text-base text-ink sm:h-9 sm:text-sm placeholder:text-muted hover:border-muted focus:border-accent focus-visible:outline-2 disabled:opacity-45';
 
 export function Input({ className = '', ...props }: InputHTMLAttributes<HTMLInputElement>) {
   return <input className={`${field} ${className}`} {...props} />;
@@ -69,10 +70,10 @@ export function Accordion({ summary, children }: { summary: ReactNode; children:
  * A card that folds away. Open by default on wide screens, closed on phones, where a long settings page
  * would otherwise be one endless scroll. The inner card keeps its logic; only its title is replaced by the summary.
  */
-export function Fold({ title, children }: { title: ReactNode; children: ReactNode }) {
+export function Fold({ title, children, open, id }: { title: ReactNode; children: ReactNode; open?: boolean; id?: string }) {
   const wide = typeof window !== 'undefined' && window.matchMedia('(min-width: 1024px)').matches;
   return (
-    <details open={wide} className="group rounded-xl bg-surface p-4 shadow-[0_0_0_1px_var(--line)]">
+    <details id={id} open={open ?? wide} className="scroll-mt-20 group rounded-xl bg-surface p-4 shadow-[0_0_0_1px_var(--line)]">
       <summary className="flex min-h-11 cursor-pointer items-center font-medium sm:min-h-0 sm:block">{title}</summary>
       <div className="mt-3 [&>section]:bg-transparent [&>section]:p-0 [&>section]:shadow-none [&>section>header:not(:has(button))]:hidden [&>section>header>h2]:hidden">
         {children}
@@ -94,12 +95,12 @@ export function Disclose({ summary, children, className = '' }: { summary: React
 
 export function Badge({ tone = 'muted', children }: { tone?: 'muted' | 'warn' | 'danger' | 'accent'; children: ReactNode }) {
   const tones = {
-    muted: 'bg-ink/5 text-muted',
+    muted: 'border border-line text-muted',
     warn: 'bg-warn/12 text-warn',
     danger: 'bg-danger/12 text-danger',
     accent: 'bg-accent/15 text-accent-soft',
   };
-  return <span className={`rounded-md px-2 py-0.5 text-xs ${tones[tone]}`}>{children}</span>;
+  return <span className={`rounded-md px-1.5 py-0.5 text-xs ${tones[tone]}`}>{children}</span>;
 }
 
 export function Empty({ children }: { children: ReactNode }) {
@@ -144,5 +145,65 @@ export function Stars({
         );
       })}
     </span>
+  );
+}
+
+/**
+ * A form in its own layer instead of a fold in the page: a sheet that slides up from the bottom on a phone and a
+ * centred dialog on a wide screen. It is a native <dialog>, so focus is trapped, Escape closes it and the page
+ * behind stays still. Mount it only while it is open.
+ */
+export function Sheet({ title, onClose, children }: { title: ReactNode; onClose: () => void; children: ReactNode }) {
+  const t = useT();
+  const ref = useRef<HTMLDialogElement>(null);
+  useEffect(() => {
+    const d = ref.current;
+    if (!d || d.open) return;
+    if (typeof d.showModal === 'function') d.showModal();
+    else d.setAttribute('open', '');
+  }, []);
+  return (
+    <dialog
+      ref={ref}
+      aria-label={typeof title === 'string' ? title : undefined}
+      onClose={onClose}
+      onClick={(e) => e.target === e.currentTarget && onClose()}
+      onKeyDown={(e) => e.key === 'Escape' && onClose()}
+      className="sheet m-0 mt-auto max-h-[92dvh] w-full max-w-none flex-col overflow-hidden rounded-t-3xl border border-line bg-surface p-0 text-ink open:flex sm:m-auto sm:max-w-lg sm:rounded-2xl"
+    >
+      <div className="mx-auto mt-2 h-1 w-10 rounded-full bg-control sm:hidden" aria-hidden="true" />
+      <header className="flex items-center justify-between gap-3 px-5 pt-3 pb-2">
+        <h2 className="text-2xl">{title}</h2>
+        <Button variant="ghost" className="-mr-2 w-11 px-0 sm:w-9" aria-label={t('app.close')} onClick={onClose}>
+          <X size={18} />
+        </Button>
+      </header>
+      <div className="overflow-y-auto px-5 pb-[max(1.25rem,env(safe-area-inset-bottom))]">{children}</div>
+    </dialog>
+  );
+}
+
+/** A labelled form control: the label stays visible above the field, as in a native form. */
+export function Field({ label, children, className = '' }: { label: ReactNode; children: ReactNode; className?: string }) {
+  return (
+    <label className={`block min-w-0 ${className}`}>
+      <span className="mb-1 block text-xs font-medium text-muted">{label}</span>
+      {children}
+    </label>
+  );
+}
+
+/** The one main action of a screen on a phone: a round button within thumb reach, above the tab bar. */
+export function Fab({ label, onClick }: { label: string; onClick: () => void }) {
+  return (
+    <button
+      type="button"
+      aria-label={label}
+      title={label}
+      onClick={onClick}
+      className="fixed right-4 bottom-[calc(4.75rem+env(safe-area-inset-bottom))] z-10 grid size-14 cursor-pointer place-items-center rounded-full bg-accent text-accent-ink active:scale-95 sm:hidden"
+    >
+      <Plus size={24} />
+    </button>
   );
 }
