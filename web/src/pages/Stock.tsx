@@ -1,12 +1,13 @@
-import { Package, Plus, Snowflake, Thermometer } from '@phosphor-icons/react';
+import { Barcode, Minus, Package, Plus, Snowflake, Thermometer } from '@phosphor-icons/react';
 import { useQuery } from '@tanstack/react-query';
 import { type FormEvent, useState } from 'react';
 import { api, useAction } from '../api';
 import { daysUntil, formatDate, formatMoney, formatQty, LOCATIONS } from '../format';
-import { useT } from '../i18n';
-import type { Product, StockAlerts, StockItem, WasteSummary } from '../types';
+import { locale, useT } from '../i18n';
+import type { CatalogLookup, Product, StockAlerts, StockItem, WasteSummary } from '../types';
 import { Accordion, Badge, Button, Card, Empty, Fab, Field, Input, Select, Sheet } from '../ui';
 import { ProductNutritionCard } from './Nutrition';
+import { CameraScan, canScan, cleanCode, isCode } from './Scan';
 import { LocationSelect, PriceHistoryView, ProductDatalist, parseQty, UnitPrice, useCurrency, useProducts } from './shared';
 
 const LOCATION_ICON = {
@@ -109,6 +110,61 @@ function AddForm() {
   });
   const set = (patch: Partial<typeof form>) => setForm((f) => ({ ...f, ...patch }));
   const [open, setOpen] = useState(false);
+  const { data: products = [] } = useProducts();
+  // The barcode: scanned or typed, looked up once, and what came back (names to choose from, brand, a note).
+  const [code, setCode] = useState('');
+  const [camera, setCamera] = useState(false);
+  const [looking, setLooking] = useState(false);
+  const [scan, setScan] = useState<{
+    code: string;
+    note: 'known' | 'found' | 'unknown' | 'offline';
+    name?: string;
+    brand?: string;
+    names: string[];
+  } | null>(null);
+
+  /** Fills the form from a code: a code seen before gives its product and size, else the catalogue's entry. */
+  const lookup = async (raw: string) => {
+    const next = cleanCode(raw);
+    setCode(next);
+    if (!isCode(next) || scan?.code === next) return;
+    setLooking(true);
+    try {
+      const found = await api.get<CatalogLookup>(`/catalog/products/${next}?lang=${locale().slice(0, 2)}`);
+      const size = found.known ? { size: found.known.packSize, unit: found.known.unit } : found.hit?.packSize;
+      const names = [
+        ...new Set([...found.suggestions.map((p) => p.name), found.hit?.name, found.hit?.genericName].filter((n): n is string => !!n)),
+      ];
+      const name = found.known?.productName ?? names[0];
+      setForm((f) => ({
+        ...f,
+        ...(name ? { name } : {}),
+        quantity: '1',
+        ...(size?.size && size.unit ? { packSize: String(size.size), unit: size.unit } : {}),
+      }));
+      setScan({
+        code: next,
+        note: found.known ? 'known' : found.hit ? 'found' : 'unknown',
+        name: found.known?.productName ?? found.hit?.name,
+        brand: found.hit?.brand ?? undefined,
+        names: found.known ? [] : names,
+      });
+    } catch {
+      // The catalogue is out of reach: the form stays as typed, and the code is still sent with the stock line.
+      setScan({ code: next, note: 'offline', names: [] });
+    } finally {
+      setLooking(false);
+    }
+  };
+
+  const sizeNow = parseQty(form.packSize);
+  const hasPacks = !form.approximate && sizeNow !== undefined && !Number.isNaN(sizeNow);
+  const packs = parseQty(form.quantity) ?? 1;
+  const step = (by: number) => set({ quantity: String(Math.max(1, Math.round(packs) + by)) });
+  // The sizes already known for this product, one per barcode, as shortcuts.
+  const formats = (products.find((p) => p.name.toLowerCase() === form.name.trim().toLowerCase())?.barcodes ?? []).filter(
+    (b) => b.packSize && b.unit,
+  );
 
   const submit = async (e: FormEvent) => {
     e.preventDefault();
@@ -120,6 +176,7 @@ function AddForm() {
         // With a pack size, the quantity field is the number of packs: "3 x 200 ml".
         quantity: form.approximate || inPacks ? undefined : parseQty(form.quantity),
         ...(inPacks ? { packSize: size, packCount: form.opened ? 1 : parseQty(form.quantity) } : {}),
+        ...(isCode(code) ? { barcode: code } : {}),
         opened: form.opened || undefined,
         approximate: form.approximate,
         unit: form.unit || undefined,
@@ -130,6 +187,9 @@ function AddForm() {
       }),
     );
     set({ name: '', quantity: '1', expiresOn: '', dateKind: '', note: '', packSize: '', opened: false });
+    setCode('');
+    setScan(null);
+    setCamera(false);
     setOpen(false);
   };
 
@@ -145,6 +205,61 @@ function AddForm() {
       {open && (
         <Sheet title={t('stock.add.title')} onClose={() => setOpen(false)}>
           <form onSubmit={submit} className="space-y-3">
+            <div className="min-w-0">
+              <span className="mb-1 block text-xs font-medium text-muted">{t('stock.barcode')}</span>
+              <div className="flex gap-2">
+                <Input
+                  inputMode="numeric"
+                  autoComplete="off"
+                  aria-label={t('stock.barcode')}
+                  value={code}
+                  onChange={(e) => setCode(cleanCode(e.target.value))}
+                  onBlur={(e) => void lookup(e.currentTarget.value)}
+                  onKeyDown={(e) => {
+                    if (e.key !== 'Enter' || !isCode(code)) return;
+                    e.preventDefault();
+                    void lookup(code);
+                  }}
+                  className="w-full"
+                />
+                {canScan() && (
+                  <Button aria-label={t('stock.scan.start')} title={t('stock.scan.start')} onClick={() => setCamera((c) => !c)}>
+                    <Barcode size={18} />
+                  </Button>
+                )}
+              </div>
+            </div>
+            {camera && (
+              <CameraScan
+                onCode={(c) => {
+                  setCamera(false);
+                  void lookup(c);
+                }}
+                onClose={() => setCamera(false)}
+              />
+            )}
+            {looking && <p className="text-sm text-muted">{t('stock.scan.looking')}</p>}
+            {scan && !looking && (
+              <div role="status" className="space-y-1.5 text-sm text-muted">
+                <p>
+                  {scan.note === 'known' && t('stock.scan.known', { name: scan.name ?? '' })}
+                  {scan.note === 'found' && t('stock.scan.found', { name: scan.name ?? '' })}
+                  {scan.note === 'unknown' && t('stock.scan.unknown')}
+                  {scan.note === 'offline' && t('stock.scan.offline')}
+                  {scan.brand ? ` ${t('stock.scan.brand', { brand: scan.brand })}` : ''}
+                </p>
+                {scan.names.length > 1 && (
+                  <div className="flex flex-wrap items-center gap-1.5">
+                    <span>{t('stock.scan.nameAs')}</span>
+                    {scan.names.map((n) => (
+                      <Button key={n} compact variant={form.name === n ? 'active' : 'secondary'} onClick={() => set({ name: n })}>
+                        {n}
+                      </Button>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
             <Field label={t('common.product')}>
               <Input
                 required
@@ -158,17 +273,30 @@ function AddForm() {
               />
             </Field>
             <div className="grid grid-cols-2 gap-3">
-              <Field label={t('common.quantity')}>
-                <Input
-                  required={!form.approximate}
-                  disabled={form.approximate}
-                  inputMode="decimal"
-                  aria-label={t('common.quantity')}
-                  value={form.approximate ? '' : form.quantity}
-                  onChange={(e) => set({ quantity: e.target.value })}
-                  className="w-full"
-                />
-              </Field>
+              <div className="min-w-0">
+                <span className="mb-1 block text-xs font-medium text-muted">{t('common.quantity')}</span>
+                <div className="flex gap-1.5">
+                  {hasPacks && (
+                    <Button aria-label={t('stock.packs.less')} onClick={() => step(-1)} disabled={packs <= 1}>
+                      <Minus size={14} />
+                    </Button>
+                  )}
+                  <Input
+                    required={!form.approximate}
+                    disabled={form.approximate}
+                    inputMode="decimal"
+                    aria-label={t('common.quantity')}
+                    value={form.approximate ? '' : form.quantity}
+                    onChange={(e) => set({ quantity: e.target.value })}
+                    className="w-full min-w-0"
+                  />
+                  {hasPacks && (
+                    <Button aria-label={t('stock.packs.more')} onClick={() => step(1)}>
+                      <Plus size={14} />
+                    </Button>
+                  )}
+                </div>
+              </div>
               <Field label={t('common.unit')}>
                 <Input
                   list="unit-names"
@@ -212,6 +340,25 @@ function AddForm() {
                 className="w-full"
               />
             </Field>
+            {formats.length > 0 && (
+              <div className="flex flex-wrap items-center gap-1.5 text-sm text-muted">
+                <span>{t('stock.formats')}</span>
+                {formats.map((b) => (
+                  <Button
+                    key={b.code}
+                    compact
+                    variant={String(b.packSize) === form.packSize && b.unit === form.unit ? 'active' : 'secondary'}
+                    onClick={() => {
+                      setCode(b.code);
+                      setScan(null);
+                      set({ packSize: String(b.packSize), unit: b.unit ?? '' });
+                    }}
+                  >
+                    {formatQty(b.packSize, b.unit ?? '')}
+                  </Button>
+                ))}
+              </div>
+            )}
             <label className="flex min-h-11 cursor-pointer items-center justify-between gap-3 rounded-lg border border-line px-3 text-sm">
               {t('stock.approximate')}
               <input

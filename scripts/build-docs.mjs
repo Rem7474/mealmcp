@@ -112,7 +112,7 @@ const t = {
       [
         '🧊',
         'Know what is in the fridge',
-        'Fridge, freezer and pantry. See what expires first, tell use-by from best-before, freeze and thaw (even part of a pack) with the right clock, get an alert on opened jars, and cook what you already own before buying more. Keep a note, brand and barcode per line, packs as “3 × 200 ml”, drained weights for beans and tuna, and the price you paid.',
+        'Fridge, freezer and pantry. See what expires first, tell use-by from best-before, freeze and thaw (even part of a pack) with the right clock, get an alert on opened jars, and cook what you already own before buying more. Scan or type a barcode to fill the form, keep a note, brand and barcode per line, packs as “3 × 200 ml”, drained weights for beans and tuna, and the price you paid.',
       ],
       [
         '📖',
@@ -262,7 +262,7 @@ const t = {
       [
         '🧊',
         'Savoir ce qu’il y a dans le frigo',
-        'Frigo, congélateur et placard. Voyez ce qui expire en premier, distinguez DLC et DDM, congelez et décongelez (même une partie d’un paquet) avec la bonne horloge, soyez alerté pour les pots ouverts et cuisinez ce que vous avez avant d’en racheter. Une note, une marque et un code-barres par ligne, des paquets comme « 3 × 200 ml », des poids égouttés pour les haricots et le thon, et le prix payé.',
+        'Frigo, congélateur et placard. Voyez ce qui expire en premier, distinguez DLC et DDM, congelez et décongelez (même une partie d’un paquet) avec la bonne horloge, soyez alerté pour les pots ouverts et cuisinez ce que vous avez avant d’en racheter. Scannez ou saisissez un code-barres pour remplir le formulaire, une note, une marque et un code-barres par ligne, des paquets comme « 3 × 200 ml », des poids égouttés pour les haricots et le thon, et le prix payé.',
       ],
       [
         '📖',
