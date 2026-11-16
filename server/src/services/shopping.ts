@@ -246,6 +246,42 @@ export function createShoppingService(
     },
 
     /**
+     * Something bought outside the list's own flow (typed in after shopping): takes it off the list. The same unit
+     * lowers the quantity waiting, anything else (a list in g, a purchase in pieces) counts the article as bought.
+     * Returns how many list lines were touched.
+     */
+    consume(productId: number, quantity: number, unit: string) {
+      let left = quantity;
+      let touched = 0;
+      const lines = db
+        .select()
+        .from(shoppingItems)
+        .where(and(mine, eq(shoppingItems.productId, productId)))
+        .orderBy(shoppingItems.id)
+        .all();
+      for (const line of lines) {
+        if (line.quantity !== null && line.unit === unit) {
+          if (left <= 0) break;
+          if (line.quantity > left) {
+            db.update(shoppingItems)
+              .set({ quantity: round(line.quantity - left) })
+              .where(and(mine, eq(shoppingItems.id, line.id)))
+              .run();
+            left = 0;
+            touched++;
+            continue;
+          }
+          left = round(left - line.quantity);
+        }
+        db.delete(shoppingItems)
+          .where(and(mine, eq(shoppingItems.id, line.id)))
+          .run();
+        touched++;
+      }
+      return touched;
+    },
+
+    /**
      * Moves every checked item into stock and clears it from the list. When prices were entered
      * (or a total is given) the purchase is also recorded as an expense, which teaches product prices.
      */

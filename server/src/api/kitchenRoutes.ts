@@ -142,6 +142,8 @@ export function createKitchenRoutes(db: Db) {
   r.get('/shopping', (req, res) => void res.json(kitchen(req).shopping.list()));
   r.post('/shopping/bulk', (req, res) => void res.status(201).json(kitchen(req).shopping.addMany(s.shoppingAddMany.parse(req.body).items)));
   r.post('/shopping', (req, res) => void res.status(201).json(kitchen(req).shopping.add(s.shoppingAdd.parse(req.body))));
+  r.post('/shopping/from-text', (req, res) => void res.json(kitchen(req).purchase.parse(s.purchaseText.parse(req.body).text)));
+  r.post('/shopping/from-text/apply', (req, res) => void res.json(kitchen(req).purchase.apply(s.purchaseApply.parse(req.body))));
   r.post('/shopping/generate', (req, res) => void res.json(kitchen(req).shopping.generateFromPlan(s.shoppingGenerate.parse(req.body))));
   r.post('/shopping/complete', (req, res) => {
     const { location, ...opts } = s.shoppingComplete.parse(req.body ?? {});
