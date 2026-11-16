@@ -253,6 +253,7 @@ function StockRow({ item }: { item: StockItem }) {
   const { run } = useAction();
   const days = item.expiresOn ? daysUntil(item.expiresOn) : null;
   const [editing, setEditing] = useState(false);
+  const [freezingPart, setFreezingPart] = useState(false);
 
   const saveQuantity = (value: string) => {
     const quantity = parseQty(value);
@@ -287,6 +288,13 @@ function StockRow({ item }: { item: StockItem }) {
         if (item.thawed && !window.confirm(t('stock.refreezeConfirm'))) return;
         void run(() => api.post(`/stock/${item.id}/freeze`, item.thawed ? { refreeze: true } : {}));
       },
+    });
+  if (!item.approximate && !item.frozen && !item.thawed && item.quantity > 0)
+    actions.push({
+      key: 'freezePart',
+      label: t('stock.freezePart'),
+      aria: t('stock.freezePartAria', { name: item.name }),
+      run: () => setFreezingPart(true),
     });
   if (item.frozen || item.location === 'freezer')
     actions.push({
@@ -405,7 +413,38 @@ function StockRow({ item }: { item: StockItem }) {
         </div>
       </details>
       {editing && <EditStock item={item} onClose={() => setEditing(false)} />}
+      {freezingPart && <FreezePart item={item} onClose={() => setFreezingPart(false)} />}
     </li>
+  );
+}
+
+/** Freezes a part of a line (a part of the pack bought): the line is split, only that part gets the freezing date. */
+export function FreezePart({ item, onClose }: { item: StockItem; onClose: () => void }) {
+  const t = useT();
+  const { run, pending } = useAction();
+  const [amount, setAmount] = useState('');
+  const quantity = parseQty(amount);
+  const valid = quantity !== undefined && !Number.isNaN(quantity) && quantity > 0;
+  const submit = async (e: FormEvent) => {
+    e.preventDefault();
+    if (!valid) return;
+    await run(() => api.post(`/stock/${item.id}/freeze`, { quantity }));
+    onClose();
+  };
+  return (
+    <Sheet title={t('stock.freezePartTitle', { name: item.name })} onClose={onClose}>
+      <form onSubmit={submit} className="space-y-3">
+        <p className="text-sm text-muted">{t('stock.freezePartHelp', { total: formatQty(item.quantity, item.unit) })}</p>
+        <Field label={t('stock.freezePartQuantity', { unit: item.unit })}>
+          <Input autoFocus inputMode="decimal" value={amount} onChange={(e) => setAmount(e.target.value)} className="w-full" />
+        </Field>
+        <div className="flex justify-end gap-2">
+          <Button type="submit" variant="primary" disabled={!valid || pending}>
+            {t('stock.freeze')}
+          </Button>
+        </div>
+      </form>
+    </Sheet>
   );
 }
 

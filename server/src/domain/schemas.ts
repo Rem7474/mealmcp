@@ -193,6 +193,13 @@ export const stockUpdate = z.object({
 
 export const stockFreeze = z.object({
   id,
+  quantity: z
+    .number()
+    .positive()
+    .optional()
+    .describe(
+      'Freeze only this part of the line, in the item unit (300 for 300 g of a 1 kg line). The line is split: the frozen part gets the freezing date, the rest keeps its date. Omit to freeze all of it.',
+    ),
   refreeze: z.boolean().optional().describe('Freeze a line that was already thawed anyway (not recommended: quality and safety suffer)'),
 });
 

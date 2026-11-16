@@ -284,6 +284,13 @@ describe('MCP tools', () => {
     expect((await call(t, 'set_product_price', { name: 'Salmon', price: 20, quantity: 1, unit: 'kg', store: 'Market' })).error).toBe(false);
     const history = await call(t, 'get_price_history', { name: 'Salmon' });
     expect(JSON.parse(history.text)).toMatchObject({ per: 'kg', latestCents: 2000, count: 1 });
+    // Part of a fridge line goes to the freezer, by name: the line is split.
+    await call(t, 'add_stock', { name: 'Mince', quantity: 1000, unit: 'g', location: 'fridge' });
+    const part = await call(t, 'freeze_stock_item', { name: 'Mince', quantity: 300 });
+    expect(JSON.parse(part.text)).toMatchObject({ quantity: 300, frozen: true, location: 'freezer' });
+    expect(JSON.parse((await call(t, 'list_stock', { location: 'fridge' })).text)).toEqual(
+      expect.arrayContaining([expect.objectContaining({ name: 'Mince', quantity: 700 })]),
+    );
     expect((await call(t, 'get_price_history', { name: 'Nothing like this' })).error).toBe(true);
     expect((await call(t, 'discard_stock', { id: 999999, reason: 'spoiled' })).error).toBe(true);
   });
