@@ -102,7 +102,7 @@ export function createNutritionService(
     /** Keeps nutrition values on a product: fetched from a barcode, or typed by hand. Without either, clears them. */
     async setProduct({ id, code, per100 }: z.infer<typeof productNutritionSet>) {
       requireOn();
-      const product = productService.get(id);
+      productService.get(id); // Throws when the product is not in this household.
       let value: ProductNutrition | null = null;
       let hit: NutritionHit | null = null;
       if (code) {
