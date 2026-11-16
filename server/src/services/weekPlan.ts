@@ -131,7 +131,7 @@ export function createWeekPlanService(db: Db, hid: number, recipes: RecipeServic
     start(input: z.infer<typeof weekPlanStart>, userId: number | null) {
       const wanted = new Map<string, { date: string; mealType: (typeof MEAL_TYPES)[number] }>();
       for (const m of input.meals) wanted.set(slotKey(m.date, m.mealType), m);
-      const dates = [...wanted.values()].map((m) => m.date).sort();
+      const dates = [...wanted.values()].map((m) => m.date).sort((a, b) => a.localeCompare(b));
       const taken = new Set(planner.list({ from: dates[0], to: dates.at(-1)! }).map((m) => slotKey(m.date, m.mealType)));
       const open = [...wanted.values()]
         .filter((m) => !taken.has(slotKey(m.date, m.mealType)))
@@ -264,7 +264,7 @@ export function createWeekPlanService(db: Db, hid: number, recipes: RecipeServic
       const accepted = payload.slots.filter((s) => s.status === 'accepted' && s.recipeId);
       const skipped: { key: string; reason: 'recipeGone' | 'slotTaken' }[] = [];
       const planned = db.transaction(() => {
-        const dates = accepted.map((s) => s.date).sort();
+        const dates = accepted.map((s) => s.date).sort((a, b) => a.localeCompare(b));
         const taken = new Set(
           accepted.length ? planner.list({ from: dates[0], to: dates.at(-1)! }).map((m) => slotKey(m.date, m.mealType)) : [],
         );
@@ -280,7 +280,7 @@ export function createWeekPlanService(db: Db, hid: number, recipes: RecipeServic
         save(id, payload, 'applied');
         return meals;
       });
-      const days = planned.map((m) => m.date).sort();
+      const days = planned.map((m) => m.date).sort((a, b) => a.localeCompare(b));
       return { planned, skipped, from: days[0] ?? today(), to: days.at(-1) ?? addDays(today(), 0) };
     },
   };
