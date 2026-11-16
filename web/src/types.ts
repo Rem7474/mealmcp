@@ -65,7 +65,26 @@ export interface PriceHistory {
   count: number;
   alternative: PricePer | null;
   byStore: { store: string; latestCents: number | null; averageCents: number | null; count: number }[];
+  /** Lowest latest price among at least two shops. */
+  cheapestStore: string | null;
+  /** The latest price is well above the average. */
+  high: boolean;
+  /** A price in a unit that cannot be read per kg, litre or piece (can, pack): followed as typed. */
+  freeform: { unit: string; latestCents: number; trend: 'up' | 'down' | 'stable' | null } | null;
   observations: { id: number; date: string; store: string | null; source: 'receipt' | 'manual'; cents: number | null }[];
+}
+
+/** One line per product with a price history (see GET /prices). */
+export interface PriceOverview {
+  productId: number;
+  name: string;
+  per: PricePer['per'] | null;
+  latestCents: number | null;
+  averageCents: number | null;
+  trend: 'up' | 'down' | 'stable' | null;
+  high: boolean;
+  cheapestStore: string | null;
+  count: number;
 }
 
 export interface Product {
@@ -120,6 +139,8 @@ export interface RecipeNutritionInfo {
 export interface StockItem {
   id: number;
   pricePer: ShownPrice;
+  /** What was paid for this line, per kg, litre or piece. */
+  paidPer: ShownPrice;
   productId: number;
   name: string;
   category: string | null;

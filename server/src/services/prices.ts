@@ -2,7 +2,7 @@ import { and, asc, desc, eq } from 'drizzle-orm';
 import type { Db } from '../db/index.js';
 import { type PriceSource, priceObservations, products } from '../db/schema.js';
 import { convertQuantity } from '../domain/convert.js';
-import { shownPrice, summarize } from '../domain/unitPrice.js';
+import { isHigh, shownPrice, summarize } from '../domain/unitPrice.js';
 import type { ProductService } from './products.js';
 
 export interface Observation {
@@ -70,10 +70,23 @@ export function createPriceService(db: Db, hid: number, productService: ProductS
         : [];
       const show = (base: number) => shownPrice({ ...product, unitPrice: base, priceUnit: unit });
       const summary = summarize(comparable.map((r) => r.base));
-      const at = (n: number | undefined) => (n === undefined ? null : (show(n)?.main.cents ?? null));
+      const at = (n: number | undefined) => {
+        const cents = n === undefined ? undefined : show(n)?.main.cents;
+        return cents === undefined ? null : Math.round(cents * 100) / 100;
+      };
 
       const stores = new Map<string, number[]>();
       for (const r of comparable) if (r.store) stores.set(r.store, [...(stores.get(r.store) ?? []), r.base]);
+
+      const byStore = [...stores.entries()]
+        .map(([store, prices]) => ({
+          store,
+          latestCents: at(prices.at(-1)),
+          averageCents: at(summarize(prices)?.average),
+          count: prices.length,
+        }))
+        .sort((a, b) => (a.latestCents ?? Infinity) - (b.latestCents ?? Infinity));
+      const shown = show(product.unitPrice ?? 0);
 
       return {
         productId,
@@ -88,20 +101,44 @@ export function createPriceService(db: Db, hid: number, productService: ProductS
         count: comparable.length,
         /** Another way to read the latest price (eggs per piece and per kg), when the product has the conversion. */
         alternative: show(product.unitPrice ?? 0)?.alt ?? null,
-        byStore: [...stores.entries()]
-          .map(([store, prices]) => ({
-            store,
-            latestCents: at(prices.at(-1)),
-            averageCents: at(summarize(prices)?.average),
-            count: prices.length,
-          }))
-          .sort((a, b) => (a.latestCents ?? Infinity) - (b.latestCents ?? Infinity)),
+        byStore,
+        /** The shop with the lowest latest price, when at least two shops are known. */
+        cheapestStore: byStore.length > 1 ? (byStore[0]?.store ?? null) : null,
+        /** The latest price is well above the average: worth waiting for a better one. */
+        high: shown !== null && isHigh(summary),
+        /** A price in a free-form unit (can, pack): followed as typed, but not comparable per kg or litre. */
+        freeform:
+          shown === null && unit && summary && (product.unitPrice ?? 0) > 0
+            ? { unit, latestCents: Math.round(summary.latest), trend: summary.trend }
+            : null,
         /** Newest first, at most 30. */
         observations: comparable
           .slice(-30)
           .reverse()
           .map((r) => ({ id: r.id, date: r.date, store: r.store, source: r.source, cents: at(r.base) })),
       };
+    },
+
+    /** One line per product that has a price history: trend and whether the latest price is high. For lists and screens. */
+    overview() {
+      const ids = db.selectDistinct({ id: priceObservations.productId }).from(priceObservations).where(mineObs).all();
+      return ids.flatMap(({ id }) => {
+        const h = svc.history(id);
+        if (h.count === 0) return [];
+        return [
+          {
+            productId: id,
+            name: h.name,
+            per: h.per,
+            latestCents: h.latestCents,
+            averageCents: h.averageCents,
+            trend: h.trend,
+            high: h.high,
+            cheapestStore: h.cheapestStore,
+            count: h.count,
+          },
+        ];
+      });
     },
   };
   return svc;

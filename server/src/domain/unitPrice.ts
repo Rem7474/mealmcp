@@ -67,3 +67,11 @@ export function summarize(prices: number[]): PriceSummary | null {
     count: prices.length,
   };
 }
+
+/** A latest price this far above the average (and at least 3 observations) is worth a second look. */
+const HIGH = 0.15;
+
+/** Whether the latest price is well above what the product usually costs. */
+export function isHigh(s: PriceSummary | null): boolean {
+  return s !== null && s.count >= 3 && s.latest > s.average * (1 + HIGH);
+}

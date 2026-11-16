@@ -36,6 +36,7 @@ const opened: StockItem = {
   note: null,
   brand: null,
   pricePer: null,
+  paidPer: null,
 };
 
 function script() {
@@ -191,5 +192,48 @@ describe('Stock page loading', () => {
     expect(screen.queryByText('Nothing here.')).toBeNull();
     release({ status: 200, body: [] });
     expect(await screen.findAllByText('Nothing here.')).toHaveLength(3);
+  });
+});
+
+describe('EditStock price follow-up', () => {
+  const history = (extra: object) => ({
+    status: 200,
+    body: {
+      productId: 3,
+      name: 'Tomato sauce',
+      per: 'kg',
+      latestCents: 300,
+      averageCents: 233,
+      minCents: 200,
+      maxCents: 300,
+      trend: 'up',
+      count: 3,
+      alternative: null,
+      byStore: [],
+      observations: [],
+      cheapestStore: null,
+      high: false,
+      freeform: null,
+      ...extra,
+    },
+  });
+  const open = () => renderApp(<EditStock item={opened} onClose={() => {}} />);
+  const products = { status: 200, body: [{ id: 3, name: 'Tomato sauce', openedShelfLifeDays: null, minStock: null }] };
+
+  it('names the cheapest shop and says when the latest price is high', async () => {
+    mockApi({ 'GET /products': products, 'GET /products/3/prices': history({ high: true, cheapestStore: 'Leclerc' }) });
+    open();
+    expect(await screen.findByText('Cheapest at Leclerc')).toBeInTheDocument();
+    expect(screen.getByText(/Well above its usual price/)).toBeInTheDocument();
+  });
+
+  it('says a free-form unit cannot be compared instead of showing nothing', async () => {
+    mockApi({
+      'GET /products': products,
+      'GET /products/3/prices': history({ per: null, freeform: { unit: 'can', latestCents: 180, trend: 'up' } }),
+    });
+    open();
+    expect(await screen.findByText(/Followed as typed.*per can/)).toBeInTheDocument();
+    expect(screen.queryByText(/No price yet/)).toBeNull();
   });
 });
