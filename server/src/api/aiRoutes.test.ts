@@ -99,6 +99,7 @@ describe('AI routes', () => {
       ['GET', '/api/ai/models'],
       ['PUT', '/api/ai/model'],
       ['POST', '/api/ai/test'],
+      ['POST', '/api/plan/week/ai'],
     ] as const) {
       const res = await anon.call(path, { method, headers: bearer, json: method === 'GET' ? undefined : {} });
       expect(res.status, `${method} ${path}`).toBe(403);
@@ -179,6 +180,44 @@ describe('AI routes', () => {
   });
 });
 
+describe('plan the week with AI', () => {
+  const meals = (n: number) =>
+    Array.from({ length: n }, (_, i) => ({ date: `2031-03-${String(10 + i).padStart(2, '0')}`, mealType: 'dinner' }));
+
+  it('answers at once, keeps working in the background, and a model that gives nothing usable leaves the rules plan', async () => {
+    const b = await signUp();
+    await b.call('/api/recipes', { json: { name: 'Soup', servings: 2, ingredients: [{ name: 'Leeks', quantity: 100, unit: 'g' }] } });
+    const started = await b.call('/api/plan/week/ai', { json: { meals: meals(1), wishes: 'something light' } });
+    expect(started.status).toBe(201);
+    const plan = await started.json();
+    expect(plan).toMatchObject({ source: 'llm' });
+    expect(plan.slots[0].recipe.name).toBe('Soup');
+    let current = plan;
+    for (let i = 0; i < 50 && current.generating; i++) {
+      await new Promise((r) => setTimeout(r, 50));
+      current = await (await b.call(`/api/plan/week/${plan.id}`)).json();
+    }
+    expect(current.generating).toBe(false);
+    expect(current.slots[0].recipe.name).toBe('Soup');
+    // Another household sees nothing of it.
+    expect((await (await signUp()).call(`/api/plan/week/${plan.id}`)).status).toBe(404);
+  });
+
+  it('rejects what is too big or malformed', async () => {
+    const b = await signUp();
+    expect((await b.call('/api/plan/week/ai', { json: { meals: meals(15) } })).status).toBe(400);
+    expect((await b.call('/api/plan/week/ai', { json: { meals: meals(1), wishes: 'x'.repeat(501) } })).status).toBe(400);
+    expect((await b.call('/api/plan/week/ai', { json: { meals: [] } })).status).toBe(400);
+  });
+
+  it('cannot be asked too often', async () => {
+    const b = await signUp();
+    const codes: number[] = [];
+    for (let i = 0; i < 25; i++) codes.push((await b.call('/api/plan/week/ai', { json: { meals: [] } })).status);
+    expect(codes).toContain(429);
+  });
+});
+
 describe('without an AI server', () => {
   it('is simply off', async () => {
     const probe = createServer();
@@ -198,6 +237,12 @@ describe('without an AI server', () => {
       const cookie = reg.headers.get('set-cookie')?.split(';')[0] ?? '';
       const status = await (await fetch(`http://localhost:${port}/api/ai/status`, { headers: { cookie } })).json();
       expect(status).toMatchObject({ enabled: false, reachable: false, text: false });
+      const plan = await fetch(`http://localhost:${port}/api/plan/week/ai`, {
+        method: 'POST',
+        headers: { cookie, 'content-type': 'application/json' },
+        body: JSON.stringify({ meals: [{ date: '2031-03-10', mealType: 'dinner' }] }),
+      });
+      expect(plan.status).toBe(400);
       expect(await (await fetch(`http://localhost:${port}/api/ai/models`, { headers: { cookie } })).json()).toEqual([]);
     } finally {
       off.close();

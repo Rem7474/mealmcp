@@ -33,7 +33,7 @@ export function createServices(db: Db, householdId: number) {
   const nutrition = createNutritionService(db, householdId, settings, products, recipes, planner);
   const prices = createPriceService(db, householdId, products);
   const budget = createBudgetService(db, householdId, products, stock, recipes, planner, prices);
-  const weekPlan = createWeekPlanService(db, householdId, recipes, planner, settings);
+  const weekPlan = createWeekPlanService(db, householdId, recipes, planner, settings, products);
   const shopping = createShoppingService(db, householdId, products, stock, recipes, planner, budget, seasons);
   const catalog = createCatalogService(householdId, products, stock);
   const context = createContextService(settings, stock, recipes, planner, seasons, equipment, budget);

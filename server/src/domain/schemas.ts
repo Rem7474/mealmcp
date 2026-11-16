@@ -523,3 +523,8 @@ export const weekSlotParams = z.object({
   key: z.string().regex(/^\d{4}-\d{2}-\d{2}\|(breakfast|lunch|dinner|snack)$/),
 });
 export const weekPlanChoose = z.object({ recipeId: id });
+
+export const aiWeekPlanStart = weekPlanStart.extend({
+  meals: weekPlanStart.shape.meals.max(14).describe('The meals to plan: at most 14, one model call each'),
+  wishes: z.string().trim().max(500).optional().describe('Free text: ideas, cravings, constraints'),
+});

@@ -68,3 +68,64 @@ describe('WeekPlanner', () => {
     expect(await screen.findByText(/No other recipe fits/)).toBeInTheDocument();
   });
 });
+
+describe('WeekPlanner with AI', () => {
+  const draftSlot = (thinking: boolean) => ({
+    ...slot(0, 'proposed', 'Leek gratin'),
+    thinking,
+    recipe: {
+      id: null,
+      name: 'Leek gratin',
+      prepMinutes: 10,
+      cookMinutes: 20,
+      reasons: ['aiDraft'],
+      missing: [],
+      draft: { ingredients: [{ name: 'Leeks', quantity: 300, unit: 'g', toTaste: false, isNew: true }], steps: ['Bake.'] },
+    },
+  });
+
+  it('is only offered when the AI server is usable, and sends the wishes', async () => {
+    const { calls } = mockApi({
+      'GET /plan/week': { status: 200, body: null },
+      'GET /ai/status': {
+        status: 200,
+        body: { enabled: true, reachable: true, text: true, textModel: 'm', visionModel: null, vision: 'no' },
+      },
+      'GET /recipes?search=&tag=': { status: 200, body: [] },
+      'POST /plan/week/ai': { status: 201, body: { ...plan([draftSlot(false)]), source: 'llm', generating: false } },
+    });
+    renderApp(<WeekPlanner start={start} onClose={() => {}} />);
+    await userEvent.type(await screen.findByLabelText(/Ideas or constraints/), 'something light');
+    await userEvent.click(screen.getByRole('button', { name: 'Plan with AI' }));
+    expect(calls.find((c) => c.path === '/plan/week/ai')?.body).toMatchObject({ wishes: 'something light' });
+    // A drafted recipe has no page yet: no link, its new ingredients are flagged.
+    expect(await screen.findByText('Leek gratin')).toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: 'Leek gratin' })).toBeNull();
+    expect(screen.getByText('New ingredients: Leeks')).toBeInTheDocument();
+  });
+
+  it('stays quiet about AI when it is off, and says when the assistant is still thinking', async () => {
+    mockApi({
+      'GET /plan/week': { status: 200, body: null },
+      'GET /ai/status': {
+        status: 200,
+        body: { enabled: false, reachable: false, text: false, textModel: null, visionModel: null, vision: 'unknown' },
+      },
+      'GET /recipes?search=&tag=': { status: 200, body: [] },
+    });
+    const { unmount } = renderApp(<WeekPlanner start={start} onClose={() => {}} />);
+    await screen.findByRole('button', { name: 'Propose a menu' });
+    expect(screen.queryByRole('button', { name: 'Plan with AI' })).toBeNull();
+    unmount();
+    mockApi({
+      'GET /plan/week': { status: 200, body: { ...plan([draftSlot(true)]), source: 'llm', generating: true } },
+      'GET /ai/status': {
+        status: 200,
+        body: { enabled: true, reachable: true, text: true, textModel: 'm', visionModel: null, vision: 'no' },
+      },
+      'GET /recipes?search=&tag=': { status: 200, body: [] },
+    });
+    renderApp(<WeekPlanner start={start} onClose={() => {}} />);
+    expect(await screen.findByText('The assistant is thinking…')).toBeInTheDocument();
+  });
+});

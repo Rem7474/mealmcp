@@ -1,10 +1,10 @@
 import { ArrowsClockwise, Check, CheckCircle, ShoppingCart, WarningCircle } from '@phosphor-icons/react';
 import { useQuery } from '@tanstack/react-query';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { api, useAction } from '../api';
 import { addDays, formatDay } from '../format';
 import { useT } from '../i18n';
-import type { MealType, RecipeSummary, WeekPlan, WeekPlanSlot } from '../types';
+import type { AiStatus, MealType, RecipeSummary, WeekPlan, WeekPlanSlot } from '../types';
 import { Button, Field, Select, Sheet } from '../ui';
 
 const REASONS = {
@@ -13,6 +13,8 @@ const REASONS = {
   favorite: 'week.reason.favorite',
   inSeason: 'week.reason.inSeason',
   quick: 'week.reason.quick',
+  aiDraft: 'week.reason.aiDraft',
+  aiPick: 'week.reason.aiPick',
 } as const;
 const OFFERED: MealType[] = ['lunch', 'dinner'];
 
@@ -26,15 +28,31 @@ export function WeekPlanner({ start, onClose }: { start: string; onClose: () => 
   const days = Array.from({ length: 7 }, (_, i) => addDays(start, i));
   const [chosen, setChosen] = useState<Set<string>>(() => new Set(days.map((d) => `${d}|dinner`)));
   const [maxMinutes, setMaxMinutes] = useState('');
+  const [wishes, setWishes] = useState('');
   const [plan, setPlan] = useState<WeekPlan | null>(null);
-  const [done, setDone] = useState<{ planned: number; skipped: number; listed: boolean } | null>(null);
+  const [done, setDone] = useState<{ planned: number; skipped: number; diet: number; listed: boolean } | null>(null);
   // A plan left under review (closed the sheet, came back) resumes where it was.
   const { data: current } = useQuery({ queryKey: ['plan', 'week-current'], queryFn: () => api.get<WeekPlan | null>('/plan/week') });
   const { data: recipes = [] } = useQuery({
     queryKey: ['recipes', '', ''],
     queryFn: () => api.get<RecipeSummary[]>('/recipes?search=&tag='),
   });
+  // Only offered when the household's AI server answers and has a model.
+  const { data: ai } = useQuery({ queryKey: ['ai', 'status'], queryFn: () => api.get<AiStatus>('/ai/status'), retry: false });
   const shown = done ? null : (plan ?? current ?? null);
+  // While the assistant works through the slots, follow the plan until it is done.
+  const generating = shown?.generating === true;
+  const shownId = shown?.id;
+  useEffect(() => {
+    if (!generating || shownId === undefined) return;
+    const timer = setInterval(() => {
+      api
+        .get<WeekPlan>(`/plan/week/${shownId}`)
+        .then(setPlan)
+        .catch(() => {});
+    }, 2000);
+    return () => clearInterval(timer);
+  }, [generating, shownId]);
 
   const toggle = (key: string) =>
     setChosen((prev) => {
@@ -43,22 +61,27 @@ export function WeekPlanner({ start, onClose }: { start: string; onClose: () => 
       return next;
     });
 
-  const propose = async () => {
+  const propose = async (withAi = false) => {
     const meals = [...chosen].map((k) => {
       const [date, mealType] = k.split('|');
       return { date, mealType };
     });
-    setPlan(
-      (await run(() => api.post<WeekPlan>('/plan/week', { meals, ...(maxMinutes ? { maxMinutes: Number(maxMinutes) } : {}) }))) as WeekPlan,
-    );
+    const body = { meals, ...(maxMinutes ? { maxMinutes: Number(maxMinutes) } : {}) };
+    const url = withAi ? '/plan/week/ai' : '/plan/week';
+    setPlan((await run(() => api.post<WeekPlan>(url, withAi && wishes.trim() ? { ...body, wishes: wishes.trim() } : body))) as WeekPlan);
   };
   const act = async (path: string, body?: unknown) =>
     setPlan((await run(() => api.post<WeekPlan>(`/plan/week/${shown?.id}${path}`, body))) as WeekPlan);
   const slotPath = (s: WeekPlanSlot, verb: string) => `/slots/${encodeURIComponent(s.key)}/${verb}`;
 
   const apply = async () => {
-    const result = (await run(() => api.post(`/plan/week/${shown?.id}/apply`))) as { planned: unknown[]; skipped: unknown[] };
-    setDone({ planned: result.planned.length, skipped: result.skipped.length, listed: false });
+    const result = (await run(() => api.post(`/plan/week/${shown?.id}/apply`))) as { planned: unknown[]; skipped: { reason: string }[] };
+    setDone({
+      planned: result.planned.length,
+      skipped: result.skipped.filter((x) => x.reason !== 'dietConflict').length,
+      diet: result.skipped.filter((x) => x.reason === 'dietConflict').length,
+      listed: false,
+    });
     setPlan(null);
   };
   const generate = async () => {
@@ -77,6 +100,7 @@ export function WeekPlanner({ start, onClose }: { start: string; onClose: () => 
             <CheckCircle size={20} className="text-accent" />
             {t('week.done', { n: done.planned })}
           </p>
+          {done.diet > 0 && <p className="text-muted">{t('week.skippedDiet', { n: done.diet })}</p>}
           {done.skipped > 0 && <p className="text-muted">{t('week.skipped', { n: done.skipped })}</p>}
           <div className="flex flex-wrap items-center gap-2">
             {done.listed ? (
@@ -120,12 +144,30 @@ export function WeekPlanner({ start, onClose }: { start: string; onClose: () => 
               ))}
             </Select>
           </Field>
-          <Button variant="primary" disabled={pending || chosen.size === 0} onClick={propose}>
-            {t('week.propose')}
-          </Button>
+          {ai?.text && (
+            <Field label={t('week.wishes')} hint={t('week.wishesHint')}>
+              <textarea
+                className="min-h-16 w-full rounded-lg border border-line bg-surface px-3 py-2 text-sm"
+                maxLength={500}
+                value={wishes}
+                onChange={(e) => setWishes(e.target.value)}
+              />
+            </Field>
+          )}
+          <div className="flex flex-wrap gap-2">
+            <Button variant="primary" disabled={pending || chosen.size === 0} onClick={() => propose(false)}>
+              {t('week.propose')}
+            </Button>
+            {ai?.text && (
+              <Button disabled={pending || chosen.size === 0 || chosen.size > 14} onClick={() => propose(true)}>
+                {t('week.ai')}
+              </Button>
+            )}
+          </div>
         </div>
       ) : (
         <>
+          {shown.source === 'llm' && <p className="px-5 pt-4 text-xs text-muted">{t('week.aiNote')}</p>}
           <ul className="space-y-3 overflow-y-auto p-5">
             {shown.slots.map((slot) => {
               const why = slot.recipe
@@ -142,9 +184,13 @@ export function WeekPlanner({ start, onClose }: { start: string; onClose: () => 
                   {slot.recipe ? (
                     <>
                       <div className="mt-0.5 flex flex-wrap items-baseline gap-2">
-                        <a href={`#recipes/${slot.recipe.id}`} className="text-base font-medium hover:text-accent hover:underline">
-                          {slot.recipe.name}
-                        </a>
+                        {slot.recipe.id === null ? (
+                          <span className="text-base font-medium">{slot.recipe.name}</span>
+                        ) : (
+                          <a href={`#recipes/${slot.recipe.id}`} className="text-base font-medium hover:text-accent hover:underline">
+                            {slot.recipe.name}
+                          </a>
+                        )}
                         {slot.status === 'accepted' && (
                           <span className="inline-flex items-center gap-1 text-accent">
                             <Check size={14} />
@@ -153,7 +199,29 @@ export function WeekPlanner({ start, onClose }: { start: string; onClose: () => 
                         )}
                       </div>
                       {why.length > 0 && <p className="mt-1 text-muted">{why.join(' · ')}</p>}
+                      {slot.recipe.draft && (
+                        <details className="mt-1 text-muted">
+                          <summary className="cursor-pointer">{slot.recipe.draft.ingredients.map((i) => i.name).join(', ')}</summary>
+                          <ol className="mt-1 list-decimal space-y-0.5 pl-5">
+                            {slot.recipe.draft.steps.map((step) => (
+                              <li key={step}>{step}</li>
+                            ))}
+                          </ol>
+                        </details>
+                      )}
+                      {slot.recipe.draft?.ingredients.some((i) => i.isNew) && (
+                        <p className="mt-1 text-muted">
+                          {t('week.newIngredients', {
+                            names: slot.recipe.draft.ingredients
+                              .filter((i) => i.isNew)
+                              .map((i) => i.name)
+                              .join(', '),
+                          })}
+                        </p>
+                      )}
                     </>
+                  ) : slot.thinking ? (
+                    <p className="mt-1 text-muted">{t('week.thinking')}</p>
                   ) : (
                     <p className="mt-1 flex items-center gap-1.5 text-muted">
                       <WarningCircle size={14} />
@@ -161,6 +229,7 @@ export function WeekPlanner({ start, onClose }: { start: string; onClose: () => 
                     </p>
                   )}
                   <div className="mt-2 flex flex-wrap items-center gap-2">
+                    {slot.thinking && slot.recipe && <span className="text-xs text-muted">{t('week.thinking')}</span>}
                     {slot.recipe && slot.status === 'proposed' && (
                       <Button compact variant="primary" disabled={pending} onClick={() => act(slotPath(slot, 'accept'))}>
                         {t('week.accept')}

@@ -458,14 +458,17 @@ export interface WeekPlanSlot {
   servings: number;
   status: 'proposed' | 'accepted' | 'refused' | 'empty';
   recipe: {
-    id: number;
+    id: number | null;
     name: string;
     prepMinutes: number | null;
     cookMinutes: number | null;
     reasons: string[];
     missing: string[];
+    /** A recipe the AI drafted: it only exists once the plan is applied. */
+    draft?: { ingredients: { name: string; quantity?: number; unit?: string; toTaste: boolean; isNew: boolean }[]; steps: string[] };
   } | null;
   alternatives: number;
+  thinking?: boolean;
 }
 
 export interface WeekPlan {
@@ -474,6 +477,7 @@ export interface WeekPlan {
   source: 'rules' | 'llm';
   expiresAt: number;
   alreadyPlanned: { date: string; mealType: MealType }[];
+  generating?: boolean;
   slots: WeekPlanSlot[];
 }
 
