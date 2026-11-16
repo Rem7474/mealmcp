@@ -9,6 +9,7 @@ import { costCents } from '../domain/pricing.js';
 import type { stockAdd, stockConsume, stockDiscard, stockList, stockOpen, stockUpdate, wasteSummary } from '../domain/schemas.js';
 import { round, toBase } from '../domain/units.js';
 import type { ProductService } from './products.js';
+import { openedExpiry } from './shelfLife.js';
 
 export const stockKey = (productId: number, unit: string) => `${productId}|${unit}`;
 
@@ -46,13 +47,6 @@ export function createStockService(db: Db, hid: number, productService: ProductS
   });
   // Opened packs are used first, then the soonest expiry.
   const useFirst = [sql`${stockItems.openedOn} is null`, ...fifo] as const;
-  /** When an opened pack must be finished: the product's opened shelf life, but never later than the printed date. */
-  const openedExpiry = (shelfLifeDays: number | null | undefined, openedOn: string, printed: string | null) => {
-    if (!shelfLifeDays) return printed;
-    const limit = addDays(openedOn, shelfLifeDays);
-    return printed && printed < limit ? printed : limit;
-  };
-
   /** Lines left at 0 (the quantity is gone) have no reason to exist. Called by the writes that can empty a line. */
   const purgeEmpty = () =>
     void db
