@@ -523,3 +523,25 @@ export const weekSlotParams = z.object({
   key: z.string().regex(/^\d{4}-\d{2}-\d{2}\|(breakfast|lunch|dinner|snack)$/),
 });
 export const weekPlanChoose = z.object({ recipeId: id });
+
+export const purchaseText = z.object({
+  text: z.string().trim().min(1).max(5000).describe('What was bought, one item per line, e.g. "2 kg tomatoes", "6 eggs 2.40€"'),
+});
+
+export const purchaseApply = z.object({
+  lines: z
+    .array(
+      z.object({
+        name: productName,
+        quantity: z.number().positive().max(1_000_000),
+        unit,
+        price: money.optional().describe('What this line cost, not a unit price'),
+      }),
+    )
+    .min(1)
+    .max(100),
+  store: z.string().trim().min(1).max(80).optional(),
+  date: isoDate.optional(),
+  total: money.optional().describe('Amount actually paid, when it differs from the sum of the lines'),
+  location: location.default('pantry'),
+});

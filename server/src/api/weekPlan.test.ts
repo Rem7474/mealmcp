@@ -1,49 +1,11 @@
-import { createServer, type Server } from 'node:http';
-import type { AddressInfo } from 'node:net';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import { createApp } from '../app.js';
-import { loadConfig } from '../config.js';
-import { createDb } from '../db/index.js';
 import { addDays, today } from '../domain/dates.js';
+import { startTestApp } from './testApp.js';
 
-let server: Server;
-let base: string;
-
-beforeAll(async () => {
-  const probe = createServer().listen(0);
-  await new Promise((r) => probe.once('listening', r));
-  const port = (probe.address() as AddressInfo).port;
-  await new Promise((r) => probe.close(r));
-  base = `http://localhost:${port}`;
-  const config = loadConfig({
-    PORT: String(port),
-    DATABASE_PATH: ':memory:',
-    PUBLIC_URL: base,
-    LOG_LEVEL: 'silent',
-    ALLOW_REGISTRATION: 'true',
-  });
-  server = createApp(createDb(':memory:'), config).listen(port);
-  await new Promise((r) => server.once('listening', r));
-});
-afterAll(() => void server.close());
-
-let n = 0;
-async function signUp() {
-  let cookie = '';
-  const call = async (path: string, method = 'GET', json?: unknown) => {
-    const res = await fetch(`${base}${path}`, {
-      method,
-      headers: { ...(json !== undefined ? { 'content-type': 'application/json' } : {}), ...(cookie ? { cookie } : {}) },
-      body: json !== undefined ? JSON.stringify(json) : undefined,
-    });
-    const set = res.headers.get('set-cookie');
-    if (set) cookie = set.split(';')[0];
-    return res;
-  };
-  const res = await call('/api/auth/register', 'POST', { email: `week${++n}@x.test`, name: 'W', password: 'correct horse battery' });
-  expect(res.status).toBe(201);
-  return call;
-}
+let app: Awaited<ReturnType<typeof startTestApp>>;
+beforeAll(async () => (app = await startTestApp()));
+afterAll(() => app.close());
+const signUp = () => app.signUp();
 
 const key = (i: number) => encodeURIComponent(`${addDays(today(), 3 + i)}|dinner`);
 
