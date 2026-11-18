@@ -30,6 +30,7 @@ export function ProductSheet({ product: p, onClose }: { product: Product; onClos
   const [drainedGrams, setDrainedGrams] = useState(p.drainedRatio ? String(Math.round(p.drainedRatio * 1000) / 10) : '');
   const [alias, setAlias] = useState('');
   const [priceForm, setPriceForm] = useState({ price: '', quantity: '1', unit: p.priceUnit ?? p.defaultUnit });
+  const [formError, setFormError] = useState<string | null>(null);
 
   const save = async (e: FormEvent) => {
     e.preventDefault();
@@ -44,7 +45,16 @@ export function ProductSheet({ product: p, onClose }: { product: Product; onClos
     const net = numOrNull(netGrams);
     const drained = numOrNull(drainedGrams);
     const drainedPatch =
-      net === null && drained === null ? null : net && drained && drained <= net ? { netGrams: net, drainedGrams: drained } : undefined;
+      net === null && drained === null
+        ? null
+        : net !== null && drained !== null && net > 0 && drained > 0 && drained <= net
+          ? { netGrams: net, drainedGrams: drained }
+          : undefined;
+    if (drainedPatch === undefined) {
+      setFormError(t('products.drainedInvalid'));
+      return;
+    }
+    setFormError(null);
 
     await run(() =>
       api.patch(`/products/${p.id}`, {
@@ -151,6 +161,12 @@ export function ProductSheet({ product: p, onClose }: { product: Product; onClos
               <Input inputMode="decimal" value={drainedGrams} onChange={(e) => setDrainedGrams(e.target.value)} className="w-full" />
             </Field>
           </div>
+
+          {formError && (
+            <p role="alert" className="text-sm text-danger">
+              {formError}
+            </p>
+          )}
 
           <Button type="submit" variant="primary" disabled={pending} className="w-full">
             {t('common.save')}
