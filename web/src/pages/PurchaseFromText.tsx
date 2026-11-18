@@ -53,7 +53,12 @@ export function PurchaseFromText({ onClose }: { onClose: () => void }) {
   const { run, pending } = useAction();
   const [text, setText] = useState('');
   const [drafts, setDrafts] = useState<Draft[] | null>(null);
-  const [meta, setMeta] = useState<{ location: Location; store: string; total: string }>({ location: 'pantry', store: '', total: '' });
+  const [meta, setMeta] = useState<{ location: Location; store: string; total: string; date: string }>({
+    location: 'pantry',
+    store: '',
+    total: '',
+    date: '',
+  });
   const [done, setDone] = useState<{ added: number; removed: number } | null>(null);
 
   // Offered only when the household's AI server answers and has a model.
@@ -94,6 +99,7 @@ export function PurchaseFromText({ onClose }: { onClose: () => void }) {
         })),
         location: meta.location,
         ...(meta.store.trim() ? { store: meta.store.trim() } : {}),
+        ...(meta.date ? { date: meta.date } : {}),
         ...(num(meta.total) >= 0 ? { total: num(meta.total) } : {}),
       }),
     )) as { addedToStock: number; removedFromList: number };
@@ -194,7 +200,7 @@ export function PurchaseFromText({ onClose }: { onClose: () => void }) {
                 </li>
               ))}
             </ul>
-            <div className="grid gap-2 sm:grid-cols-3">
+            <div className="grid gap-2 sm:grid-cols-4">
               <Field label={t('purchase.where')}>
                 <Select value={meta.location} onChange={(e) => setMeta({ ...meta, location: e.target.value as Location })}>
                   {LOCATIONS.map((l) => (
@@ -206,6 +212,14 @@ export function PurchaseFromText({ onClose }: { onClose: () => void }) {
               </Field>
               <Field label={t('shopping.complete.store')}>
                 <Input value={meta.store} onChange={(e) => setMeta({ ...meta, store: e.target.value })} />
+              </Field>
+              <Field label={t('budget.add.date')}>
+                <Input
+                  type="date"
+                  aria-label={t('budget.add.date')}
+                  value={meta.date}
+                  onChange={(e) => setMeta({ ...meta, date: e.target.value })}
+                />
               </Field>
               <Field label={t('shopping.complete.total')}>
                 <Input inputMode="decimal" value={meta.total} onChange={(e) => setMeta({ ...meta, total: e.target.value })} />

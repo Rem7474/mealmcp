@@ -141,6 +141,7 @@ export function createKitchenRoutes(db: Db) {
   });
   r.post('/plan/bulk', (req, res) => void res.status(201).json(kitchen(req).planner.addMany(s.planAddMany.parse(req.body).meals)));
   r.post('/plan', (req, res) => void res.status(201).json(kitchen(req).planner.add(s.planAdd.parse(req.body))));
+  r.patch('/plan/:id', (req, res) => void res.json(kitchen(req).planner.update(s.planUpdate.parse({ ...req.body, id: id(req.params) }))));
   r.post('/plan/:id/cook', (req, res) => void res.json(kitchen(req).planner.cook(id(req.params))));
   r.delete('/plan/:id', (req, res) => {
     kitchen(req).planner.remove(id(req.params));
@@ -160,10 +161,10 @@ export function createKitchenRoutes(db: Db) {
   r.get('/shopping/estimate', (req, res) => void res.json(kitchen(req).shopping.estimate()));
   r.patch('/shopping/:id', (req, res) => {
     const shopping = kitchen(req).shopping;
-    // A price edit alone must not change whether the item is checked.
+    // A price or quantity edit alone must not change whether the item is checked.
     const current = shopping.get(id(req.params));
-    const { checked, price } = s.shoppingCheck.parse({ checked: current.checked, ...req.body, id: id(req.params) });
-    res.json(shopping.setChecked(id(req.params), checked, price));
+    const { checked, price, quantity } = s.shoppingCheck.parse({ checked: current.checked, ...req.body, id: id(req.params) });
+    res.json(shopping.setChecked(id(req.params), checked, price, quantity));
   });
   r.delete('/shopping/:id', (req, res) => {
     kitchen(req).shopping.remove(id(req.params));

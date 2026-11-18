@@ -157,11 +157,15 @@ export function createShoppingService(
       return this.get(row.id);
     },
 
-    /** Checks or unchecks an item; `price` (major units, null to clear) is what the line cost. */
-    setChecked(id: number, checked: boolean, price?: number | null) {
+    /** Checks or unchecks an item; `price` (major units, null to clear) is what the line cost; `quantity` updates the amount. */
+    setChecked(id: number, checked: boolean, price?: number | null, quantity?: number) {
       this.get(id);
       db.update(shoppingItems)
-        .set({ checked, ...(price !== undefined ? { priceCents: price === null ? null : toCents(price) } : {}) })
+        .set({
+          checked,
+          ...(price !== undefined ? { priceCents: price === null ? null : toCents(price) } : {}),
+          ...(quantity !== undefined ? { quantity } : {}),
+        })
         .where(and(mine, eq(shoppingItems.id, id)))
         .run();
       return this.get(id);
@@ -182,24 +186,34 @@ export function createShoppingService(
      * rounded up to whole pieces. Manually added items are left untouched.
      */
     generateFromPlan({ from, to, includeLowStock }: z.infer<typeof shoppingGenerate>) {
-      const needs = new Map<string, { productId: number; unit: string; quantity: number; meals: Map<number, number> }>();
-      const need = (productId: number, unit: string, quantity: number, mealId?: number) => {
+      const needs = new Map<
+        string,
+        { productId: number; unit: string; mealQuantity: number; lowStockQuantity: number; meals: Map<number, number> }
+      >();
+      const entryOf = (productId: number, unit: string) => {
         const k = stockKey(productId, unit);
-        const entry = needs.get(k) ?? { productId, unit, quantity: 0, meals: new Map<number, number>() };
-        entry.quantity += quantity;
-        if (mealId !== undefined) entry.meals.set(mealId, (entry.meals.get(mealId) ?? 0) + quantity);
-        needs.set(k, entry);
+        let entry = needs.get(k);
+        if (!entry) {
+          entry = { productId, unit, mealQuantity: 0, lowStockQuantity: 0, meals: new Map<number, number>() };
+          needs.set(k, entry);
+        }
+        return entry;
+      };
+      const needMeal = (productId: number, unit: string, quantity: number, mealId: number) => {
+        const entry = entryOf(productId, unit);
+        entry.mealQuantity += quantity;
+        entry.meals.set(mealId, (entry.meals.get(mealId) ?? 0) + quantity);
       };
 
       for (const meal of planner.list({ from, to })) {
         if (!meal.recipeId || meal.cooked) continue;
         const recipe = recipeService.get(meal.recipeId);
         for (const ing of recipe.ingredients)
-          if (!ing.toTaste) need(ing.productId, ing.unit, (ing.quantity * meal.servings) / recipe.servings, meal.id);
+          if (!ing.toTaste) needMeal(ing.productId, ing.unit, (ing.quantity * meal.servings) / recipe.servings, meal.id);
       }
       if (includeLowStock) {
         for (const p of productService.list())
-          if (p.minStock != null) need(p.id, p.defaultUnit, toDrainedFrame(p, p.minStock, p.defaultUnit));
+          if (p.minStock != null) entryOf(p.id, p.defaultUnit).lowStockQuantity += toDrainedFrame(p, p.minStock, p.defaultUnit);
       }
 
       const snap = stock.snapshot();
@@ -220,13 +234,14 @@ export function createShoppingService(
         for (const [k, n] of needs) {
           const product = byId.get(n.productId)!;
           if (product.isStaple || snap.hasApproximate(product.id)) continue;
+          const totalNeed = n.mealQuantity + n.lowStockQuantity;
           const taken = (claimed.get(product.id) ?? []).reduce(
             (sum, c) => sum + (convertQuantity(c.quantity, c.unit, n.unit, product) ?? 0),
             0,
           );
           const free = Math.max(0, snap.available(product, n.unit) - taken);
-          const short = round(n.quantity - free);
-          claimed.set(product.id, [...(claimed.get(product.id) ?? []), { quantity: Math.min(n.quantity, free), unit: n.unit }]);
+          const short = round(totalNeed - free);
+          claimed.set(product.id, [...(claimed.get(product.id) ?? []), { quantity: Math.min(totalNeed, free), unit: n.unit }]);
           // Nobody buys 0.25 of a lemon: round countable items up to whole pieces.
           const missing = n.unit === 'piece' ? Math.ceil(short - 1e-9) : short;
           if (missing > 0) {
@@ -243,11 +258,15 @@ export function createShoppingService(
               })
               .returning()
               .get();
-            // What stock does not cover is shared between the meals in proportion to what each needs.
-            for (const [mealId, q] of n.meals)
-              db.insert(shoppingItemMeals)
-                .values({ shoppingItemId: line.id, mealId, quantity: round((q / n.quantity) * missing) })
-                .run();
+            // Attribute to meals only what stock did not cover for the meals themselves, never diluted by minStock.
+            const mealShort = n.mealQuantity > 0 ? Math.max(0, round(n.mealQuantity - free)) : 0;
+            const mealAttributed = n.unit === 'piece' ? Math.min(missing, Math.ceil(mealShort - 1e-9)) : Math.min(missing, mealShort);
+            if (mealAttributed > 0) {
+              for (const [mealId, q] of n.meals)
+                db.insert(shoppingItemMeals)
+                  .values({ shoppingItemId: line.id, mealId, quantity: round((q / n.mealQuantity) * mealAttributed) })
+                  .run();
+            }
           }
         }
       });

@@ -51,7 +51,8 @@ export function Shopping() {
   const groupBy: GroupBy = settings?.shoppingGroupBy ?? 'none';
   const { run, pending } = useAction();
   const [form, setForm] = useState({ name: '', quantity: '', unit: '' });
-  const [range, setRange] = useState({ from: today(), to: addDays(today(), 6) });
+  const [range, setRange] = useState({ from: today(), to: addDays(today(), 6), includeLowStock: true });
+  const [editingQty, setEditingQty] = useState<number | null>(null);
   const [typing, setTyping] = useState(false);
   const [complete, setComplete] = useState({ location: 'pantry', store: '', total: '' });
 
@@ -120,6 +121,15 @@ export function Shopping() {
               value={range.to}
               onChange={(e) => setRange({ ...range, to: e.target.value })}
             />
+            <label className="ml-2 flex cursor-pointer items-center gap-2 text-sm">
+              <input
+                type="checkbox"
+                className="size-4"
+                checked={range.includeLowStock}
+                onChange={(e) => setRange({ ...range, includeLowStock: e.target.checked })}
+              />
+              {t('shopping.generate.includeLowStock')}
+            </label>
           </div>
           <p className="mt-2 max-w-2xl text-xs text-muted">{t('shopping.generate.help')}</p>
           <div className="mt-3 flex flex-wrap items-center gap-2 text-sm" role="group" aria-label={t('shopping.group')}>
@@ -203,9 +213,37 @@ export function Shopping() {
                               {item.name}
                             </span>
                             <span className="flex items-center gap-2">
-                              <span className="text-sm whitespace-nowrap text-muted tabular-nums">
-                                {formatQty(item.quantity, item.unit)}
-                              </span>
+                              {editingQty === item.id ? (
+                                <Input
+                                  autoFocus
+                                  inputMode="decimal"
+                                  aria-label={t('shopping.editQuantity', { name: item.name })}
+                                  defaultValue={item.quantity === null ? '' : String(item.quantity)}
+                                  onBlur={(e) => {
+                                    setEditingQty(null);
+                                    const q = parseQty(e.currentTarget.value);
+                                    if (q !== undefined && !Number.isNaN(q) && q > 0 && q !== item.quantity) {
+                                      void run(() => api.patch(`/shopping/${item.id}`, { quantity: q }));
+                                    }
+                                  }}
+                                  onKeyDown={(e) => {
+                                    if (e.key === 'Enter') e.currentTarget.blur();
+                                    if (e.key === 'Escape') setEditingQty(null);
+                                  }}
+                                  className="h-7 w-16 px-1.5 text-right text-xs"
+                                />
+                              ) : (
+                                <button
+                                  type="button"
+                                  onClick={(e) => {
+                                    e.preventDefault();
+                                    setEditingQty(item.id);
+                                  }}
+                                  className="text-sm whitespace-nowrap text-muted tabular-nums hover:text-ink hover:underline"
+                                >
+                                  {formatQty(item.quantity, item.unit)}
+                                </button>
+                              )}
                               <UnitPrice price={item.pricePer?.main} className="text-xs whitespace-nowrap text-muted tabular-nums" />
                               {!item.checked && prices.get(item.productId)?.high && (
                                 <span title={t('price.high.hint')}>

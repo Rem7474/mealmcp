@@ -562,4 +562,13 @@ describe('partial freezing', () => {
     const marker = svc.stock.add({ name: 'Ice', approximate: true, location: 'freezer' });
     expect(() => svc.stock.thaw(marker.id)).toThrow(/cannot be thawed/);
   });
+
+  it('restores packSize to null when unopening a line that had no packSize before open()', () => {
+    const line = svc.stock.add({ name: 'Flour', quantity: 500, unit: 'g', location: 'pantry' });
+    expect(line.packSize).toBeNull();
+    const opened = svc.stock.open({ id: line.id });
+    expect(opened).toMatchObject({ opened: true, packSize: 500 });
+    const reopened = svc.stock.unopen(opened.id);
+    expect(reopened).toMatchObject({ opened: false, packSize: null, quantity: 500 });
+  });
 });

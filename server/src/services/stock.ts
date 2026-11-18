@@ -303,9 +303,9 @@ export function createStockService(db: Db, hid: number, productService: ProductS
       const left = remaining ?? size;
 
       if (line.packSize === null) {
-        // Not kept in packs: the line itself is the container.
+        // Not kept in packs: the line itself is the container; remember packSize was inferred so unopen() restores null.
         db.update(stockItems)
-          .set({ openedOn, expiresOn, printedExpiresOn: printed, quantity: left, packSize: line.quantity })
+          .set({ openedOn, expiresOn, printedExpiresOn: printed, quantity: left, packSize: line.quantity, packSizeInferred: true })
           .where(and(mine, eq(stockItems.id, id)))
           .run();
         return svc.get(id);
@@ -360,6 +360,12 @@ export function createStockService(db: Db, hid: number, productService: ProductS
       // A sealed pack goes back to its printed date; frozen or thawed ones keep the clock of their freezer state.
       const expiresOn =
         line.frozenOn || line.thawedOn ? effectiveExpiry({ ...line, printedExpiresOn: printed, openedOn: null }, product) : printed;
+      const rowMeta = db
+        .select({ packSizeInferred: stockItems.packSizeInferred })
+        .from(stockItems)
+        .where(and(mine, eq(stockItems.id, id)))
+        .get();
+      const restoredPackSize = rowMeta?.packSizeInferred ? null : line.packSize;
       const twin = db
         .select()
         .from(stockItems)
@@ -371,7 +377,7 @@ export function createStockService(db: Db, hid: number, productService: ProductS
             eq(stockItems.location, line.location),
             eq(stockItems.approximate, false),
             isNull(stockItems.openedOn),
-            line.packSize === null ? isNull(stockItems.packSize) : eq(stockItems.packSize, line.packSize),
+            restoredPackSize === null ? isNull(stockItems.packSize) : eq(stockItems.packSize, restoredPackSize),
             expiresOn ? eq(stockItems.expiresOn, expiresOn) : isNull(stockItems.expiresOn),
             line.dateKind ? eq(stockItems.dateKind, line.dateKind) : isNull(stockItems.dateKind),
             line.frozenOn ? eq(stockItems.frozenOn, line.frozenOn) : isNull(stockItems.frozenOn),
@@ -392,7 +398,7 @@ export function createStockService(db: Db, hid: number, productService: ProductS
         return svc.get(twin.id);
       }
       db.update(stockItems)
-        .set({ openedOn: null, expiresOn, printedExpiresOn: printed })
+        .set({ openedOn: null, expiresOn, printedExpiresOn: printed, packSize: restoredPackSize, packSizeInferred: false })
         .where(and(mine, eq(stockItems.id, id)))
         .run();
       return svc.get(id);

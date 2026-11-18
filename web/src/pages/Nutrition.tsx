@@ -130,7 +130,16 @@ function ProductEditor({ product, onDone }: { product: Product; onDone: () => vo
   const [hits, setHits] = useState<NutritionHit[] | null>(null);
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
-  const [manual, setManual] = useState({ kcal: '', protein: '', carbs: '', fat: '' });
+  const [manual, setManual] = useState({
+    kcal: '',
+    protein: '',
+    carbs: '',
+    sugars: '',
+    fat: '',
+    saturatedFat: '',
+    fiber: '',
+    salt: '',
+  });
 
   const search = async (e: FormEvent) => {
     e.preventDefault();
@@ -155,7 +164,7 @@ function ProductEditor({ product, onDone }: { product: Product; onDone: () => vo
     const kcal = num(manual.kcal);
     if (kcal === undefined || Number.isNaN(kcal)) return;
     const per100: Record<string, number> = { kcal };
-    for (const k of ['protein', 'carbs', 'fat'] as const) {
+    for (const k of ['protein', 'carbs', 'sugars', 'fat', 'saturatedFat', 'fiber', 'salt'] as const) {
       const v = num(manual[k]);
       if (v !== undefined && !Number.isNaN(v)) per100[k] = v;
     }
@@ -199,7 +208,7 @@ function ProductEditor({ product, onDone }: { product: Product; onDone: () => vo
       )}
       <form onSubmit={saveManual} className="flex flex-wrap items-center gap-2">
         <span className="text-muted">{t('nutrition.manualHelp')}</span>
-        {(['kcal', 'protein', 'carbs', 'fat'] as const).map((k) => (
+        {(['kcal', 'protein', 'carbs', 'sugars', 'fat', 'saturatedFat', 'fiber', 'salt'] as const).map((k) => (
           <Input
             key={k}
             inputMode="decimal"
