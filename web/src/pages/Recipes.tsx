@@ -46,12 +46,13 @@ export function Recipes() {
   const [search, setSearch] = useState('');
   const [tag, setTag] = useState('');
   const [favoritesOnly, setFavoritesOnly] = useState(false);
+  const [minRating, setMinRating] = useState(0);
   const [sort, setSort] = useState<'name' | 'rating'>('name');
   const { data: found = [], isSuccess: loaded } = useQuery({
-    queryKey: ['recipes', search, tag, favoritesOnly],
+    queryKey: ['recipes', search, tag, favoritesOnly, minRating],
     queryFn: () =>
       api.get<RecipeSummary[]>(
-        `/recipes?search=${encodeURIComponent(search)}&tag=${encodeURIComponent(tag)}${favoritesOnly ? '&favorite=true' : ''}`,
+        `/recipes?search=${encodeURIComponent(search)}&tag=${encodeURIComponent(tag)}${favoritesOnly ? '&favorite=true' : ''}${minRating > 0 ? `&minRating=${minRating}` : ''}`,
       ),
   });
   // Best rated first: favorites, then stars, then name (the server already sorts by name).
@@ -95,6 +96,17 @@ export function Recipes() {
         >
           <option value="name">{t('recipes.sort.name')}</option>
           <option value="rating">{t('recipes.sort.rating')}</option>
+        </Select>
+        <Select
+          aria-label={t('recipes.minRating')}
+          value={String(minRating)}
+          onChange={(e) => setMinRating(Number(e.target.value))}
+          className="h-8 text-xs"
+        >
+          <option value="0">{t('recipes.minRating.all')}</option>
+          <option value="3">3+ ★</option>
+          <option value="4">4+ ★</option>
+          <option value="5">5 ★</option>
         </Select>
         <Button
           variant={favoritesOnly ? 'active' : 'secondary'}
@@ -260,11 +272,15 @@ function SeasonCard() {
 function RecipeDetail({ id, onBack, onEdit }: { id: number; onBack: () => void; onEdit: (recipe: Recipe) => void }) {
   const [planning, setPlanning] = useState(false);
   const [planned, setPlanned] = useState<string | null>(null);
+  const [scaledServings, setScaledServings] = useState<number | null>(null);
   const t = useT();
+  useEffect(() => setScaledServings(null), [id]);
   const { data: recipe } = useQuery({ queryKey: ['recipe', id], queryFn: () => api.get<Recipe>(`/recipes/${id}`) });
+  const activeServings = scaledServings ?? recipe?.servings ?? 4;
   const { data: availability } = useQuery({
-    queryKey: ['recipe', id, 'availability'],
-    queryFn: () => api.get<Availability>(`/recipes/${id}/availability`),
+    queryKey: ['recipe', id, 'availability', activeServings],
+    queryFn: () => api.get<Availability>(`/recipes/${id}/availability?servings=${activeServings}`),
+    enabled: Boolean(recipe),
   });
   const currency = useCurrency();
   const { data: cost } = useQuery({ queryKey: ['recipe', id, 'cost'], queryFn: () => api.get<RecipeCost>(`/recipes/${id}/cost`) });
@@ -362,8 +378,17 @@ function RecipeDetail({ id, onBack, onEdit }: { id: number; onBack: () => void; 
         )}
         <RecipeNutrition id={id} />
 
-        <h3 className="mt-4 mb-2 flex items-center gap-2 font-semibold">
+        <h3 className="mt-4 mb-2 flex flex-wrap items-center gap-2 font-semibold">
           {t('recipes.ingredients')}
+          <span className="inline-flex items-center gap-1 font-normal text-sm">
+            <Button compact aria-label={t('recipes.servings.less')} onClick={() => setScaledServings(Math.max(1, activeServings - 1))}>
+              -
+            </Button>
+            <span className="min-w-16 text-center tabular-nums">{t('common.servings', { n: activeServings })}</span>
+            <Button compact aria-label={t('recipes.servings.more')} onClick={() => setScaledServings(activeServings + 1)}>
+              +
+            </Button>
+          </span>
           {availability &&
             (availability.canCook ? (
               <Badge tone="accent">{t('recipes.allInStock')}</Badge>
@@ -375,9 +400,10 @@ function RecipeDetail({ id, onBack, onEdit }: { id: number; onBack: () => void; 
           {recipe.ingredients.map((ing, i) => {
             const status = availability?.ingredients[i];
             const missing = status?.missing ?? 0;
+            const scaledQty = Math.round(((ing.quantity * activeServings) / recipe.servings) * 100) / 100;
             return (
               <li key={ing.id} className="flex flex-wrap items-baseline gap-x-2 py-1.5">
-                <span className="w-20 text-right text-muted">{ing.toTaste ? t('recipes.toTaste') : formatQty(ing.quantity, ing.unit)}</span>
+                <span className="w-20 text-right text-muted">{ing.toTaste ? t('recipes.toTaste') : formatQty(scaledQty, ing.unit)}</span>
                 <span className="font-medium">{ing.name}</span>
                 {ing.note && <span className="text-muted">({ing.note})</span>}
                 {status?.staple && <span className="text-muted">· {t('recipes.staple')}</span>}

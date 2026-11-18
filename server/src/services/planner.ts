@@ -134,6 +134,18 @@ export function createPlannerService(db: Db, hid: number, recipeService: RecipeS
       };
     },
 
+    update({ id, ...patch }: { id: number; date?: string; mealType?: 'breakfast' | 'lunch' | 'dinner' | 'snack'; servings?: number }) {
+      const entry = svc.get(id);
+      if (entry.cooked) throw new ValidationError('A cooked meal cannot be edited');
+      if (Object.keys(patch).length > 0) {
+        db.update(mealPlan)
+          .set(patch)
+          .where(and(mine, eq(mealPlan.id, id)))
+          .run();
+      }
+      return svc.get(id);
+    },
+
     /** Marks a meal as cooked and takes its recipe's ingredients out of stock. */
     cook(id: number) {
       const entry = svc.get(id);

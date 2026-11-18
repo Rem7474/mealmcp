@@ -81,6 +81,8 @@ export const stockItems = sqliteTable(
     approximate: integer('approximate', { mode: 'boolean' }).notNull().default(false),
     /** Size of one pack, in `unit` (3 cartons of 200 ml: quantity 600, packSize 200). Null when not bought in packs. */
     packSize: real('pack_size'),
+    /** True when `packSize` was inferred from `quantity` on `open()`, so `unopen()` restores `null`. */
+    packSizeInferred: integer('pack_size_inferred', { mode: 'boolean' }).notNull().default(false),
     /** Set once a pack is opened (then `quantity` is what is left of that single pack). ISO date. */
     openedOn: text('opened_on'),
     /** The date printed on the pack (ISO). `expiresOn` is what the rules make of it (opened shelf life); this one is kept so it can be recomputed. */

@@ -17,7 +17,7 @@ import { api, useAction } from '../api';
 import { addDays, formatDate, formatDay, formatMoney, fromIso, MEALS, monthStart, today, weekStart } from '../format';
 import { locale, useT } from '../i18n';
 import type { BudgetStatus, HouseholdSettings, MealType, PlanCost, PlannedMeal, PlanSlot, RecipeSummary, Suggestions } from '../types';
-import { Accordion, Button, Card, Fab, Field, Input, Select, Sheet } from '../ui';
+import { Accordion, Button, Card, Disclose, Fab, Field, Input, Select, Sheet } from '../ui';
 import { confirmation, deferDelete, usePendingKey } from '../undo';
 import { useCurrency } from './shared';
 import { WeekPlanner } from './WeekPlanner';
@@ -209,6 +209,8 @@ export function Planning() {
         </Card>
       )}
       <BudgetStrip />
+      <PlanNutrition from={start} to={end} />
+      <PlanHistory />
 
       <Fab label={t('plan.add.title')} onClick={toggleComposer} />
     </>
@@ -347,6 +349,7 @@ function MealCard({ meal, insight, large = false }: { meal: PlannedMeal; insight
   const currency = useCurrency();
   const { run, pending } = useAction();
   const [gone, setGone] = useState(false);
+  const [editing, setEditing] = useState(false);
   const hiddenWhilePending = usePendingKey() === `meal:${meal.id}`;
   const missing = insight ? insight.missing.length : 0;
   const missingEquipment = insight?.missingEquipment ?? [];
@@ -374,6 +377,18 @@ function MealCard({ meal, insight, large = false }: { meal: PlannedMeal; insight
           ⋯
         </summary>
         <div className="absolute right-0 z-20 mt-1 w-44 rounded-xl border border-line bg-surface p-1">
+          {!meal.cooked && (
+            <button
+              type="button"
+              className="flex h-11 w-full cursor-pointer items-center rounded-lg px-3 text-left text-sm active:bg-ink/10"
+              onClick={(e) => {
+                e.currentTarget.closest('details')?.removeAttribute('open');
+                setEditing(true);
+              }}
+            >
+              {t('common.edit')}
+            </button>
+          )}
           <button
             type="button"
             className="flex h-11 w-full cursor-pointer items-center rounded-lg px-3 text-left text-sm text-danger active:bg-ink/10"
@@ -449,7 +464,118 @@ function MealCard({ meal, insight, large = false }: { meal: PlannedMeal; insight
         </div>
         {actions}
       </div>
+      {editing && <EditMealSheet meal={meal} onClose={() => setEditing(false)} />}
     </div>
+  );
+}
+
+function EditMealSheet({ meal, onClose }: { meal: PlannedMeal; onClose: () => void }) {
+  const t = useT();
+  const { run, pending } = useAction();
+  const [date, setDate] = useState(meal.date);
+  const [mealType, setMealType] = useState<MealType>(meal.mealType);
+  const [servings, setServings] = useState(String(meal.servings));
+  const submit = async (e: FormEvent) => {
+    e.preventDefault();
+    await run(() =>
+      api.patch(`/plan/${meal.id}`, {
+        date,
+        mealType,
+        servings: servings ? Number(servings) : undefined,
+      }),
+    );
+    onClose();
+  };
+  return (
+    <Sheet title={meal.recipeName ?? meal.title ?? t('plan.edit.title')} onClose={onClose}>
+      <form onSubmit={submit} className="space-y-3">
+        <Field label={t('plan.add.date')}>
+          <Input type="date" required value={date} onChange={(e) => setDate(e.target.value)} className="w-full" />
+        </Field>
+        <Field label={t('plan.add.meal')}>
+          <Select value={mealType} onChange={(e) => setMealType(e.target.value as MealType)} className="w-full">
+            {MEALS.map((m) => (
+              <option key={m} value={m}>
+                {t(`meal.${m}`)}
+              </option>
+            ))}
+          </Select>
+        </Field>
+        <Field label={t('plan.add.servingsAria')}>
+          <Input
+            type="number"
+            min={1}
+            max={1000}
+            required
+            value={servings}
+            onChange={(e) => setServings(e.target.value)}
+            className="w-full"
+          />
+        </Field>
+        <div className="flex justify-end">
+          <Button type="submit" variant="primary" disabled={pending}>
+            {t('common.save')}
+          </Button>
+        </div>
+      </form>
+    </Sheet>
+  );
+}
+
+interface PlanNutritionData {
+  days: { date: string; perPerson: { kcal: number; protein: number; carbs: number; fat: number } }[];
+}
+
+function PlanNutrition({ from, to }: { from: string; to: string }) {
+  const t = useT();
+  const { data } = useQuery({
+    queryKey: ['nutrition', 'plan', from, to],
+    queryFn: () => api.get<PlanNutritionData>(`/nutrition/plan?from=${from}&to=${to}`),
+    retry: false,
+  });
+  if (!data?.days?.length) return null;
+  return (
+    <Disclose summary={t('plan.nutrition.title')}>
+      <ul className="divide-y divide-line text-sm">
+        {data.days.map((d) => (
+          <li key={d.date} className="flex flex-wrap items-center justify-between gap-2 py-1.5">
+            <span className="font-medium">{formatDay(d.date)}</span>
+            <span className="text-muted tabular-nums">
+              {Math.round(d.perPerson.kcal)} kcal · P {Math.round(d.perPerson.protein)} g · G {Math.round(d.perPerson.carbs)} g · L{' '}
+              {Math.round(d.perPerson.fat)} g
+            </span>
+          </li>
+        ))}
+      </ul>
+    </Disclose>
+  );
+}
+
+interface PlanHistoryData {
+  byRecipe: { recipeId: number; name: string; times: number; lastMadeOn: string }[];
+}
+
+function PlanHistory() {
+  const t = useT();
+  const { data } = useQuery({
+    queryKey: ['plan', 'history'],
+    queryFn: () => api.get<PlanHistoryData>('/plan/history?days=60'),
+    retry: false,
+  });
+  if (!data?.byRecipe?.length) return null;
+  return (
+    <Disclose summary={t('plan.history.title')}>
+      <ul className="divide-y divide-line text-sm">
+        {data.byRecipe.map((r) => (
+          <li key={r.recipeId} className="flex flex-wrap items-center justify-between gap-2 py-1.5">
+            <a href={`#recipes/${r.recipeId}`} className="font-medium hover:text-accent hover:underline">
+              {r.name}
+            </a>
+            <span className="text-muted tabular-nums">{t('plan.history.entry', { n: r.times, date: formatDate(r.lastMadeOn) })}</span>
+          </li>
+        ))}
+      </ul>
+    </Disclose>
   );
 }
 

@@ -58,6 +58,34 @@ export function Stock() {
           </ul>
         </Card>
       )}
+      {alerts.data?.toDiscard && alerts.data.toDiscard.length > 0 && (
+        <Card title={t('stock.alerts.toDiscard')}>
+          <ul className="flex flex-wrap gap-2 text-sm">
+            {alerts.data.toDiscard.map((i) => (
+              <li key={i.id}>
+                <Badge tone="warn">
+                  {i.name}: {formatQty(i.quantity, i.unit)}
+                  {i.expiresOn ? ` · ${formatDate(i.expiresOn)}` : ''}
+                </Badge>
+              </li>
+            ))}
+          </ul>
+        </Card>
+      )}
+      {alerts.data?.expiring && alerts.data.expiring.length > 0 && (
+        <Card title={t('stock.alerts.expiring')}>
+          <ul className="flex flex-wrap gap-2 text-sm">
+            {alerts.data.expiring.map((i) => (
+              <li key={i.id}>
+                <Badge tone="warn">
+                  {i.name}: {formatQty(i.quantity, i.unit)}
+                  {i.expiresOn ? ` · ${formatDate(i.expiresOn)}` : ''}
+                </Badge>
+              </li>
+            ))}
+          </ul>
+        </Card>
+      )}
       {stock.isSuccess && items.length === 0 && <StarterStockCard />}
       <AddForm />
       <div className="grid items-start gap-x-4 gap-y-6 lg:grid-cols-3">
@@ -110,6 +138,8 @@ function AddForm() {
     approximate: false,
     packSize: '',
     opened: false,
+    openedOn: '',
+    price: '',
   });
   const set = (patch: Partial<typeof form>) => setForm((f) => ({ ...f, ...patch }));
   const [open, setOpen] = useState(false);
@@ -172,6 +202,7 @@ function AddForm() {
   const submit = async (e: FormEvent) => {
     e.preventDefault();
     const size = parseQty(form.packSize);
+    const price = parseQty(form.price);
     const inPacks = !form.approximate && size !== undefined && !Number.isNaN(size);
     await run(() =>
       api.post('/stock', {
@@ -181,6 +212,8 @@ function AddForm() {
         ...(inPacks ? { packSize: size, packCount: form.opened ? 1 : parseQty(form.quantity) } : {}),
         ...(isCode(code) ? { barcode: code } : {}),
         opened: form.opened || undefined,
+        ...(form.opened && form.openedOn ? { openedOn: form.openedOn } : {}),
+        ...(price !== undefined && !Number.isNaN(price) && price >= 0 ? { price } : {}),
         approximate: form.approximate,
         unit: form.unit || undefined,
         location: form.location,
@@ -189,7 +222,7 @@ function AddForm() {
         ...(form.note.trim() ? { note: form.note.trim() } : {}),
       }),
     );
-    set({ name: '', quantity: '1', expiresOn: '', dateKind: '', note: '', packSize: '', opened: false });
+    set({ name: '', quantity: '1', expiresOn: '', dateKind: '', note: '', packSize: '', opened: false, openedOn: '', price: '' });
     setCode('');
     setScan(null);
     setCamera(false);
@@ -375,6 +408,27 @@ function AddForm() {
               {t('stock.alreadyOpened')}
               <input type="checkbox" className="size-5" checked={form.opened} onChange={(e) => set({ opened: e.target.checked })} />
             </label>
+            {form.opened && (
+              <Field label={t('stock.openedOn')}>
+                <Input
+                  type="date"
+                  aria-label={t('stock.openedOn')}
+                  value={form.openedOn}
+                  onChange={(e) => set({ openedOn: e.target.value })}
+                  className="w-full"
+                />
+              </Field>
+            )}
+            <Field label={t('stock.price')}>
+              <Input
+                inputMode="decimal"
+                aria-label={t('stock.price')}
+                placeholder="0.00"
+                value={form.price}
+                onChange={(e) => set({ price: e.target.value })}
+                className="w-full"
+              />
+            </Field>
             <Button type="submit" variant="primary" disabled={pending} className="h-12 w-full text-base sm:h-12">
               {t('common.add')}
             </Button>
@@ -404,6 +458,8 @@ function StockRow({ item }: { item: StockItem }) {
   const days = item.expiresOn ? daysUntil(item.expiresOn) : null;
   const [editing, setEditing] = useState(false);
   const [freezingPart, setFreezingPart] = useState(false);
+  const [opening, setOpening] = useState(false);
+  const [discarding, setDiscarding] = useState(false);
 
   const saveQuantity = (value: string) => {
     const quantity = parseQty(value);
@@ -426,7 +482,7 @@ function StockRow({ item }: { item: StockItem }) {
       key: 'open',
       label: t('stock.open'),
       aria: t('stock.openAria', { name: item.name }),
-      run: () => void run(() => api.post(`/stock/${item.id}/open`, {})),
+      run: () => setOpening(true),
     });
   if (!item.approximate && !item.frozen)
     actions.push({
@@ -457,7 +513,7 @@ function StockRow({ item }: { item: StockItem }) {
     key: 'discard',
     label: t('stock.discard'),
     aria: t('stock.discardAria', { name: item.name }),
-    run: () => void run(() => api.post(`/stock/${item.id}/discard`, { reason: days !== null && days < 0 ? 'expired' : 'spoiled' })),
+    run: () => setDiscarding(true),
   });
   actions.push({
     key: 'remove',
@@ -564,7 +620,85 @@ function StockRow({ item }: { item: StockItem }) {
       </details>
       {editing && <EditStock item={item} onClose={() => setEditing(false)} />}
       {freezingPart && <FreezePart item={item} onClose={() => setFreezingPart(false)} />}
+      {opening && <OpenPack item={item} onClose={() => setOpening(false)} />}
+      {discarding && (
+        <DiscardLine item={item} defaultReason={days !== null && days < 0 ? 'expired' : 'spoiled'} onClose={() => setDiscarding(false)} />
+      )}
     </li>
+  );
+}
+
+function OpenPack({ item, onClose }: { item: StockItem; onClose: () => void }) {
+  const t = useT();
+  const { run, pending } = useAction();
+  const full = item.packSize ?? item.quantity;
+  const [remaining, setRemaining] = useState(String(full));
+  const qty = parseQty(remaining);
+  const valid = qty !== undefined && !Number.isNaN(qty) && qty > 0 && qty <= full + 1e-9;
+  const submit = async (e: FormEvent) => {
+    e.preventDefault();
+    if (!valid) return;
+    await run(() => api.post(`/stock/${item.id}/open`, qty < full - 1e-9 ? { remaining: qty } : {}));
+    onClose();
+  };
+  return (
+    <Sheet title={t('stock.openTitle', { name: item.name })} onClose={onClose}>
+      <form onSubmit={submit} className="space-y-3">
+        <Field label={t('stock.openRemaining', { unit: item.unit })}>
+          <Input autoFocus inputMode="decimal" value={remaining} onChange={(e) => setRemaining(e.target.value)} className="w-full" />
+        </Field>
+        <div className="flex justify-end gap-2">
+          <Button type="submit" variant="primary" disabled={!valid || pending}>
+            {t('stock.open')}
+          </Button>
+        </div>
+      </form>
+    </Sheet>
+  );
+}
+
+function DiscardLine({ item, defaultReason, onClose }: { item: StockItem; defaultReason: 'expired' | 'spoiled'; onClose: () => void }) {
+  const t = useT();
+  const { run, pending } = useAction();
+  const [amount, setAmount] = useState(item.approximate ? '' : String(item.quantity));
+  const [reason, setReason] = useState<'expired' | 'spoiled' | 'leftover' | 'other'>(defaultReason);
+  const qty = parseQty(amount);
+  const valid = item.approximate || (qty !== undefined && !Number.isNaN(qty) && qty > 0 && qty <= item.quantity + 1e-9);
+  const submit = async (e: FormEvent) => {
+    e.preventDefault();
+    if (!valid) return;
+    const partial = !item.approximate && qty !== undefined && qty < item.quantity - 1e-9;
+    await run(() => api.post(`/stock/${item.id}/discard`, { ...(partial ? { quantity: qty } : {}), reason }));
+    onClose();
+  };
+  return (
+    <Sheet title={t('stock.discardTitle', { name: item.name })} onClose={onClose}>
+      <form onSubmit={submit} className="space-y-3">
+        {!item.approximate && (
+          <Field label={t('stock.discardQuantity', { unit: item.unit })}>
+            <Input autoFocus inputMode="decimal" value={amount} onChange={(e) => setAmount(e.target.value)} className="w-full" />
+          </Field>
+        )}
+        <Field label={t('stock.discardReason')}>
+          <Select
+            aria-label={t('stock.discardReason')}
+            value={reason}
+            onChange={(e) => setReason(e.target.value as typeof reason)}
+            className="w-full"
+          >
+            <option value="expired">{t('stock.discardReason.expired')}</option>
+            <option value="spoiled">{t('stock.discardReason.spoiled')}</option>
+            <option value="leftover">{t('stock.discardReason.leftover')}</option>
+            <option value="other">{t('stock.discardReason.other')}</option>
+          </Select>
+        </Field>
+        <div className="flex justify-end gap-2">
+          <Button type="submit" variant="primary" disabled={!valid || pending}>
+            {t('stock.discard')}
+          </Button>
+        </div>
+      </form>
+    </Sheet>
   );
 }
 

@@ -1,6 +1,7 @@
+import { eq } from 'drizzle-orm';
 import { beforeEach, describe, expect, it } from 'vitest';
 import { createDb, type Db } from '../db/index.js';
-import { households } from '../db/schema.js';
+import { households, shoppingItemMeals } from '../db/schema.js';
 import { createServices, type Services } from './index.js';
 
 let db: Db;
@@ -105,5 +106,31 @@ describe('plan -> shopping -> stock', () => {
       ['Flour', 500],
     ]);
     expect(() => svc.planner.cook(meal.id)).toThrow();
+  });
+
+  it('does not dilute meal attribution in shopping_item_meals when includeLowStock adds minStock', () => {
+    const stockLine = svc.stock.add({ name: 'Rice', quantity: 300, unit: 'g', location: 'pantry' });
+    svc.products.update({ id: stockLine.productId, minStock: 500 });
+    const recipe = svc.recipes.create({
+      name: 'Risotto',
+      servings: 2,
+      ingredients: [{ name: 'Rice', quantity: 500, unit: 'g' }],
+      steps: [{ text: 'Cook' }],
+    });
+    const meal = svc.planner.add({ date: '2030-03-02', mealType: 'dinner', recipeId: recipe.id, servings: 2 });
+    const list = svc.shopping.generateFromPlan({ from: '2030-03-01', to: '2030-03-07', includeLowStock: true });
+    // Total needed: 500 (meal) + 500 (minStock) = 1000, minus 300 in stock = 700 on the shopping list.
+    expect(list).toHaveLength(1);
+    expect(list[0].quantity).toBe(700);
+    // Verify shopping_item_meals only attributes the meal's own 200 g shortfall, not the 500 g restock.
+    const rows = db.select().from(shoppingItemMeals).where(eq(shoppingItemMeals.mealId, meal.id)).all();
+    expect(rows).toHaveLength(1);
+    expect(rows[0].quantity).toBe(200);
+    // When stock already covers the meal (600 g >= 500 g) and only minStock causes buying, meal attribution is 0 rows.
+    svc.stock.add({ name: 'Rice', quantity: 300, unit: 'g', location: 'pantry' });
+    const restockOnly = svc.shopping.generateFromPlan({ from: '2030-03-01', to: '2030-03-07', includeLowStock: true });
+    expect(restockOnly).toHaveLength(1);
+    expect(restockOnly[0].quantity).toBe(400);
+    expect(db.select().from(shoppingItemMeals).where(eq(shoppingItemMeals.mealId, meal.id)).all()).toHaveLength(0);
   });
 });

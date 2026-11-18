@@ -1,0 +1,1 @@
+ALTER TABLE `stock_items` ADD `pack_size_inferred` integer DEFAULT false NOT NULL;

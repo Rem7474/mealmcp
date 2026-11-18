@@ -325,6 +325,13 @@ export const planAdd = z.object({
     .describe('Defaults to the household default servings, else the recipe servings'),
 });
 
+export const planUpdate = z.object({
+  id,
+  date: isoDate.optional(),
+  mealType: z.enum(MEAL_TYPES).optional(),
+  servings: z.number().int().positive().max(1000).optional(),
+});
+
 export const shoppingAdd = z.object({
   name: productName,
   quantity: z.number().positive().max(1_000_000).nullable().optional(),
@@ -335,6 +342,7 @@ export const shoppingCheck = z.object({
   id,
   checked: z.boolean().default(true),
   price: moneyOrNull.optional().describe('What this line cost (or is expected to cost); null clears it'),
+  quantity: z.number().positive().max(1_000_000).optional().describe('Updated quantity in the item unit'),
 });
 
 export const shoppingGenerate = z.object({
