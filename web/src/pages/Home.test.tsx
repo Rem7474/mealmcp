@@ -36,7 +36,7 @@ describe('Home', () => {
     expect(screen.getByText('Spinach, Yoghurt')).toBeTruthy();
     expect(screen.getByText('Try Spinach gratin')).toBeTruthy();
     // One meal: the singular form.
-    expect(screen.getByText('1 meal still to plan this week')).toBeTruthy();
+    expect(screen.getByText('1 meal still to plan in the next 7 days')).toBeTruthy();
 
     fireEvent.click(screen.getByRole('button', { name: 'See the recipe' }));
     expect(location.hash).toBe('#recipes/12');
@@ -97,12 +97,12 @@ describe('Home', () => {
 
     fireEvent.click(screen.getAllByRole('button', { name: 'Hide this card until tomorrow' })[0]);
     expect(screen.queryByText('2 items to use up')).toBeNull();
-    expect(screen.getByText('1 meal still to plan this week')).toBeTruthy();
+    expect(screen.getByText('1 meal still to plan in the next 7 days')).toBeTruthy();
 
     // Visiting again the same day: still hidden.
     first.unmount();
     renderApp(<Home />);
-    expect(await screen.findByText('1 meal still to plan this week')).toBeTruthy();
+    expect(await screen.findByText('1 meal still to plan in the next 7 days')).toBeTruthy();
     expect(screen.queryByText('2 items to use up')).toBeNull();
 
     fireEvent.click(screen.getByRole('button', { name: 'Show hidden cards' }));

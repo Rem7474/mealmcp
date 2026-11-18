@@ -61,6 +61,7 @@ export function Shopping() {
   const unpriced = open.filter((i) => i.priceCents === null && i.estimatedCents === null).length;
   const toBuy = sum(open);
   const inBasket = sum(basket);
+  const totalCost = toBuy + inBasket;
 
   const add = async (e: FormEvent) => {
     e.preventDefault();
@@ -379,35 +380,38 @@ export function Shopping() {
         )}
       </div>
 
-      {/* Phones: compact summary below the list instead of a fixed overlay that can cover items. */}
-      <div className="flex items-center justify-between gap-3 rounded-2xl bg-surface-high px-4 py-3 lg:hidden">
+      {/* Phones: sticky above the tab bar while scrolling long lists, and resting cleanly below short ones. */}
+      <div className="sticky bottom-[calc(4.75rem+env(safe-area-inset-bottom))] z-10 flex items-center justify-between gap-3 rounded-2xl bg-surface-high px-4 py-3 shadow-lg lg:hidden">
         <div>
           <div className="text-xs font-semibold tracking-wider text-muted uppercase">{t('shopping.rail.toBuy')}</div>
-          <div className="font-semibold tracking-tight text-2xl leading-none tabular-nums">≈ {formatMoney(toBuy, currency)}</div>
+          <div className="font-semibold tracking-tight text-2xl leading-none tabular-nums">≈ {formatMoney(totalCost, currency)}</div>
         </div>
         <div className="text-right text-sm text-muted tabular-nums">
-          {basket.length > 0 && (
-            <div className="text-herb">
-              {basket.length} · {formatMoney(inBasket, currency)}
+          {items.length > 0 && (
+            <div className={basket.length > 0 ? 'text-herb' : ''}>
+              {basket.length}/{items.length}
+              {inBasket > 0 ? ` · ${formatMoney(inBasket, currency)}` : ''}
             </div>
           )}
-          {budget?.budgetCents ? <div>≈ {formatMoney(budget.budgetCents - budget.spentCents - toBuy - inBasket, currency)}</div> : null}
+          {budget?.budgetCents ? <div>≈ {formatMoney(budget.budgetCents - budget.spentCents - totalCost, currency)}</div> : null}
         </div>
       </div>
       <aside className="space-y-3 max-lg:hidden lg:pt-2">
         <Card>
           <h3 className="text-xs font-semibold tracking-wider text-muted uppercase">{t('shopping.rail.toBuy')}</h3>
-          <div className="font-semibold tracking-tight mt-2 text-4xl tracking-tight tabular-nums">≈ {formatMoney(toBuy, currency)}</div>
+          <div className="font-semibold tracking-tight mt-2 text-4xl tracking-tight tabular-nums">≈ {formatMoney(totalCost, currency)}</div>
           {unpriced > 0 && <p className="mt-1 text-xs text-muted">{t('shopping.unpriced', { n: unpriced })}</p>}
           <dl className="mt-4 space-y-1.5 text-sm">
             <div className="flex justify-between">
               <dt className="text-muted">{t('shopping.rail.basket')}</dt>
-              <dd className="tabular-nums">{formatMoney(inBasket, currency)}</dd>
+              <dd className="tabular-nums">
+                {basket.length}/{items.length} · {formatMoney(inBasket, currency)}
+              </dd>
             </div>
             {budget?.budgetCents ? (
               <div className="flex justify-between">
                 <dt className="text-muted">{t('shopping.rail.after')}</dt>
-                <dd className="tabular-nums">≈ {formatMoney(budget.budgetCents - budget.spentCents - toBuy - inBasket, currency)}</dd>
+                <dd className="tabular-nums">≈ {formatMoney(budget.budgetCents - budget.spentCents - totalCost, currency)}</dd>
               </div>
             ) : null}
           </dl>
