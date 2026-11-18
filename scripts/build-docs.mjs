@@ -49,6 +49,8 @@ const TOOLS = {
     'check_shopping_item',
     'remove_shopping_item',
     'complete_shopping',
+    'parse_purchase_text',
+    'apply_purchase',
   ],
   budget: [
     'record_expense',
@@ -60,11 +62,12 @@ const TOOLS = {
     'set_budget',
     'set_product_price',
     'get_price_history',
+    'get_price_overview',
     'estimate_recipe_cost',
     'estimate_meal_plan_cost',
     'estimate_shopping_list_cost',
   ],
-  nutrition: ['search_nutrition', 'set_product_nutrition', 'get_recipe_nutrition', 'get_meal_plan_nutrition'],
+  nutrition: ['search_nutrition', 'set_product_nutrition', 'autofill_recipe_nutrition', 'get_recipe_nutrition', 'get_meal_plan_nutrition'],
   more: [
     'list_products',
     'search_catalog',

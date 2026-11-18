@@ -5,6 +5,10 @@ services:
     # To build locally instead of pulling: docker compose up -d --build
     build: .
     restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
     ports:
       # PORT (from .env) is the port published on the host; inside the container the app stays on 3000.
       - "${PORT:-3000}:3000"

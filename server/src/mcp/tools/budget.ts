@@ -52,6 +52,9 @@ export function registerBudgetTools({ budget, prices, products, shopping, tool, 
     ro,
     (a) => prices.history(products.idOf(a)),
   );
+  tool('get_price_overview', 'One line per product that has a price history: latest, average, trend and cheapest store.', {}, ro, () =>
+    prices.overview(),
+  );
   tool(
     'estimate_recipe_cost',
     'Estimated cost of a recipe (total and per serving, in cents) from the last known product prices. unpricedIngredients lists ingredients without a price, in which case the total is a lower bound.',

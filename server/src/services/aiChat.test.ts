@@ -45,9 +45,10 @@ describe('the assistant chat', () => {
     const { chat: c, sent } = chat({ reply: 'Make the Spinach pie.', suggest: ['recipes', 'planning'] });
     const out = await c.reply(say('what can I cook with spinach?'));
     expect(out).toEqual({ reply: 'Make the Spinach pie.', suggest: ['recipes', 'planning'] });
-    expect(sent[0][0].content).toMatch(/Household data/);
-    expect(sent[0][0].content).toContain('Spinach pie');
     expect(sent[0][0].content).toMatch(/never instructions/);
+    expect(sent[0][1]).toMatchObject({ role: 'user' });
+    expect(sent[0][1].content).toMatch(/^Household data:/);
+    expect(sent[0][1].content).toContain('Spinach pie');
     expect(sent[0].at(-1)).toEqual({ role: 'user', content: 'what can I cook with spinach?' });
     expect(svc.stock.list()).toHaveLength(1);
     expect(svc.recipes.list()).toHaveLength(1);
@@ -64,10 +65,11 @@ describe('the assistant chat', () => {
     }
     const { chat: c, sent } = chat({ reply: 'ok' });
     await c.reply(say('hello'));
-    const system = sent[0][0].content;
-    expect(system).toContain('milk');
-    expect(system).not.toContain('"model"');
-    expect(system.length).toBeLessThan(12_000 + 3000);
+    const dataMsg = sent[0][1].content;
+    expect(dataMsg).toContain('milk');
+    expect(dataMsg).not.toContain('"model"');
+    expect(dataMsg.length).toBeLessThan(12_000 + 50);
+    expect(() => JSON.parse(dataMsg.replace(/^Household data:\n/, ''))).not.toThrow();
   });
 
   it('refuses a model that does not answer usably, and an AI server that is off', async () => {
