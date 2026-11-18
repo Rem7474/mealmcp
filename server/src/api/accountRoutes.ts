@@ -1,6 +1,14 @@
 import { type Request, Router } from 'express';
 import { z } from 'zod';
-import { type AccountService, accountDeleteInput, loginInput, passwordChangeInput, registerInput, tokenInput } from '../auth/accounts.js';
+import {
+  type AccountService,
+  accountDeleteInput,
+  loginInput,
+  passwordChangeInput,
+  profileUpdateInput,
+  registerInput,
+  tokenInput,
+} from '../auth/accounts.js';
 import { clearSessionCookie, cookieOf, OAUTH_COOKIE, sessionOnly, sessionTokenOf, setSessionCookie } from '../auth/http.js';
 import type { OAuthProvider } from '../auth/oauth.js';
 import { createRateLimiter } from '../auth/rateLimit.js';
@@ -110,6 +118,22 @@ export function createAccountRoutes({ config, accounts, oauth }: Deps) {
   r.delete('/auth/sessions/:handle', sessionOnly, (req, res) => {
     accounts.revokeSession(req.user!.id, handle(req.params));
     res.status(204).end();
+  });
+
+  r.patch('/auth/profile', sessionOnly, async (req, res) => {
+    const input = profileUpdateInput.parse(req.body);
+    const key = String(req.user!.id);
+    const changingEmail = input.email !== undefined && input.email !== req.user!.email;
+    if (changingEmail) reauth.check(key);
+    try {
+      const user = await accounts.updateProfile(req.user!.id, input);
+      if (changingEmail) reauth.reset(key);
+      req.log?.info('profile updated', { userId: req.user!.id });
+      res.json({ user });
+    } catch (err) {
+      if (err instanceof UnauthorizedError) reauth.record(key);
+      throw err;
+    }
   });
 
   r.post('/auth/password', sessionOnly, async (req, res) => {

@@ -22,7 +22,7 @@ import { Badge, Button, Card, Empty, Fold, Input, Select } from '../ui';
 import { AiCard } from './AiCard';
 import { resetSession } from './AuthPage';
 import { ProductSheet } from './ProductSheet';
-import { DeleteAccountCard, DevicesCard, PasswordCard } from './Security';
+import { DeleteAccountCard, DevicesCard, PasswordCard, ProfileCard } from './Security';
 import { AISLES, useProducts } from './shared';
 
 const day = (ms: number) => formatDate(new Date(ms).toISOString().slice(0, 10));
@@ -78,6 +78,7 @@ export function Account({ user }: { user: User }) {
           <Fold title={t('products.title')}>
             <ProductsCard />
           </Fold>
+          <ProfileCard user={user} />
           <PasswordCard />
           <DevicesCard />
           <DeleteAccountCard user={user} />

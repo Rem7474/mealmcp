@@ -1,11 +1,11 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { type FormEvent, useState } from 'react';
+import { type FormEvent, useEffect, useState } from 'react';
 import { api, useAction } from '../api';
 import { formatDate } from '../format';
 import { useI18n } from '../i18n';
 import type { SessionInfo, User } from '../types';
 import { Badge, Button, Card, Empty, Input } from '../ui';
-import { resetSession } from './AuthPage';
+import { meKey, resetSession } from './AuthPage';
 
 const day = (ms: number) => formatDate(new Date(ms).toISOString().slice(0, 10));
 
@@ -33,6 +33,102 @@ export function deviceName(userAgent: string | null): string | null {
             ? 'Linux'
             : null;
   return [browser, system].filter(Boolean).join(' · ') || userAgent.slice(0, 40);
+}
+
+/** Update the user's display name and/or email address. Changing the email requires the current password. */
+export function ProfileCard({ user }: { user: User }) {
+  const { t } = useI18n();
+  const queryClient = useQueryClient();
+  const { run, pending } = useAction();
+  const [name, setName] = useState(user.name);
+  const [email, setEmail] = useState(user.email);
+  const [currentPassword, setCurrentPassword] = useState('');
+  const [done, setDone] = useState(false);
+
+  useEffect(() => {
+    setName(user.name);
+    setEmail(user.email);
+  }, [user.name, user.email]);
+
+  const trimmedName = name.trim();
+  const trimmedEmail = email.trim();
+  const emailChanged = trimmedEmail.toLowerCase() !== user.email.toLowerCase();
+  const dirty = trimmedName !== user.name || emailChanged;
+
+  const submit = async (e: FormEvent) => {
+    e.preventDefault();
+    setDone(false);
+    const res = await run(() =>
+      api.patch<{ user: User }>('/auth/profile', {
+        name: trimmedName,
+        email: trimmedEmail,
+        ...(emailChanged ? { currentPassword } : {}),
+      }),
+    );
+    if (res && typeof res === 'object' && 'user' in res) {
+      queryClient.setQueryData(meKey, (prev: { user: User | null; registrationOpen: boolean } | undefined) =>
+        prev ? { ...prev, user: res.user } : prev,
+      );
+    }
+    await Promise.all([queryClient.invalidateQueries({ queryKey: meKey }), queryClient.invalidateQueries({ queryKey: ['household'] })]);
+    setCurrentPassword('');
+    setDone(true);
+  };
+
+  return (
+    <Card title={t('profile.title')}>
+      <form onSubmit={submit} className="grid gap-2 sm:grid-cols-2">
+        <Input
+          type="text"
+          required
+          maxLength={80}
+          autoComplete="name"
+          placeholder={t('profile.name')}
+          aria-label={t('profile.name')}
+          value={name}
+          onChange={(e) => {
+            setName(e.target.value);
+            setDone(false);
+          }}
+        />
+        <Input
+          type="email"
+          required
+          maxLength={200}
+          autoComplete="email"
+          placeholder={t('profile.email')}
+          aria-label={t('profile.email')}
+          value={email}
+          onChange={(e) => {
+            setEmail(e.target.value);
+            setDone(false);
+          }}
+        />
+        {emailChanged && (
+          <Input
+            type="password"
+            required
+            autoComplete="current-password"
+            placeholder={t('profile.password')}
+            aria-label={t('profile.password')}
+            value={currentPassword}
+            onChange={(e) => setCurrentPassword(e.target.value)}
+            className="sm:col-span-2"
+          />
+        )}
+        <div className="flex items-center gap-3 sm:col-span-2">
+          <Button type="submit" disabled={pending || !dirty}>
+            {t('profile.save')}
+          </Button>
+          {done && (
+            <span role="status" className="text-sm text-muted">
+              {t('profile.saved')}
+            </span>
+          )}
+        </div>
+      </form>
+    </Card>
+  );
 }
 
 /** Change the password; every other signed-in device is signed out by the server. */

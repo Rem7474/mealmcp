@@ -3,7 +3,7 @@ import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { mockApi, renderApp } from '../test/utils';
 import type { SessionInfo, User } from '../types';
-import { DeleteAccountCard, DevicesCard, deviceName, PasswordCard } from './Security';
+import { DeleteAccountCard, DevicesCard, deviceName, PasswordCard, ProfileCard } from './Security';
 
 beforeEach(() => {
   try {
@@ -21,6 +21,42 @@ describe('deviceName', () => {
   it('copes with a missing or odd user agent', () => {
     expect(deviceName(null)).toBeNull();
     expect(deviceName('curl/8')).toBe('curl/8');
+  });
+});
+
+describe('ProfileCard', () => {
+  const user = {
+    id: 1,
+    name: 'Alice',
+    email: 'alice@example.com',
+    role: 'owner',
+    householdId: 1,
+    householdName: 'Home',
+    currency: 'EUR',
+  } as User;
+
+  it('updates the name without asking for a password', async () => {
+    const { calls } = mockApi({ 'PATCH /auth/profile': { status: 200, body: { user: { ...user, name: 'Alice B' } } } });
+    renderApp(<ProfileCard user={user} />);
+    const nameInput = screen.getByLabelText('Name');
+    await userEvent.clear(nameInput);
+    await userEvent.type(nameInput, 'Alice B');
+    expect(screen.queryByLabelText(/Current password/)).not.toBeInTheDocument();
+    await userEvent.click(screen.getByRole('button', { name: 'Save' }));
+    await waitFor(() => expect(screen.getByRole('status')).toBeInTheDocument());
+    expect(calls[0].body).toEqual({ name: 'Alice B', email: 'alice@example.com' });
+  });
+
+  it('asks for the current password when the email changes', async () => {
+    const { calls } = mockApi({ 'PATCH /auth/profile': { status: 200, body: { user: { ...user, email: 'bob@example.com' } } } });
+    renderApp(<ProfileCard user={user} />);
+    const emailInput = screen.getByLabelText('Email address');
+    await userEvent.clear(emailInput);
+    await userEvent.type(emailInput, 'bob@example.com');
+    await userEvent.type(screen.getByLabelText(/Current password/), 'secret-password');
+    await userEvent.click(screen.getByRole('button', { name: 'Save' }));
+    await waitFor(() => expect(screen.getByRole('status')).toBeInTheDocument());
+    expect(calls[0].body).toEqual({ name: 'Alice', email: 'bob@example.com', currentPassword: 'secret-password' });
   });
 });
 

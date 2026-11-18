@@ -70,6 +70,7 @@ describe('bearer tokens stay out of account management', () => {
       ['POST', '/api/tokens'],
       ['GET', '/api/tokens'],
       ['POST', '/api/household/invites'],
+      ['PATCH', '/api/auth/profile'],
       ['POST', '/api/auth/password'],
       ['DELETE', '/api/auth/account'],
       ['GET', '/api/auth/sessions'],
@@ -115,6 +116,36 @@ describe('password, devices and account', () => {
     expect((await other.call('/api/auth/me').then((r) => r.json())).user).toBeNull();
     expect((await browser().call('/api/auth/login', { json: { email, password: PASSWORD } })).status).toBe(401);
     expect((await browser().call('/api/auth/login', { json: { email, password: 'a brand new password' } })).status).toBe(200);
+  });
+
+  it('updates the display name without password, and checks password and uniqueness when changing email', async () => {
+    const { b, email } = await signUp();
+    const other = await signUp();
+
+    const nameRes = await b.call('/api/auth/profile', { method: 'PATCH', json: { name: 'Alice Renamed' } });
+    expect(nameRes.status).toBe(200);
+    expect((await nameRes.json()).user.name).toBe('Alice Renamed');
+
+    // Changing email without or with wrong password fails.
+    expect((await b.call('/api/auth/profile', { method: 'PATCH', json: { email: 'alice2@x.test' } })).status).toBe(401);
+    expect(
+      (await b.call('/api/auth/profile', { method: 'PATCH', json: { email: 'alice2@x.test', currentPassword: 'wrong' } })).status,
+    ).toBe(401);
+
+    // Changing email to one already taken fails.
+    expect((await b.call('/api/auth/profile', { method: 'PATCH', json: { email: other.email, currentPassword: PASSWORD } })).status).toBe(
+      400,
+    );
+
+    // Valid email change succeeds and allows signing in with the new email.
+    const emailRes = await b.call('/api/auth/profile', {
+      method: 'PATCH',
+      json: { email: 'alice2@x.test', currentPassword: PASSWORD },
+    });
+    expect(emailRes.status).toBe(200);
+    expect((await emailRes.json()).user.email).toBe('alice2@x.test');
+    expect((await browser().call('/api/auth/login', { json: { email, password: PASSWORD } })).status).toBe(401);
+    expect((await browser().call('/api/auth/login', { json: { email: 'alice2@x.test', password: PASSWORD } })).status).toBe(200);
   });
 
   it('lists devices and revokes one of them', async () => {

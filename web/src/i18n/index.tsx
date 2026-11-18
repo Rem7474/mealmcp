@@ -104,6 +104,7 @@ const SERVER_ERRORS: [match: string, key: MessageKey][] = [
   ['Only the household owner can', 'err.ownerOnly'],
   ['Not signed in', 'err.notSignedIn'],
   ['Authentication required', 'err.notSignedIn'],
+  ['This email address is already in use', 'err.emailTaken'],
 ];
 
 export function localizeError(t: I18n['t'], message: string): string {
