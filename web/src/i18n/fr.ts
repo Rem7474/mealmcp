@@ -773,6 +773,7 @@ export const fr: Messages = {
   'shopping.editQuantity': 'Modifier la quantité de {name}',
   'plan.edit.title': 'Modifier le repas',
   'plan.nutrition.title': 'Nutrition de la semaine (par personne)',
+  'plan.nutrition.macros': '{kcal} kcal · P {protein} g · G {carbs} g · L {fat} g',
   'plan.history.title': 'Repas récents (60 jours)',
   'plan.history.entry': '{n}× · dernier {date}',
 };

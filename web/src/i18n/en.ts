@@ -767,6 +767,7 @@ export const en = {
   'shopping.editQuantity': 'Edit quantity for {name}',
   'plan.edit.title': 'Edit meal',
   'plan.nutrition.title': 'Week nutrition (per person)',
+  'plan.nutrition.macros': '{kcal} kcal · P {protein} g · C {carbs} g · F {fat} g',
   'plan.history.title': 'Recent meals (60 days)',
   'plan.history.entry': '{n}x · last {date}',
 } as const;

@@ -541,8 +541,12 @@ function PlanNutrition({ from, to }: { from: string; to: string }) {
           <li key={d.date} className="flex flex-wrap items-center justify-between gap-2 py-1.5">
             <span className="font-medium">{formatDay(d.date)}</span>
             <span className="text-muted tabular-nums">
-              {Math.round(d.perPerson.kcal)} kcal · P {Math.round(d.perPerson.protein)} g · G {Math.round(d.perPerson.carbs)} g · L{' '}
-              {Math.round(d.perPerson.fat)} g
+              {t('plan.nutrition.macros', {
+                kcal: Math.round(d.perPerson.kcal),
+                protein: Math.round(d.perPerson.protein),
+                carbs: Math.round(d.perPerson.carbs),
+                fat: Math.round(d.perPerson.fat),
+              })}
             </span>
           </li>
         ))}
