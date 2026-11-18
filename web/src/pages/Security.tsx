@@ -5,7 +5,7 @@ import { formatDate } from '../format';
 import { useI18n } from '../i18n';
 import type { SessionInfo, User } from '../types';
 import { Badge, Button, Card, Empty, Input } from '../ui';
-import { resetSession } from './AuthPage';
+import { meKey, resetSession } from './AuthPage';
 
 const day = (ms: number) => formatDate(new Date(ms).toISOString().slice(0, 10));
 
@@ -66,11 +66,11 @@ export function ProfileCard({ user }: { user: User }) {
       }),
     );
     if (res && typeof res === 'object' && 'user' in res) {
-      queryClient.setQueryData(['me'], (prev: { user: User | null; registrationOpen: boolean } | undefined) =>
+      queryClient.setQueryData(meKey, (prev: { user: User | null; registrationOpen: boolean } | undefined) =>
         prev ? { ...prev, user: res.user } : prev,
       );
     }
-    await Promise.all([queryClient.invalidateQueries({ queryKey: ['me'] }), queryClient.invalidateQueries({ queryKey: ['household'] })]);
+    await Promise.all([queryClient.invalidateQueries({ queryKey: meKey }), queryClient.invalidateQueries({ queryKey: ['household'] })]);
     setCurrentPassword('');
     setDone(true);
   };
