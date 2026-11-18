@@ -25,7 +25,7 @@ const safeDecode = (v: string) => {
 };
 
 function parseCookies(header: string | undefined): Record<string, string> {
-  const out: Record<string, string> = {};
+  const out: Record<string, string> = Object.create(null);
   for (const part of header?.split(';') ?? []) {
     const i = part.indexOf('=');
     if (i > 0) out[part.slice(0, i).trim()] = safeDecode(part.slice(i + 1).trim());
@@ -34,14 +34,22 @@ function parseCookies(header: string | undefined): Record<string, string> {
 }
 
 export function setSessionCookie(res: Response, config: Config, token: string) {
-  res.cookie(SESSION_COOKIE, token, { ...cookieFlags(config), maxAge: SESSION_TTL });
+  res.cookie(SESSION_COOKIE, token, {
+    httpOnly: true,
+    sameSite: 'lax',
+    secure: isSecure(config),
+    maxAge: SESSION_TTL,
+    path: '/',
+  });
 }
 
-function cookieFlags(config: Config) {
-  return { httpOnly: true, sameSite: 'lax' as const, secure: isSecure(config), path: '/' };
-}
-
-export const clearSessionCookie = (res: Response, config: Config) => void res.clearCookie(SESSION_COOKIE, cookieFlags(config));
+export const clearSessionCookie = (res: Response, config: Config) =>
+  void res.clearCookie(SESSION_COOKIE, {
+    httpOnly: true,
+    sameSite: 'lax',
+    secure: isSecure(config),
+    path: '/',
+  });
 
 export const sessionTokenOf = (req: Request) => parseCookies(req.headers.cookie)[SESSION_COOKIE];
 
@@ -51,7 +59,13 @@ export const cookieOf = (req: Request, name: string) => parseCookies(req.headers
 /** Binds an OAuth authorization request to the browser that started it (see auth/oauth.ts). */
 export const OAUTH_COOKIE = 'mealmcp_oauth';
 export function setOauthCookie(res: Response, config: Config, requestId: string) {
-  res.cookie(OAUTH_COOKIE, requestId, { ...cookieFlags(config), maxAge: 10 * 60_000 });
+  res.cookie(OAUTH_COOKIE, requestId, {
+    httpOnly: true,
+    sameSite: 'lax',
+    secure: isSecure(config),
+    maxAge: 10 * 60_000,
+    path: '/',
+  });
 }
 
 /** The token of an `Authorization: Bearer <token>` header (plain string handling, no backtracking regex). */

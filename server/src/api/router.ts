@@ -31,7 +31,8 @@ export function createApiRouter({ db, config, accounts, oauth, hub, llm }: Deps)
     res.setHeader('Cache-Control', 'no-store');
     next();
   });
-  r.use(sameOriginOnly(config), attachUser(accounts));
+  r.use(sameOriginOnly(config));
+  r.use(attachUser(accounts));
 
   r.use(createPublicAuthRoutes({ config, accounts }));
 
