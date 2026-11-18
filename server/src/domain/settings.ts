@@ -17,7 +17,7 @@ export const householdSettings = z.object({
     .optional()
     .describe('How many people eat by default (e.g. 1). Planned meals are scaled to it unless a number of servings is given.'),
   plannedMeals: z
-    .partialRecord(z.enum(MEAL_TYPES), z.array(weekday))
+    .partialRecord(z.enum(MEAL_TYPES), z.array(weekday).max(7))
     .optional()
     .describe('Which meals are expected on which weekdays, e.g. {"dinner": [0,1,2,3,4]} for dinners from Sunday to Thursday (0 = Sunday).'),
   country: z

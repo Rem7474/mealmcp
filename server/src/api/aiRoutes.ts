@@ -47,14 +47,14 @@ export function createAiRoutes(db: Db, llm: LlmClient) {
   // A conversation about the household's own data. Read only: it answers in text and writes nothing; nothing is kept.
   r.post('/ai/chat', sessionOnly, async (req, res) => {
     const { householdId } = req.user!;
-    limit.hit(`chat:${householdId}`);
+    limit.hit(`ai:${householdId}`);
     res.json(await createAiChat(llm, ai(householdId), createServices(db, householdId), householdId).reply(aiChat.parse(req.body)));
   });
 
   // The same review screen as the typed list, with the model reading the sentences.
   r.post('/shopping/from-text/ai', sessionOnly, async (req, res) => {
     const { householdId } = req.user!;
-    limit.hit(`purchase:${householdId}`);
+    limit.hit(`ai:${householdId}`);
     const services = createServices(db, householdId);
     res.json(await createAiPurchase(llm, ai(householdId), services.purchase, householdId).parse(purchaseText.parse(req.body).text));
   });
@@ -67,10 +67,12 @@ export function createAiRoutes(db: Db, llm: LlmClient) {
     express.raw({ type: Object.values(RECEIPT_MIME), limit: MAX_RECEIPT_BYTES }),
     async (req, res) => {
       const { householdId } = req.user!;
-      limit.hit(`receipt:${householdId}`);
+      limit.hit(`ai:${householdId}`);
       const body: unknown = req.body;
       if (!Buffer.isBuffer(body) || body.length === 0)
         throw new ValidationError('Send a PDF or a picture (JPEG, PNG or WebP) as the request body');
+      // No point reading a PDF the model could not be asked about.
+      if (!(await ai(householdId).status()).text) throw new ValidationError('The AI server is not available for this household');
       const kind = sniff(body);
       if (!kind || req.headers['content-type']?.split(';')[0] !== RECEIPT_MIME[kind])
         throw new ValidationError('That file is not a PDF or a JPEG, PNG or WebP picture');
@@ -91,7 +93,7 @@ export function createAiRoutes(db: Db, llm: LlmClient) {
   // The AI plan answers at once with the rules' plan, then fills the slots in the background: the page polls GET /plan/week/:id.
   r.post('/plan/week/ai', sessionOnly, async (req, res) => {
     const { householdId, id } = req.user!;
-    limit.hit(`plan:${householdId}`);
+    limit.hit(`ai:${householdId}`);
     const services = createServices(db, householdId);
     const { plan } = await createAiWeekPlan(llm, ai(householdId), services, householdId).start(
       aiWeekPlanStart.parse(req.body),

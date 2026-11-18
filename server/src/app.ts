@@ -9,7 +9,9 @@ import { createLlmClient } from './ai/client.js';
 import { createApiRouter } from './api/router.js';
 import { createAccountService } from './auth/accounts.js';
 import { OAuthProvider, SCOPES } from './auth/oauth.js';
+import { createRateLimiter } from './auth/rateLimit.js';
 import type { Config } from './config.js';
+import { isSecure } from './config.js';
 import type { Db } from './db/index.js';
 import { type Logger, loggerFor, requestLogger } from './logger.js';
 import { createMcpServer } from './mcp/server.js';
@@ -35,9 +37,12 @@ export function createApp(db: Db, config: Config, logger: Logger = loggerFor(con
     res.setHeader('X-Frame-Options', 'DENY');
     res.setHeader('X-Content-Type-Options', 'nosniff');
     res.setHeader('Referrer-Policy', 'same-origin');
+    res.setHeader('Cross-Origin-Opener-Policy', 'same-origin');
+    res.setHeader('Permissions-Policy', 'camera=(self), microphone=(), geolocation=(), payment=()');
+    if (isSecure(config)) res.setHeader('Strict-Transport-Security', 'max-age=31536000; includeSubDomains');
     res.setHeader(
       'Content-Security-Policy',
-      "default-src 'self'; img-src 'self' data:; style-src 'self' 'unsafe-inline'; frame-ancestors 'none'; base-uri 'none'",
+      "default-src 'self'; img-src 'self' data:; style-src 'self' 'unsafe-inline'; frame-ancestors 'none'; base-uri 'none'; form-action 'self'; object-src 'none'",
     );
     next();
   });
@@ -59,19 +64,34 @@ export function createApp(db: Db, config: Config, logger: Logger = loggerFor(con
   app.use('/api', createApiRouter({ db, config, accounts, oauth, hub, llm }));
 
   // MCP over stateless Streamable HTTP: a fresh server per request, bound to the caller's household.
-  const bearer = requireBearerAuth({ verifier: oauth, resourceMetadataUrl: getOAuthProtectedResourceMetadataUrl(mcpUrl) });
-  app.post('/mcp', bearer, async (req, res) => {
-    const { householdId } = req.auth!.extra as { householdId: number };
-    const server = createMcpServer(createServices(db, householdId), () => hub.publish(householdId));
-    const transport = new StreamableHTTPServerTransport({ sessionIdGenerator: undefined });
-    res.on('close', () => {
-      void transport.close();
-      void server.close();
-    });
-    await server.connect(transport);
-    await transport.handleRequest(req, res, req.body);
+  const bearer = requireBearerAuth({
+    verifier: oauth,
+    requiredScopes: SCOPES,
+    resourceMetadataUrl: getOAuthProtectedResourceMetadataUrl(mcpUrl),
   });
+  // Each request builds a server and a transport: one token may not ask for more than this a minute.
+  const mcpLimit = createRateLimiter(300, 60_000, 'Too many MCP requests, slow down');
+  app.post(
+    '/mcp',
+    bearer,
+    (req, _res, next) => {
+      mcpLimit.hit(String((req.auth!.extra as { userId: number }).userId));
+      next();
+    },
+    async (req, res) => {
+      const { householdId } = req.auth!.extra as { householdId: number };
+      const server = createMcpServer(createServices(db, householdId), () => hub.publish(householdId));
+      const transport = new StreamableHTTPServerTransport({ sessionIdGenerator: undefined });
+      res.on('close', () => {
+        void transport.close();
+        void server.close();
+      });
+      await server.connect(transport);
+      await transport.handleRequest(req, res, req.body);
+    },
+  );
   app.all('/mcp', bearer, (_req, res) => {
+    res.setHeader('Allow', 'POST');
     res.status(405).json({ jsonrpc: '2.0', error: { code: -32000, message: 'Method not allowed' }, id: null });
   });
 
