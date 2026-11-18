@@ -1,6 +1,6 @@
 import { Heart, Plus } from '@phosphor-icons/react';
 import { useQuery } from '@tanstack/react-query';
-import { type FormEvent, useState } from 'react';
+import { type FormEvent, useEffect, useState } from 'react';
 import { api, useAction } from '../api';
 import { formatDate, formatMoney, formatQty, MEALS, today } from '../format';
 import { locale, type MessageKey, useI18n, useT } from '../i18n';
@@ -25,10 +25,24 @@ type View = { mode: 'list' } | { mode: 'detail'; id: number } | { mode: 'edit'; 
 export function Recipes() {
   const t = useT();
   // `#recipes/12` (a link from the planning) opens that recipe directly.
-  const [view, setView] = useState<View>(() => {
+  const viewFromHash = (): View => {
     const id = Number(location.hash.match(/^#recipes\/(\d+)/)?.[1]);
     return id ? { mode: 'detail', id } : { mode: 'list' };
-  });
+  };
+  const [view, setView] = useState<View>(viewFromHash);
+  useEffect(() => {
+    const sync = () => setView(viewFromHash());
+    window.addEventListener('hashchange', sync);
+    return () => window.removeEventListener('hashchange', sync);
+  }, []);
+  const openDetail = (id: number) => {
+    setView({ mode: 'detail', id });
+    if (location.hash !== `#recipes/${id}`) history.pushState(null, '', `#recipes/${id}`);
+  };
+  const openList = () => {
+    setView({ mode: 'list' });
+    if (location.hash.startsWith('#recipes/')) history.pushState(null, '', '#recipes');
+  };
   const [search, setSearch] = useState('');
   const [tag, setTag] = useState('');
   const [favoritesOnly, setFavoritesOnly] = useState(false);
@@ -50,8 +64,7 @@ export function Recipes() {
   });
   const tags = [...new Set(all.flatMap((r) => r.tags))].sort((a, b) => a.localeCompare(b));
 
-  if (view.mode === 'edit')
-    return <RecipeForm recipe={view.recipe} onDone={(id) => setView(id ? { mode: 'detail', id } : { mode: 'list' })} />;
+  if (view.mode === 'edit') return <RecipeForm recipe={view.recipe} onDone={(id) => (id ? openDetail(id) : openList())} />;
   const selected = view.mode === 'detail' ? view.id : null;
   // Wide screens never show an empty detail pane: the first recipe of the list is previewed until one is chosen.
   const wide = typeof window !== 'undefined' && typeof window.matchMedia === 'function' && window.matchMedia('(min-width: 1024px)').matches;
@@ -117,7 +130,7 @@ export function Recipes() {
             <li key={r.id} className="min-w-0">
               <button
                 type="button"
-                onClick={() => setView({ mode: 'detail', id: r.id })}
+                onClick={() => openDetail(r.id)}
                 className={`flex h-full w-full cursor-pointer items-start gap-3 rounded-xl bg-surface p-3 text-left hover:shadow-[0_0_0_1px_var(--muted)] ${shown === r.id ? 'shadow-[0_0_0_1px_var(--accent)]' : 'shadow-[0_0_0_1px_var(--line)]'}`}
               >
                 {/* A monogram tile gives every recipe a colour to find it by, until recipes carry photos. */}
@@ -189,12 +202,7 @@ export function Recipes() {
         {shown === null ? (
           <Empty>{t('recipes.pick')}</Empty>
         ) : (
-          <RecipeDetail
-            key={shown}
-            id={shown}
-            onBack={() => setView({ mode: 'list' })}
-            onEdit={(recipe) => setView({ mode: 'edit', recipe })}
-          />
+          <RecipeDetail key={shown} id={shown} onBack={openList} onEdit={(recipe) => setView({ mode: 'edit', recipe })} />
         )}
       </div>
     </div>
@@ -433,6 +441,10 @@ const positive = (value: string) => {
   const n = parseQty(value);
   return n !== undefined && Number.isFinite(n) && n > 0 ? Math.round(n) : undefined;
 };
+const nonNegative = (value: string) => {
+  const n = parseQty(value);
+  return n !== undefined && Number.isFinite(n) && n >= 0 ? Math.round(n) : undefined;
+};
 
 /** Puts a recipe on the planning without leaving its page. */
 function PlanRecipe({ recipe, onClose, onPlanned }: { recipe: Recipe; onClose: () => void; onPlanned: (date: string) => void }) {
@@ -551,7 +563,7 @@ function RecipeForm({ recipe, onDone }: { recipe?: Recipe; onDone: (id?: number)
         .map((s) => ({
           text: s.text.trim(),
           durationMinutes: positive(s.minutes),
-          temperatureC: positive(s.temperature),
+          temperatureC: nonNegative(s.temperature),
           appliance: s.appliance.trim() || undefined,
         })),
       ingredients: rows

@@ -1,5 +1,6 @@
 import { useQueryClient } from '@tanstack/react-query';
 import { useEffect, useState } from 'react';
+import { kitchenQuery, recentlyActed } from './api';
 
 /**
  * Keeps the dashboard in sync with changes made elsewhere (the MCP server, another
@@ -15,14 +16,17 @@ export function useLiveUpdates(): boolean {
     let timer: number | undefined;
     let opened = false;
     // A burst of changes (e.g. an AI adding 30 items) becomes a single refetch.
-    const refresh = () => {
+    const refresh = (force = false) => {
       window.clearTimeout(timer);
-      timer = window.setTimeout(() => void queryClient.invalidateQueries({ predicate: (q) => q.queryKey[0] !== 'me' }), 150);
+      timer = window.setTimeout(() => {
+        if (!force && recentlyActed()) return;
+        void queryClient.invalidateQueries({ predicate: kitchenQuery });
+      }, 150);
     };
-    source.addEventListener('change', refresh);
+    source.addEventListener('change', () => refresh(false));
     source.onopen = () => {
       setConnected(true);
-      if (opened) refresh(); // reconnected: changes may have been missed meanwhile
+      if (opened) refresh(true); // reconnected: changes may have been missed meanwhile
       opened = true;
     };
     source.onerror = () => setConnected(false); // the browser retries by itself

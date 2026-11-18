@@ -1,7 +1,7 @@
 import { PaperPlaneRight } from '@phosphor-icons/react';
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { api } from '../api';
-import { useT } from '../i18n';
+import { localizeError, useT } from '../i18n';
 import { Button, Sheet } from '../ui';
 
 type Screen = 'planning' | 'recipes' | 'stock' | 'shopping';
@@ -24,6 +24,11 @@ export function Assistant({ onClose }: { onClose: () => void }) {
   const [text, setText] = useState('');
   const [waiting, setWaiting] = useState(false);
   const [failed, setFailed] = useState<string | null>(null);
+  const endRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    endRef.current?.scrollIntoView?.({ block: 'end' });
+  }, [turns.length, waiting]);
 
   const send = async () => {
     const question = text.trim();
@@ -38,7 +43,7 @@ export function Assistant({ onClose }: { onClose: () => void }) {
       const answer = await api.post<{ reply: string; suggest: Screen[] }>('/ai/chat', { messages });
       setTurns([...next, { role: 'assistant', content: answer.reply, suggest: answer.suggest }]);
     } catch (err) {
-      setFailed(err instanceof Error ? err.message : t('assistant.failed'));
+      setFailed(localizeError(t, err instanceof Error ? err.message : t('assistant.failed')));
     } finally {
       setWaiting(false);
     }
@@ -75,6 +80,7 @@ export function Assistant({ onClose }: { onClose: () => void }) {
             {failed}
           </p>
         )}
+        <div ref={endRef} />
       </div>
       <form
         className="flex items-end gap-2 border-t border-line px-5 py-3"

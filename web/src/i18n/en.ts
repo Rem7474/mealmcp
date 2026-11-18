@@ -59,6 +59,7 @@ export const en = {
 
   'consent.notFound.title': 'Request not found',
   'consent.notFound.text': 'This authorization request has expired or does not exist. Start the connection again from the application.',
+  'consent.notFound.back': 'Back to MealMCP',
   'consent.title': 'Allow access?',
   'consent.asking': '{name} is asking to access MealMCP.',
   'consent.scope.data': 'Read and change the recipes, meal plan, shopping list and stock of the household “{household}”.',
@@ -490,6 +491,7 @@ export const en = {
   'err.cannotRegister': 'This account could not be created. Check your details, or sign in if you already have an account.',
   'err.wrongPassword': 'Incorrect password.',
   'err.ownerHasMembers': 'Remove the other members of the household first.',
+  'err.notSignedIn': 'Your session expired. Sign in again.',
   'recipes.favorite': 'Favorite',
   'recipes.unfavorite': 'Remove from favorites',
   'recipes.filter.favorites': 'Favorites',
@@ -615,6 +617,7 @@ export const en = {
   'waste.empty': 'Nothing thrown away. Well done.',
   'waste.total': '{n} thrown away · about {cost}',
   'week.title': 'Plan my week',
+  'week.reset': 'Start over',
   'week.intro': 'Pick the meals to fill. You review each proposal before anything is added to your plan.',
   'week.which': 'Which meals?',
   'week.maxMinutes': 'Time per meal',
