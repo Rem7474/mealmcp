@@ -24,11 +24,11 @@ const safeDecode = (v: string) => {
   }
 };
 
-function parseCookies(header: string | undefined): Record<string, string> {
-  const out: Record<string, string> = Object.create(null);
+function parseCookies(header: string | undefined): Map<string, string> {
+  const out = new Map<string, string>();
   for (const part of header?.split(';') ?? []) {
     const i = part.indexOf('=');
-    if (i > 0) out[part.slice(0, i).trim()] = safeDecode(part.slice(i + 1).trim());
+    if (i > 0) out.set(part.slice(0, i).trim(), safeDecode(part.slice(i + 1).trim()));
   }
   return out;
 }
@@ -51,10 +51,10 @@ export const clearSessionCookie = (res: Response, config: Config) =>
     path: '/',
   });
 
-export const sessionTokenOf = (req: Request) => parseCookies(req.headers.cookie)[SESSION_COOKIE];
+export const sessionTokenOf = (req: Request) => parseCookies(req.headers.cookie).get(SESSION_COOKIE);
 
 /** One cookie of the request, by name. */
-export const cookieOf = (req: Request, name: string) => parseCookies(req.headers.cookie)[name];
+export const cookieOf = (req: Request, name: string) => parseCookies(req.headers.cookie).get(name);
 
 /** Binds an OAuth authorization request to the browser that started it (see auth/oauth.ts). */
 export const OAUTH_COOKIE = 'mealmcp_oauth';
