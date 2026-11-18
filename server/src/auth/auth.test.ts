@@ -25,11 +25,11 @@ afterAll(() => void server.close());
 
 /** Minimal cookie-aware client. */
 function browser() {
-  let cookie = '';
+  const jar = new Map<string, string>();
   return {
     async call(path: string, init: RequestInit & { json?: unknown } = {}) {
       const headers: Record<string, string> = { ...(init.headers as Record<string, string>) };
-      if (cookie) headers.cookie = cookie;
+      if (jar.size) headers.cookie = [...jar].map(([k, v]) => `${k}=${v}`).join('; ');
       if (init.json !== undefined) headers['content-type'] = 'application/json';
       const res = await fetch(base + path, {
         redirect: 'manual',
@@ -37,8 +37,11 @@ function browser() {
         headers,
         body: init.json !== undefined ? JSON.stringify(init.json) : init.body,
       });
-      const set = res.headers.get('set-cookie');
-      if (set) cookie = set.split(';')[0];
+      for (const set of res.headers.getSetCookie()) {
+        const [pair] = set.split(';');
+        const i = pair.indexOf('=');
+        if (i > 0) jar.set(pair.slice(0, i), pair.slice(i + 1));
+      }
       return res;
     },
   };
@@ -80,8 +83,8 @@ async function authorizeClient(user: ReturnType<typeof browser>, approve = true)
 
   const verifier = b64url(randomBytes(32));
   const challenge = b64url(createHash('sha256').update(verifier).digest());
-  const authz = await fetch(
-    `${base}/authorize?${new URLSearchParams({
+  const authz = await user.call(
+    `/authorize?${new URLSearchParams({
       response_type: 'code',
       client_id: client.client_id,
       redirect_uri: redirectUri,
@@ -89,7 +92,6 @@ async function authorizeClient(user: ReturnType<typeof browser>, approve = true)
       code_challenge_method: 'S256',
       state: 'xyz',
     })}`,
-    { redirect: 'manual' },
   );
   expect(authz.status).toBe(302);
   const consent = new URL(authz.headers.get('location')!);
@@ -227,6 +229,30 @@ describe('MCP OAuth', () => {
     await user.call('/api/auth/login', { method: 'POST', json: { email: 'a@x.fr', password: 'correct horse battery' } });
     const denied = await authorizeClient(user, false);
     expect(denied).toEqual({ denied: 'access_denied' });
+
+    // A consent request cannot be read or approved from a different browser that did not start /authorize.
+    const redirectUri = 'http://localhost:9999/callback';
+    const reg = await fetch(`${base}/register`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ client_name: 'Phisher', redirect_uris: [redirectUri], token_endpoint_auth_method: 'none' }),
+    });
+    const client = await reg.json();
+    const verifier = b64url(randomBytes(32));
+    const challenge = b64url(createHash('sha256').update(verifier).digest());
+    const attacker = browser();
+    const authz = await attacker.call(
+      `/authorize?${new URLSearchParams({
+        response_type: 'code',
+        client_id: client.client_id,
+        redirect_uri: redirectUri,
+        code_challenge: challenge,
+        code_challenge_method: 'S256',
+      })}`,
+    );
+    const request = new URL(authz.headers.get('location')!).searchParams.get('request')!;
+    expect((await user.call(`/api/oauth/requests/${request}`)).status).toBe(404);
+    expect((await user.call(`/api/oauth/requests/${request}/decision`, { method: 'POST', json: { approve: true } })).status).toBe(404);
   });
 
   it('personal tokens work on MCP and the API, and keep households apart', async () => {

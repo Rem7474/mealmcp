@@ -11,7 +11,9 @@ const isoDate = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Expected a date formatt
 // Query strings and path parameters arrive as text: these coerce at runtime but are typed as plain numbers and booleans,
 // so callers (services, MCP tools) see the same input types as before.
 const num = () => z.coerce.number() as unknown as z.ZodNumber;
-const bool = () => z.coerce.boolean() as unknown as z.ZodBoolean;
+// Not z.coerce.boolean(): Boolean("false") is true, which would turn `?ignoreDiet=false` into "ignore the diet".
+const bool = () =>
+  z.preprocess((v) => (v === 'true' || v === '1' ? true : v === 'false' || v === '0' ? false : v), z.boolean()) as unknown as z.ZodBoolean;
 
 const id = num().int().positive();
 const unit = z.string().max(30).optional().describe('Unit such as g, kg, ml, l, or a free label (can, pack). Omit for countable pieces.');
@@ -130,7 +132,7 @@ const note = z
 
 export const stockAdd = z.object({
   name: productName.describe('Product name; created automatically if unknown'),
-  quantity: z.number().positive().optional().describe('Required unless approximate is true'),
+  quantity: z.number().positive().max(1_000_000).optional().describe('Required unless approximate is true'),
   approximate: z
     .boolean()
     .default(false)
@@ -146,11 +148,17 @@ export const stockAdd = z.object({
     .number()
     .int()
     .positive()
+    .max(10_000)
     .optional()
     .describe(
       'Bought in packs: "2 x 500 g" is packCount 2 + packSize 500 + unit g; "3 cartons of 200 ml" is packCount 3, packSize 200, unit ml. Keeps both the count and the size (do not send quantity).',
     ),
-  packSize: z.number().positive().optional().describe('Size of one pack, in `unit`. With packCount, the quantity is their product.'),
+  packSize: z
+    .number()
+    .positive()
+    .max(1_000_000)
+    .optional()
+    .describe('Size of one pack, in `unit`. With packCount, the quantity is their product.'),
   opened: z
     .boolean()
     .optional()
@@ -205,13 +213,13 @@ export const stockFreeze = z.object({
 
 export const stockConsume = z.object({
   name: productName,
-  quantity: z.number().positive(),
+  quantity: z.number().positive().max(1_000_000),
   unit,
 });
 
 const ingredient = z.object({
   name: productName,
-  quantity: z.number().positive().optional().describe('Required unless toTaste is true'),
+  quantity: z.number().positive().max(100_000).optional().describe('Required unless toTaste is true'),
   toTaste: z
     .boolean()
     .default(false)
@@ -230,6 +238,7 @@ export const EQUIPMENT_KINDS = ['appliance', 'utensil'] as const;
 const equipmentName = z.string().trim().min(1).max(60);
 const equipmentList = z
   .array(equipmentName)
+  .max(50)
   .describe('Appliances/utensils the recipe needs, e.g. "air fryer", "mandoline". Appliances named in steps are added automatically');
 
 export const equipmentAdd = z.object({
@@ -252,37 +261,37 @@ const rating = z
   .nullable()
   .optional()
   .describe('How much the household likes it, 1 to 5 stars (null clears it)');
-const tags = z.array(z.string().trim().min(1).max(40)).describe('Labels such as "air fryer", "quick", "no shopping"');
+const tags = z.array(z.string().trim().min(1).max(40)).max(30).describe('Labels such as "air fryer", "quick", "no shopping"');
 
 export const recipeCreate = z.object({
   name: z.string().trim().min(1).max(160),
   description: z.string().max(2000).nullable().optional(),
-  servings: z.number().int().positive().default(4).describe('Number of servings the quantities are written for'),
+  servings: z.number().int().positive().max(1000).default(4).describe('Number of servings the quantities are written for'),
   prepMinutes: z.number().int().nonnegative().nullable().optional().describe('Preparation time (not cooking)'),
   cookMinutes: z.number().int().nonnegative().nullable().optional().describe('Cooking time, separate from preparation'),
   instructions: z.string().max(20000).nullable().optional().describe('Free-text instructions, plain text or markdown'),
   rating: rating,
   favorite: z.boolean().optional().describe('Mark as a household favorite: favorites are suggested first'),
-  steps: z.array(step).default([]).describe('Structured steps with optional duration, temperature and appliance'),
+  steps: z.array(step).max(100).default([]).describe('Structured steps with optional duration, temperature and appliance'),
   tags: tags.default([]),
   equipment: equipmentList.default([]),
-  ingredients: z.array(ingredient).default([]),
+  ingredients: z.array(ingredient).max(100).default([]),
 });
 
 export const recipeUpdate = z.object({
   id,
   name: z.string().trim().min(1).max(160).optional(),
   description: z.string().max(2000).nullable().optional(),
-  servings: z.number().int().positive().optional(),
+  servings: z.number().int().positive().max(1000).optional(),
   prepMinutes: z.number().int().nonnegative().nullable().optional(),
   cookMinutes: z.number().int().nonnegative().nullable().optional(),
   instructions: z.string().max(20000).nullable().optional(),
   rating: rating,
   favorite: z.boolean().optional(),
-  steps: z.array(step).optional().describe('If given, replaces all steps'),
+  steps: z.array(step).max(100).optional().describe('If given, replaces all steps'),
   tags: tags.optional().describe('If given, replaces all tags'),
   equipment: equipmentList.optional().describe('If given, replaces the equipment list'),
-  ingredients: z.array(ingredient).optional().describe('If given, replaces the whole ingredient list'),
+  ingredients: z.array(ingredient).max(100).optional().describe('If given, replaces the whole ingredient list'),
 });
 
 export const recipeList = z.object({
@@ -307,12 +316,18 @@ export const planAdd = z.object({
   mealType: z.enum(MEAL_TYPES),
   recipeId: id.nullable().optional().describe('Recipe to cook; omit for a free-text meal'),
   title: z.string().max(160).nullable().optional().describe('Free text when there is no recipe, e.g. "Restaurant"'),
-  servings: z.number().int().positive().optional().describe('Defaults to the household default servings, else the recipe servings'),
+  servings: z
+    .number()
+    .int()
+    .positive()
+    .max(1000)
+    .optional()
+    .describe('Defaults to the household default servings, else the recipe servings'),
 });
 
 export const shoppingAdd = z.object({
   name: productName,
-  quantity: z.number().positive().nullable().optional(),
+  quantity: z.number().positive().max(1_000_000).nullable().optional(),
   unit,
 });
 
@@ -344,6 +359,7 @@ const expenseItem = z.object({
   quantity: z
     .number()
     .positive()
+    .max(1_000_000)
     .optional()
     .describe('Quantity bought; with it, the product price is remembered and used for cost estimates'),
   unit,
@@ -354,7 +370,7 @@ export const expenseRecord = z.object({
   date: isoDate.optional().describe('Purchase date; defaults to today'),
   store: z.string().trim().min(1).max(80).optional().describe('Shop name, e.g. "Leclerc"'),
   note: z.string().max(300).optional(),
-  items: z.array(expenseItem).default([]).describe('Receipt lines. Optional when only a total is known'),
+  items: z.array(expenseItem).max(200).default([]).describe('Receipt lines. Optional when only a total is known'),
   total: money.optional().describe('Amount actually paid. Defaults to the sum of the item prices; set it when discounts apply'),
   addToStock: z.boolean().default(false).describe('Also put the lines that have a quantity into the stock'),
   location: location.default('pantry').describe('Where stocked items go when addToStock is true'),
@@ -409,7 +425,7 @@ export const planSlots = z.object({
 
 export const suggestRecipes = z.object({
   withinDays: num().int().nonnegative().default(5).describe('Use up what expires within this many days'),
-  products: z.array(productName).optional().describe('Extra product names to use up, whatever their expiry'),
+  products: z.array(productName).max(50).optional().describe('Extra product names to use up, whatever their expiry'),
   tag: z.string().trim().optional().describe('Only consider recipes with this tag'),
   servings: num().int().positive().optional().describe('Servings to check availability for; defaults to the household default'),
   limit: num().int().positive().max(20).default(5),

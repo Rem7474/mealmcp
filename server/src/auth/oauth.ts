@@ -8,7 +8,7 @@ import {
 import type { AuthorizationParams, OAuthServerProvider } from '@modelcontextprotocol/sdk/server/auth/provider.js';
 import type { AuthInfo } from '@modelcontextprotocol/sdk/server/auth/types.js';
 import type { OAuthClientInformationFull, OAuthTokenRevocationRequest, OAuthTokens } from '@modelcontextprotocol/sdk/shared/auth.js';
-import { and, eq, lt } from 'drizzle-orm';
+import { and, eq, lt, sql } from 'drizzle-orm';
 import type { Response } from 'express';
 import type { Config } from '../config.js';
 import type { Db } from '../db/index.js';
@@ -16,6 +16,7 @@ import { accessTokens, authCodes, oauthClients, oauthRequests, refreshTokens } f
 import { NotFoundError } from '../domain/errors.js';
 import type { AccountService, CurrentUser } from './accounts.js';
 import { randomToken, sha256 } from './crypto.js';
+import { setOauthCookie } from './http.js';
 
 export const SCOPES = ['mealmcp'];
 const ACCESS_TTL = 60 * 60 * 1000;
@@ -60,6 +61,18 @@ export class OAuthProvider implements OAuthServerProvider {
       const full = client as OAuthClientInformationFull;
       if (!full.redirect_uris?.length || !full.redirect_uris.every((u) => validRedirectUri(String(u))))
         throw new InvalidClientMetadataError('redirect_uris must be https, http on localhost, or an app-specific scheme');
+      // Drop old dynamic registrations that were never used or whose tokens are gone.
+      const cutoff = Date.now() - 86_400_000;
+      this.db
+        .delete(oauthClients)
+        .where(
+          and(
+            lt(oauthClients.createdAt, cutoff),
+            sql`not exists (select 1 from access_tokens t where t.client_id = ${oauthClients.clientId})`,
+            sql`not exists (select 1 from oauth_requests r where r.client_id = ${oauthClients.clientId})`,
+          ),
+        )
+        .run();
       this.db
         .insert(oauthClients)
         .values({ clientId: full.client_id, data: JSON.stringify(full), createdAt: Date.now() })
@@ -69,8 +82,13 @@ export class OAuthProvider implements OAuthServerProvider {
   };
 
   async authorize(client: OAuthClientInformationFull, params: AuthorizationParams, res: Response): Promise<void> {
+    const requested = params.scopes ?? [];
+    if (requested.some((s) => !SCOPES.includes(s))) throw new InvalidRequestError('Unknown scope requested');
+    // A resource indicator (RFC 8707) must name this server, not another one the token could be replayed on.
+    if (params.resource && params.resource.origin !== this.config.publicUrl.origin) throw new InvalidRequestError('Unknown resource');
     const now = Date.now();
     this.db.delete(oauthRequests).where(lt(oauthRequests.expiresAt, now)).run();
+    this.db.delete(authCodes).where(lt(authCodes.expiresAt, now)).run();
     const id = randomToken(24);
     this.db
       .insert(oauthRequests)
@@ -85,12 +103,15 @@ export class OAuthProvider implements OAuthServerProvider {
         expiresAt: now + REQUEST_TTL,
       })
       .run();
+    // The browser that started the request is the only one that may approve it: the consent link alone is not enough.
+    setOauthCookie(res, this.config, id);
     res.redirect(302, new URL(`/consent?request=${id}`, this.config.publicUrl).href);
   }
 
   // --- Consent step, driven by the web UI ---------------------------------
 
-  private pending(id: string) {
+  private pending(id: string, boundTo: string | undefined) {
+    if (boundTo !== id) throw new NotFoundError('Authorization request', 'expired or unknown');
     const row = this.db.select().from(oauthRequests).where(eq(oauthRequests.id, id)).get();
     if (!row || row.expiresAt < Date.now()) throw new NotFoundError('Authorization request', 'expired or unknown');
     const client = this.clientsStore.getClient(row.clientId) as OAuthClientInformationFull | undefined;
@@ -99,20 +120,21 @@ export class OAuthProvider implements OAuthServerProvider {
   }
 
   /** What the consent page shows: who is asking, and where the result will be sent. */
-  describeRequest(id: string) {
-    const { row, client } = this.pending(id);
+  describeRequest(id: string, boundTo: string | undefined) {
+    const { row, client } = this.pending(id, boundTo);
     const target = new URL(row.redirectUri);
     return {
       clientName: client.client_name ?? 'Application sans nom',
       // Custom schemes (app://) have an opaque origin, so rebuild a readable one.
-      redirectTo: target.origin !== 'null' ? target.origin : `${target.protocol}//${target.host}`,
+      redirectTo: target.origin !== 'null' ? target.origin : `${target.protocol}//${target.host || target.pathname}`,
+      redirectUri: row.redirectUri,
       scopes: row.scopes.split(' '),
     };
   }
 
   /** Records the user's decision and returns the URL to send the browser back to the client with. */
-  decide(id: string, user: CurrentUser, approve: boolean): { redirectTo: string } {
-    const { row } = this.pending(id);
+  decide(id: string, user: CurrentUser, approve: boolean, boundTo: string | undefined): { redirectTo: string } {
+    const { row } = this.pending(id, boundTo);
     this.db.delete(oauthRequests).where(eq(oauthRequests.id, id)).run();
     const target = new URL(row.redirectUri);
     if (row.state) target.searchParams.set('state', row.state);
@@ -165,7 +187,7 @@ export class OAuthProvider implements OAuthServerProvider {
     // Single use: delete before issuing; a replay then fails in codeRow.
     const claimed = this.db.delete(authCodes).where(eq(authCodes.codeHash, row.codeHash)).returning().get();
     if (!claimed) throw new InvalidGrantError('Authorization code already used');
-    if (redirectUri && redirectUri !== row.redirectUri)
+    if (!redirectUri || redirectUri !== row.redirectUri)
       throw new InvalidGrantError('redirect_uri does not match the authorization request');
     return this.issueTokens(row.userId, client.client_id, row.scopes, row.resource);
   }
@@ -227,6 +249,7 @@ export class OAuthProvider implements OAuthServerProvider {
       clientId: identity.clientId ?? 'personal-token',
       scopes: identity.scopes.length ? identity.scopes : SCOPES,
       expiresAt: identity.expiresAt ? Math.floor(identity.expiresAt / 1000) : NEVER,
+      ...(identity.resource ? { resource: new URL(identity.resource) } : {}),
       extra: { userId: identity.userId, householdId: identity.householdId },
     };
   }

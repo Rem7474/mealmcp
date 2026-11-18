@@ -7,6 +7,7 @@ import { Button, Card } from '../ui';
 interface RequestInfo {
   clientName: string;
   redirectTo: string;
+  redirectUri?: string;
   scopes: string[];
 }
 
@@ -52,7 +53,7 @@ export function Consent({ userName, householdName }: { userName: string; househo
             <li>{t('consent.scope.actAs', { user: userName })}</li>
           </ul>
           <p className="text-sm text-muted">
-            {rich('consent.redirect', { url: <code className="break-all">{info.data!.redirectTo}</code> })}
+            {rich('consent.redirect', { url: <code className="break-all">{info.data!.redirectUri ?? info.data!.redirectTo}</code> })}
           </p>
           {error && (
             <p role="alert" className="mt-3 text-sm text-danger">
