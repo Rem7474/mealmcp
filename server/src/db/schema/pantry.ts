@@ -57,7 +57,10 @@ export const productAliases = sqliteTable(
     alias: text('alias').notNull(),
     aliasKey: text('alias_key').notNull(),
   },
-  (t) => [uniqueIndex('product_aliases_household_key_idx').on(t.householdId, t.aliasKey)],
+  (t) => [
+    uniqueIndex('product_aliases_household_key_idx').on(t.householdId, t.aliasKey),
+    index('product_aliases_product_idx').on(t.productId),
+  ],
 );
 
 export const stockItems = sqliteTable(
@@ -92,7 +95,7 @@ export const stockItems = sqliteTable(
     /** What was paid, in cents per `unit` (a base unit), when known: a receipt or a priced shopping line. Lines paid differently are not merged. */
     paidUnitPrice: real('paid_unit_price'),
   },
-  (t) => [index('stock_household_idx').on(t.householdId)],
+  (t) => [index('stock_household_idx').on(t.householdId), index('stock_household_product_idx').on(t.householdId, t.productId)],
 );
 
 export const wasteLog = sqliteTable(

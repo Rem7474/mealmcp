@@ -69,29 +69,37 @@ export const recipeTags = sqliteTable(
 );
 
 /** Ordered, structured steps: enough for a machine to start the right program (appliance, °C, minutes). */
-export const recipeSteps = sqliteTable('recipe_steps', {
-  id: integer('id').primaryKey({ autoIncrement: true }),
-  recipeId: integer('recipe_id')
-    .notNull()
-    .references(() => recipes.id, { onDelete: 'cascade' }),
-  position: integer('position').notNull(),
-  text: text('text').notNull(),
-  durationMinutes: integer('duration_minutes'),
-  temperatureC: integer('temperature_c'),
-  appliance: text('appliance'),
-});
+export const recipeSteps = sqliteTable(
+  'recipe_steps',
+  {
+    id: integer('id').primaryKey({ autoIncrement: true }),
+    recipeId: integer('recipe_id')
+      .notNull()
+      .references(() => recipes.id, { onDelete: 'cascade' }),
+    position: integer('position').notNull(),
+    text: text('text').notNull(),
+    durationMinutes: integer('duration_minutes'),
+    temperatureC: integer('temperature_c'),
+    appliance: text('appliance'),
+  },
+  (t) => [index('recipe_steps_recipe_idx').on(t.recipeId)],
+);
 
-export const recipeIngredients = sqliteTable('recipe_ingredients', {
-  id: integer('id').primaryKey({ autoIncrement: true }),
-  recipeId: integer('recipe_id')
-    .notNull()
-    .references(() => recipes.id, { onDelete: 'cascade' }),
-  productId: integer('product_id')
-    .notNull()
-    .references(() => products.id, { onDelete: 'restrict' }),
-  quantity: real('quantity').notNull(),
-  unit: text('unit').notNull(),
-  note: text('note'),
-  /** "To taste" (pepper, thyme): listed in the recipe but not counted, bought or priced. */
-  toTaste: integer('to_taste', { mode: 'boolean' }).notNull().default(false),
-});
+export const recipeIngredients = sqliteTable(
+  'recipe_ingredients',
+  {
+    id: integer('id').primaryKey({ autoIncrement: true }),
+    recipeId: integer('recipe_id')
+      .notNull()
+      .references(() => recipes.id, { onDelete: 'cascade' }),
+    productId: integer('product_id')
+      .notNull()
+      .references(() => products.id, { onDelete: 'restrict' }),
+    quantity: real('quantity').notNull(),
+    unit: text('unit').notNull(),
+    note: text('note'),
+    /** "To taste" (pepper, thyme): listed in the recipe but not counted, bought or priced. */
+    toTaste: integer('to_taste', { mode: 'boolean' }).notNull().default(false),
+  },
+  (t) => [index('recipe_ingredients_recipe_idx').on(t.recipeId), index('recipe_ingredients_product_idx').on(t.productId)],
+);
