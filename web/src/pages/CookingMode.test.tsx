@@ -1,7 +1,7 @@
 import { screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { renderApp } from '../test/utils';
+import { mockApi, renderApp } from '../test/utils';
 import type { Ingredient, Recipe } from '../types';
 import { CookingMode, matchStepIngredients } from './CookingMode';
 
@@ -100,5 +100,27 @@ describe('CookingMode', () => {
     expect(screen.getByRole('button', { name: 'Start' })).toBeInTheDocument();
     await userEvent.click(screen.getByRole('button', { name: 'Reset' }));
     expect(screen.getByText('15:00')).toBeInTheDocument();
+  });
+
+  it('keeps a running timer visible across steps and lets the user jump back to it', async () => {
+    renderApp(<CookingMode recipe={recipe} activeServings={2} onClose={vi.fn()} />);
+    await userEvent.click(screen.getByRole('button', { name: 'Start' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Next' }));
+
+    const pill = screen.getByRole('button', { name: /Step 1: 15:00|Step 1: 14:59/ });
+    expect(pill).toBeInTheDocument();
+    await userEvent.click(pill);
+    expect(screen.getByText('Step 1 of 2 · 2 servings')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Pause' })).toBeInTheDocument();
+  });
+
+  it('marks the planned meal as cooked when mealId is provided', async () => {
+    const { calls } = mockApi({ 'POST /plan/42/cook': { status: 200, body: { id: 42, cooked: true } } });
+    const onClose = vi.fn();
+    renderApp(<CookingMode recipe={recipe} activeServings={2} mealId={42} onClose={onClose} />);
+    await userEvent.click(screen.getByRole('button', { name: 'Next' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Finish & mark cooked' }));
+    expect(calls.some((c) => c.method === 'POST' && c.path === '/plan/42/cook')).toBe(true);
+    expect(onClose).toHaveBeenCalledTimes(1);
   });
 });

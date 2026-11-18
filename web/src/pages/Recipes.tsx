@@ -21,11 +21,14 @@ const TILE_TONES = [
 /** The same name always gets the same tile colour. */
 const tileTone = (name: string) => [...name].reduce((sum, c) => sum + c.charCodeAt(0), 0) % TILE_TONES.length;
 
-type View = { mode: 'list' } | { mode: 'detail'; id: number; cook?: boolean; servings?: number } | { mode: 'edit'; recipe?: Recipe };
+type View =
+  | { mode: 'list' }
+  | { mode: 'detail'; id: number; cook?: boolean; servings?: number; mealId?: number }
+  | { mode: 'edit'; recipe?: Recipe };
 
 export function Recipes() {
   const t = useT();
-  // `#recipes/12` (or `#recipes/12/cook?servings=4` from planning) opens that recipe directly.
+  // `#recipes/12` (or `#recipes/12/cook?servings=4&mealId=9` from planning) opens that recipe directly.
   const viewFromHash = (): View => {
     const match = location.hash.match(/^#recipes\/(\d+)(\/cook)?(?:\?(.+))?/);
     if (!match) return { mode: 'list' };
@@ -34,7 +37,9 @@ export function Recipes() {
     const params = match[3] ? new URLSearchParams(match[3]) : null;
     const rawServings = Number(params?.get('servings'));
     const servings = Number.isInteger(rawServings) && rawServings > 0 ? rawServings : undefined;
-    return { mode: 'detail', id, cook, servings };
+    const rawMealId = Number(params?.get('mealId'));
+    const mealId = Number.isInteger(rawMealId) && rawMealId > 0 ? rawMealId : undefined;
+    return { mode: 'detail', id, cook, servings, mealId };
   };
   const [view, setView] = useState<View>(viewFromHash);
   useEffect(() => {
@@ -226,6 +231,7 @@ export function Recipes() {
             id={shown}
             initialCook={view.mode === 'detail' ? view.cook : undefined}
             initialServings={view.mode === 'detail' ? view.servings : undefined}
+            initialMealId={view.mode === 'detail' ? view.mealId : undefined}
             onBack={openList}
             onEdit={(recipe) => setView({ mode: 'edit', recipe })}
           />
@@ -287,12 +293,14 @@ function RecipeDetail({
   id,
   initialCook,
   initialServings,
+  initialMealId,
   onBack,
   onEdit,
 }: {
   id: number;
   initialCook?: boolean;
   initialServings?: number;
+  initialMealId?: number;
   onBack: () => void;
   onEdit: (recipe: Recipe) => void;
 }) {
@@ -335,6 +343,7 @@ function RecipeDetail({
         <CookingMode
           recipe={recipe}
           activeServings={activeServings}
+          mealId={initialMealId}
           onClose={() => {
             setCooking(false);
             if (location.hash.includes('/cook')) history.replaceState(null, '', `#recipes/${id}`);

@@ -415,7 +415,7 @@ function MealCard({ meal, insight, large = false }: { meal: PlannedMeal; insight
       >
         {meal.recipeId ? (
           <a
-            href={meal.cooked ? `#recipes/${meal.recipeId}` : `#recipes/${meal.recipeId}/cook?servings=${meal.servings}`}
+            href={meal.cooked ? `#recipes/${meal.recipeId}` : `#recipes/${meal.recipeId}/cook?servings=${meal.servings}&mealId=${meal.id}`}
             className="hover:text-accent hover:underline"
           >
             {meal.recipeName}

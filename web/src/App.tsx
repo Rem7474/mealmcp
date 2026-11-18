@@ -75,22 +75,21 @@ export function App() {
   const me = useQuery({ queryKey: meKey, queryFn: fetchMe });
 
   if (me.isLoading) return null;
-  if (me.error || !me.data)
-    return (
+  let content: ReturnType<typeof Shell>;
+  if (me.error || !me.data) {
+    content = (
       <p role="alert" className="p-8 text-center text-danger">
         {t('app.unreachable')}
       </p>
     );
-  if (!me.data.user) return <AuthPage registrationOpen={me.data.registrationOpen} />;
-
-  const { user } = me.data;
-  // An MCP client sent the browser here to ask for access (see server/src/auth/oauth.ts).
-  if (location.pathname === '/consent') return <Consent userName={user.name} householdName={user.householdName} />;
-  return (
-    <IconContext.Provider value={{ weight: 'bold' }}>
-      <Shell user={user} />
-    </IconContext.Provider>
-  );
+  } else if (!me.data.user) {
+    content = <AuthPage registrationOpen={me.data.registrationOpen} />;
+  } else if (location.pathname === '/consent') {
+    content = <Consent userName={me.data.user.name} householdName={me.data.user.householdName} />;
+  } else {
+    content = <Shell user={me.data.user} />;
+  }
+  return <IconContext.Provider value={{ weight: 'bold' }}>{content}</IconContext.Provider>;
 }
 
 function Shell({ user }: { user: User }) {

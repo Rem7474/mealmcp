@@ -1,0 +1,29 @@
+import { expect, type Page } from '@playwright/test';
+
+export const OWNER = {
+  name: 'Alice',
+  email: 'alice@example.com',
+  password: 'correct-horse-battery',
+};
+
+export async function forceEnglish(page: Page) {
+  await page.addInitScript(() => {
+    try {
+      localStorage.setItem('mealmcp.lang', 'en');
+    } catch {
+      /* ignore */
+    }
+  });
+}
+
+export async function signIn(page: Page) {
+  await forceEnglish(page);
+  await page.goto('/');
+  const heading = page.getByRole('heading', { name: 'Sign in' });
+  if (await heading.isVisible().catch(() => false)) {
+    await page.getByLabel('Email').fill(OWNER.email);
+    await page.getByLabel('Password').fill(OWNER.password);
+    await page.getByRole('button', { name: 'Sign in' }).click();
+  }
+  await expect(page.getByRole('navigation').first()).toBeVisible();
+}
