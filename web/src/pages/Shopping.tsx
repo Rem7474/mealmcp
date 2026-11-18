@@ -163,7 +163,7 @@ export function Shopping() {
               aria-label={t('common.unit')}
               value={form.unit}
               onChange={(e) => setForm({ ...form, unit: e.target.value })}
-              className="w-24 max-sm:hidden"
+              className="w-16 sm:w-24"
             />
             {/* Adding is the everyday action: the form stays open, and on phones its button is just the icon. */}
             <Button type="submit" variant="primary" disabled={pending} aria-label={t('common.add')} className="max-sm:w-11 max-sm:px-0">

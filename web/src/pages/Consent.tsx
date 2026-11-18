@@ -43,6 +43,12 @@ export function Consent({ userName, householdName }: { userName: string; househo
       {info.isLoading ? null : info.error ? (
         <Card title={t('consent.notFound.title')}>
           <p className="text-sm">{t('consent.notFound.text')}</p>
+          <a
+            href="/"
+            className="mt-4 inline-flex h-11 items-center rounded-lg border border-control px-4 text-sm font-medium text-ink hover:border-muted sm:h-9"
+          >
+            {t('consent.notFound.back')}
+          </a>
         </Card>
       ) : (
         <Card title={t('consent.title')}>

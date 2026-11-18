@@ -56,6 +56,7 @@ export const fr: Messages = {
 
   'consent.notFound.title': 'Demande introuvable',
   'consent.notFound.text': 'Cette demande d’autorisation a expiré ou n’existe pas. Relancez la connexion depuis l’application.',
+  'consent.notFound.back': 'Retour à MealMCP',
   'consent.title': 'Autoriser l’accès ?',
   'consent.asking': '{name} demande l’accès à MealMCP.',
   'consent.scope.data': 'Lire et modifier les recettes, le planning, les courses et le stock du foyer « {household} ».',
@@ -495,6 +496,7 @@ export const fr: Messages = {
   'err.cannotRegister': 'Ce compte n’a pas pu être créé. Vérifiez vos informations, ou connectez-vous si vous avez déjà un compte.',
   'err.wrongPassword': 'Mot de passe incorrect.',
   'err.ownerHasMembers': 'Retirez d’abord les autres membres du foyer.',
+  'err.notSignedIn': 'Votre session a expiré. Reconnectez-vous.',
   'recipes.favorite': 'Favori',
   'recipes.unfavorite': 'Retirer des favoris',
   'recipes.filter.favorites': 'Favoris',
@@ -620,6 +622,7 @@ export const fr: Messages = {
   'waste.empty': 'Rien de jeté. Bravo.',
   'waste.total': '{n} jeté(s) · environ {cost}',
   'week.title': 'Planifier ma semaine',
+  'week.reset': 'Recommencer',
   'week.intro': 'Choisissez les repas à remplir. Vous validez chaque proposition avant que quoi que ce soit n’entre dans votre planning.',
   'week.which': 'Quels repas ?',
   'week.maxMinutes': 'Temps par repas',

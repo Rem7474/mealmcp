@@ -1,14 +1,23 @@
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { QueryCache, QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import { App } from './App';
+import { UnauthorizedError } from './api';
 import { I18nProvider } from './i18n';
 import './index.css';
+import { meKey } from './pages/AuthPage';
 import { applyAccent, savedAccent } from './theme';
 
 applyAccent(savedAccent());
 
-const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false, staleTime: 5_000 } } });
+const queryClient = new QueryClient({
+  queryCache: new QueryCache({
+    onError: (err) => {
+      if (err instanceof UnauthorizedError) void queryClient.invalidateQueries({ queryKey: meKey });
+    },
+  }),
+  defaultOptions: { queries: { retry: false, staleTime: 5_000 } },
+});
 
 // Makes the app installable ("Add to home screen"); production only, so dev hot reload is untouched.
 if ('serviceWorker' in navigator && import.meta.env.PROD) {

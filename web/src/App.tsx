@@ -1,8 +1,8 @@
 import { BookOpen, CalendarBlank, CookingPot, House, type IconWeight, Package, ShoppingCart, Wallet } from '@phosphor-icons/react';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import type { ComponentType } from 'react';
 import { useCallback, useEffect, useState } from 'react';
-import { ErrorContext } from './api';
+import { ErrorContext, UnauthorizedError } from './api';
 import { LanguageSwitch, localizeError, useT } from './i18n';
 import { useLiveUpdates } from './live';
 import { Account } from './pages/Account';
@@ -81,20 +81,33 @@ export function App() {
 
 function Shell({ user }: { user: User }) {
   const t = useT();
+  const queryClient = useQueryClient();
   const live = useLiveUpdates();
   const [tab, setTab] = useState<TabId>(initialTab);
   const [error, setError] = useState<string | null>(null);
   // Links such as #recipes/12 switch tab too.
   useEffect(() => {
-    const sync = () => setTab(initialTab());
+    const sync = () => {
+      setTab(initialTab());
+      setError(null);
+    };
     window.addEventListener('hashchange', sync);
     return () => window.removeEventListener('hashchange', sync);
   }, []);
-  const report = useCallback((e: unknown) => setError(e instanceof Error ? e.message : String(e)), []);
+  const report = useCallback(
+    (e: unknown) => {
+      if (e instanceof UnauthorizedError) {
+        void queryClient.invalidateQueries({ queryKey: meKey });
+        return;
+      }
+      setError(e instanceof Error ? e.message : String(e));
+    },
+    [queryClient],
+  );
   const select = (id: TabId) => {
     setTab(id);
     setError(null);
-    history.replaceState(null, '', `#${id}`);
+    if (location.hash !== `#${id}`) history.pushState(null, '', `#${id}`);
   };
 
   return (
