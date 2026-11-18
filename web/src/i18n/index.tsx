@@ -102,6 +102,8 @@ const SERVER_ERRORS: [match: string, key: MessageKey][] = [
   ['Too many attempts', 'err.tooMany'],
   ['Password must be at least 10 characters', 'err.passwordShort'],
   ['Only the household owner can', 'err.ownerOnly'],
+  ['Not signed in', 'err.notSignedIn'],
+  ['Authentication required', 'err.notSignedIn'],
 ];
 
 export function localizeError(t: I18n['t'], message: string): string {

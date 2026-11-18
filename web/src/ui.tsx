@@ -7,7 +7,9 @@ import {
   type SelectHTMLAttributes,
   type TouchEvent,
   useEffect,
+  useId,
   useRef,
+  useState,
 } from 'react';
 import { useT } from './i18n';
 
@@ -75,12 +77,26 @@ export function Accordion({ summary, children }: { summary: ReactNode; children:
   );
 }
 
+function useWide() {
+  const query = '(min-width: 1024px)';
+  const matches = () => typeof window !== 'undefined' && typeof window.matchMedia === 'function' && window.matchMedia(query).matches;
+  const [wide, setWide] = useState(matches);
+  useEffect(() => {
+    if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') return;
+    const mq = window.matchMedia(query);
+    const onChange = () => setWide(mq.matches);
+    mq.addEventListener?.('change', onChange);
+    return () => mq.removeEventListener?.('change', onChange);
+  }, []);
+  return wide;
+}
+
 /**
  * A card that folds away. Open by default on wide screens, closed on phones, where a long settings page
  * would otherwise be one endless scroll. The inner card keeps its logic; only its title is replaced by the summary.
  */
 export function Fold({ title, children, open, id }: { title: ReactNode; children: ReactNode; open?: boolean; id?: string }) {
-  const wide = typeof window !== 'undefined' && window.matchMedia('(min-width: 1024px)').matches;
+  const wide = useWide();
   return (
     <details id={id} open={open ?? wide} className="scroll-mt-20 group rounded-xl bg-surface p-4 shadow-[0_0_0_1px_var(--line)]">
       <summary className="flex min-h-11 cursor-pointer items-center font-medium sm:min-h-0 sm:block">{title}</summary>
@@ -93,7 +109,7 @@ export function Fold({ title, children, open, id }: { title: ReactNode; children
 
 /** Folded on phones to keep a page short, always open (and without its summary) from 1024px up. */
 export function Disclose({ summary, children, className = '' }: { summary: ReactNode; children: ReactNode; className?: string }) {
-  const wide = typeof window !== 'undefined' && window.matchMedia('(min-width: 1024px)').matches;
+  const wide = useWide();
   return (
     <details open={wide} className={`group rounded-xl border border-line px-3 py-2.5 lg:border-0 lg:p-0 ${className}`}>
       <summary className="flex min-h-11 cursor-pointer items-center text-sm font-medium lg:hidden">{summary}</summary>
@@ -215,6 +231,7 @@ function useSwipeToClose(dialog: RefObject<HTMLDialogElement | null>, body: RefO
  */
 export function Sheet({ title, onClose, children }: { title: ReactNode; onClose: () => void; children: ReactNode }) {
   const t = useT();
+  const titleId = useId();
   const ref = useRef<HTMLDialogElement>(null);
   const body = useRef<HTMLDivElement>(null);
   const swipe = useSwipeToClose(ref, body, onClose);
@@ -227,16 +244,20 @@ export function Sheet({ title, onClose, children }: { title: ReactNode; onClose:
   return (
     <dialog
       ref={ref}
-      aria-label={typeof title === 'string' ? title : undefined}
+      aria-labelledby={titleId}
       onClose={onClose}
       onClick={(e) => e.target === e.currentTarget && onClose()}
-      onKeyDown={(e) => e.key === 'Escape' && onClose()}
+      onKeyDown={(e) => e.key === 'Escape' && typeof ref.current?.showModal !== 'function' && onClose()}
       {...swipe}
       className="sheet m-0 mt-auto max-h-[92dvh] w-full max-w-none flex-col overflow-hidden rounded-t-3xl border border-line bg-surface p-0 text-ink open:flex sm:m-auto sm:max-w-lg sm:rounded-2xl"
     >
-      <div className="mx-auto mt-2 h-1 w-10 shrink-0 touch-none rounded-full bg-control sm:hidden" aria-hidden="true" />
+      <div className="flex shrink-0 touch-none justify-center pt-2 sm:hidden" aria-hidden="true">
+        <div className="h-1 w-10 rounded-full bg-control" />
+      </div>
       <header className="flex touch-none items-center justify-between gap-3 px-5 pt-3 pb-2">
-        <h2 className="text-2xl">{title}</h2>
+        <h2 id={titleId} className="text-2xl">
+          {title}
+        </h2>
         <Button variant="ghost" className="-mr-2 w-11 px-0 sm:w-9" aria-label={t('app.close')} onClick={onClose}>
           <X size={18} />
         </Button>

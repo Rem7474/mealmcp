@@ -39,7 +39,8 @@ export function WeekPlanner({ start, onClose }: { start: string; onClose: () => 
   });
   // Only offered when the household's AI server answers and has a model.
   const { data: ai } = useQuery({ queryKey: ['ai', 'status'], queryFn: () => api.get<AiStatus>('/ai/status'), retry: false });
-  const shown = done ? null : (plan ?? current ?? null);
+  const [reset, setReset] = useState(false);
+  const shown = done || reset ? null : (plan ?? current ?? null);
   // While the assistant works through the slots, follow the plan until it is done.
   const generating = shown?.generating === true;
   const shownId = shown?.id;
@@ -62,6 +63,7 @@ export function WeekPlanner({ start, onClose }: { start: string; onClose: () => 
     });
 
   const propose = async (withAi = false) => {
+    setReset(false);
     const meals = [...chosen].map((k) => {
       const [date, mealType] = k.split('|');
       return { date, mealType };
@@ -260,6 +262,15 @@ export function WeekPlanner({ start, onClose }: { start: string; onClose: () => 
             })}
           </ul>
           <footer className="flex flex-wrap items-center gap-2 border-t border-line px-5 py-3">
+            <Button
+              variant="ghost"
+              onClick={() => {
+                setPlan(null);
+                setReset(true);
+              }}
+            >
+              {t('week.reset')}
+            </Button>
             <Button disabled={pending || open === 0} onClick={() => act('/accept-all')}>
               {t('week.acceptAll')}
             </Button>

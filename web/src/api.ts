@@ -40,8 +40,15 @@ export const api = {
 /** Lets any page surface an error in the app-level banner. */
 export const ErrorContext = createContext<(error: unknown) => void>(() => {});
 
+const STATIC_KEYS = new Set(['me', 'ai', 'seasons', 'starter']);
+let lastActionAt = 0;
+
+/** True right after a local mutation so the SSE echo does not trigger a second refetch wave. */
+export const recentlyActed = () => Date.now() - lastActionAt < 500;
+export const kitchenQuery = (query: { queryKey: readonly unknown[] }) => !STATIC_KEYS.has(String(query.queryKey[0]));
+
 /**
- * Runs a write against the API, then refreshes every query: stock, plan and
+ * Runs a write against the API, then refreshes kitchen queries: stock, plan and
  * shopping list depend on each other, so a blanket refresh keeps them in sync.
  */
 export function useAction() {
@@ -49,7 +56,10 @@ export function useAction() {
   const report = useContext(ErrorContext);
   const mutation = useMutation({
     mutationFn: (fn: () => Promise<unknown>) => fn(),
-    onSuccess: () => queryClient.invalidateQueries(),
+    onSuccess: () => {
+      lastActionAt = Date.now();
+      return queryClient.invalidateQueries({ predicate: kitchenQuery });
+    },
     onError: report,
   });
   return { run: mutation.mutateAsync, pending: mutation.isPending };
