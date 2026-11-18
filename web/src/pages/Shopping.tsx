@@ -8,9 +8,8 @@ import type { BudgetStatus, HouseholdSettings, ShoppingItem } from '../types';
 import { Badge, Button, Card, Disclose, Empty, Input, Select } from '../ui';
 import { deferDelete, usePendingKey } from '../undo';
 import { PurchaseFromText } from './PurchaseFromText';
-import { LocationSelect, ProductDatalist, parseQty, UnitPrice, useCurrency, usePriceOverview } from './shared';
+import { AISLES, LocationSelect, ProductDatalist, parseQty, UnitPrice, useCurrency, usePriceOverview } from './shared';
 
-const AISLES = ['produce', 'dairy', 'meat_fish', 'bakery', 'pantry', 'frozen', 'drinks', 'household', 'other'];
 type GroupBy = NonNullable<HouseholdSettings['shoppingGroupBy']>;
 type Group = { key: string; title: string | null; items: ShoppingItem[] };
 

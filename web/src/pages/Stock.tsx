@@ -7,6 +7,7 @@ import { locale, useT } from '../i18n';
 import type { CatalogLookup, Product, StockAlerts, StockItem, WasteSummary } from '../types';
 import { Accordion, Badge, Button, Card, Empty, Fab, Field, Input, Select, Sheet } from '../ui';
 import { ProductNutritionCard } from './Nutrition';
+import { ProductSheet } from './ProductSheet';
 import { CameraScan, canScan, cleanCode, isCode } from './Scan';
 import { StarterStockCard } from './Starter';
 import { LocationSelect, PriceHistoryView, ProductDatalist, parseQty, UnitPrice, useCurrency, useProducts } from './shared';
@@ -799,118 +800,59 @@ function WasteCard() {
   );
 }
 
-/** Net (label) and drained weight of a canned product: recipes count drained grams, the label says net. */
-function DrainedField({ product: p, patch }: { product: Product; patch: (p: Product, change: Record<string, unknown>) => void }) {
-  const t = useT();
-  const [net, setNet] = useState(p.drainedRatio ? '100' : '');
-  const [drained, setDrained] = useState(p.drainedRatio ? String(Math.round(p.drainedRatio * 1000) / 10) : '');
-  const save = () => {
-    const n = parseQty(net);
-    const d = parseQty(drained);
-    if (n === undefined && d === undefined) {
-      if (p.drainedRatio !== null) patch(p, { drained: null });
-    } else if (n && d && !Number.isNaN(n) && !Number.isNaN(d) && d <= n && Math.abs(d / n - (p.drainedRatio ?? -1)) > 1e-6) {
-      patch(p, { drained: { netGrams: n, drainedGrams: d } });
-    }
-  };
-  return (
-    <span className="flex items-center gap-1" role="group" aria-label={t('stock.drainedAria', { name: p.name })}>
-      <Input
-        value={net}
-        onChange={(e) => setNet(e.target.value)}
-        onBlur={save}
-        placeholder={t('stock.drainedNet')}
-        inputMode="decimal"
-        className="h-8 w-20 px-2 text-right"
-      />
-      <Input
-        value={drained}
-        onChange={(e) => setDrained(e.target.value)}
-        onBlur={save}
-        placeholder={t('stock.drainedDrained')}
-        inputMode="decimal"
-        className="h-8 w-24 px-2 text-right"
-      />
-    </span>
-  );
-}
-
 /**
- * Per-product settings: the minimum quantity (below it the product shows up in "Low stock" and in
- * generated shopping lists), whether it is a staple, and its weight per piece.
+ * Per-product settings: search any product and open its unified sheet (thresholds, staple, shelf life, conversions,
+ * drained weight, brand, barcodes, aliases and price).
  */
 function Thresholds({ products }: { products: Product[] }) {
   const t = useT();
-  const { run } = useAction();
+  const [search, setSearch] = useState('');
+  const [editing, setEditing] = useState<number | null>(null);
   if (products.length === 0) return null;
 
-  const patch = (product: Product, change: Record<string, unknown>) => void run(() => api.patch(`/products/${product.id}`, change));
-  const saveNumber = (product: Product, field: 'minStock' | 'gramsPerPiece', value: string) => {
-    const number = parseQty(value) ?? null;
-    if (Number.isNaN(number) || number === product[field]) return;
-    patch(product, { [field]: number });
-  };
+  const q = search.trim().toLowerCase();
+  const matches = products.filter((p) => !q || p.name.toLowerCase().includes(q) || p.aliases.some((a) => a.toLowerCase().includes(q)));
+  const edited = editing !== null ? (products.find((p) => p.id === editing) ?? null) : null;
 
   return (
     <Accordion summary={t('stock.settings.title')}>
+      {edited && <ProductSheet key={edited.id} product={edited} onClose={() => setEditing(null)} />}
       <p className="mt-2 text-sm text-muted">{t('stock.settings.help')}</p>
-      <ul className="mt-3 divide-y divide-line text-sm">
-        {products.map((p) => (
-          <li key={p.id} className="flex flex-wrap items-center gap-x-3 gap-y-1 py-2">
-            <div className="min-w-40 flex-1">
-              <div className="truncate font-medium">{p.name}</div>
-              {p.aliases.length > 0 && (
-                <div className="truncate text-xs text-muted">{t('stock.aliases', { names: p.aliases.join(', ') })}</div>
-              )}
-            </div>
-            <label className="flex items-center gap-1" title={t('stock.stapleTitle')}>
-              <input
-                type="checkbox"
-                className="size-4 accent-(--accent)"
-                checked={p.isStaple}
-                onChange={(e) => patch(p, { staple: e.target.checked })}
-              />
-              {t('stock.staple')}
-            </label>
-            <Input
-              key={`min-${p.minStock}`}
-              defaultValue={p.minStock ?? ''}
-              placeholder="—"
-              inputMode="decimal"
-              aria-label={t('stock.minFor', { name: p.name })}
-              onBlur={(e) => saveNumber(p, 'minStock', e.target.value)}
-              onKeyDown={(e) => e.key === 'Enter' && e.currentTarget.blur()}
-              className="h-8 w-16 px-2 text-right"
-            />
-            <span className="w-8 text-muted">{p.defaultUnit === 'piece' ? '' : p.defaultUnit}</span>
-            <Input
-              key={`gpp-${p.gramsPerPiece}`}
-              defaultValue={p.gramsPerPiece ?? ''}
-              placeholder={t('stock.gramsPerPiece')}
-              inputMode="decimal"
-              aria-label={t('stock.gramsPerPieceAria', { name: p.name })}
-              onBlur={(e) => saveNumber(p, 'gramsPerPiece', e.target.value)}
-              onKeyDown={(e) => e.key === 'Enter' && e.currentTarget.blur()}
-              className="h-8 w-24 px-2 text-right"
-            />
-            <Input
-              key={`life-${p.openedShelfLifeDays}`}
-              defaultValue={p.openedShelfLifeDays ?? ''}
-              placeholder={t('stock.shelfLife')}
-              inputMode="numeric"
-              aria-label={t('stock.shelfLifeAria', { name: p.name })}
-              onBlur={(e) => {
-                const days = parseQty(e.target.value) ?? null;
-                if (days === null ? p.openedShelfLifeDays !== null : !Number.isNaN(days) && days !== p.openedShelfLifeDays)
-                  patch(p, { openedShelfLifeDays: days });
-              }}
-              onKeyDown={(e) => e.key === 'Enter' && e.currentTarget.blur()}
-              className="h-8 w-36 px-2 text-right"
-            />
-            <DrainedField product={p} patch={patch} />
-          </li>
-        ))}
-      </ul>
+      <Input
+        type="search"
+        placeholder={t('products.search')}
+        aria-label={t('products.search')}
+        value={search}
+        onChange={(e) => setSearch(e.target.value)}
+        className="mt-3 w-full"
+      />
+      {matches.length === 0 ? (
+        <Empty>{t('products.none')}</Empty>
+      ) : (
+        <ul className="mt-3 max-h-96 divide-y divide-line overflow-y-auto text-sm">
+          {matches.slice(0, 100).map((p) => (
+            <li key={p.id} className="flex items-center justify-between gap-3 py-2">
+              <div className="min-w-0 flex-1">
+                <div className="flex items-center gap-2">
+                  <span className="truncate font-medium">{p.name}</span>
+                  {p.isStaple && <Badge>{t('products.staple')}</Badge>}
+                  {p.minStock !== null && (
+                    <Badge tone="muted">
+                      {t('products.minStock')}: {formatQty(p.minStock, p.defaultUnit)}
+                    </Badge>
+                  )}
+                </div>
+                {p.aliases.length > 0 && (
+                  <div className="truncate text-xs text-muted">{t('stock.aliases', { names: p.aliases.join(', ') })}</div>
+                )}
+              </div>
+              <Button compact onClick={() => setEditing(p.id)}>
+                {t('stock.edit')}
+              </Button>
+            </li>
+          ))}
+        </ul>
+      )}
     </Accordion>
   );
 }

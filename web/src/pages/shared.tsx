@@ -7,6 +7,8 @@ import type { PriceHistory, PriceOverview, PricePer, Product } from '../types';
 import { Select } from '../ui';
 import { fetchMe, meKey } from './AuthPage';
 
+export const AISLES: readonly string[] = ['produce', 'dairy', 'meat_fish', 'bakery', 'pantry', 'frozen', 'drinks', 'household', 'other'];
+
 export const useProducts = () => useQuery({ queryKey: ['products'], queryFn: () => api.get<Product[]>('/products') });
 
 /** Autocomplete source for product-name inputs: use with `list="product-names"`. */

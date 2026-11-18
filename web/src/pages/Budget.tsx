@@ -17,9 +17,8 @@ import {
 import { type MessageKey, useT } from '../i18n';
 import type { BudgetStatus, Expense, ExpenseSummary, Product, SpendingSummary, User } from '../types';
 import { Accordion, Button, Card, Empty, Fab, Field, Input, Select, Sheet } from '../ui';
-import { parseQty, TrendMark, usePriceOverview, useProducts } from './shared';
-
-const AISLES = ['produce', 'dairy', 'meat_fish', 'bakery', 'pantry', 'frozen', 'drinks', 'household', 'other'];
+import { ProductSheet } from './ProductSheet';
+import { AISLES, ProductDatalist, parseQty, TrendMark, usePriceOverview, useProducts } from './shared';
 
 export function Budget({ user }: { user: User }) {
   return (
@@ -412,12 +411,15 @@ const displayUnit = (unit: string) =>
 
 function PricesCard({ currency }: { currency: string }) {
   const t = useT();
-  const { run } = useAction();
+  const { run, pending } = useAction();
   const { data: products = [] } = useProducts();
   const overview = usePriceOverview();
+  const [editing, setEditing] = useState<number | null>(null);
+  const [newPrice, setNewPrice] = useState({ name: '', price: '', quantity: '1', unit: '' });
   const priced = products.filter(
     (p): p is Product & { unitPrice: number; priceUnit: string } => p.unitPrice !== null && p.priceUnit !== null,
   );
+  const edited = editing !== null ? (products.find((p) => p.id === editing) ?? null) : null;
 
   const save = (product: Product, shown: { unit: string; factor: number }, value: string) => {
     const price = parseQty(value);
@@ -427,9 +429,69 @@ function PricesCard({ currency }: { currency: string }) {
     void run(() => api.post('/products/price', { name: product.name, price, quantity: 1, unit: shown.unit }));
   };
 
+  const addPrice = async (e: FormEvent) => {
+    e.preventDefault();
+    const price = parseQty(newPrice.price);
+    const quantity = parseQty(newPrice.quantity) ?? 1;
+    if (!newPrice.name.trim() || price === undefined || Number.isNaN(price) || price < 0 || Number.isNaN(quantity) || quantity <= 0) return;
+    await run(() =>
+      api.post('/products/price', {
+        name: newPrice.name.trim(),
+        price,
+        quantity,
+        ...(newPrice.unit.trim() ? { unit: newPrice.unit.trim() } : {}),
+      }),
+    );
+    setNewPrice({ name: '', price: '', quantity: '1', unit: '' });
+  };
+
   return (
     <Accordion summary={t('budget.prices.title')}>
+      <ProductDatalist />
+      {edited && <ProductSheet key={edited.id} product={edited} onClose={() => setEditing(null)} />}
       <p className="mt-2 text-sm text-muted">{t('budget.prices.help')}</p>
+      <form onSubmit={addPrice} className="mt-3 flex flex-wrap items-end gap-2">
+        <Field label={t('budget.prices.product')} className="min-w-36 flex-1">
+          <Input
+            required
+            list="product-names"
+            placeholder={t('products.search')}
+            value={newPrice.name}
+            onChange={(e) => setNewPrice({ ...newPrice, name: e.target.value })}
+            className="w-full"
+          />
+        </Field>
+        <Field label={`${t('products.price')} (${currencySymbol(currency)})`}>
+          <Input
+            required
+            inputMode="decimal"
+            placeholder="0.00"
+            value={newPrice.price}
+            onChange={(e) => setNewPrice({ ...newPrice, price: e.target.value })}
+            className="w-24"
+          />
+        </Field>
+        <Field label={t('common.qty')}>
+          <Input
+            inputMode="decimal"
+            value={newPrice.quantity}
+            onChange={(e) => setNewPrice({ ...newPrice, quantity: e.target.value })}
+            className="w-20"
+          />
+        </Field>
+        <Field label={t('common.unit')}>
+          <Input
+            list="unit-names"
+            placeholder={t('common.unit')}
+            value={newPrice.unit}
+            onChange={(e) => setNewPrice({ ...newPrice, unit: e.target.value })}
+            className="w-20"
+          />
+        </Field>
+        <Button type="submit" disabled={pending}>
+          {t('budget.prices.add')}
+        </Button>
+      </form>
       {priced.length === 0 ? (
         <Empty>{t('budget.prices.empty')}</Empty>
       ) : (
@@ -438,7 +500,13 @@ function PricesCard({ currency }: { currency: string }) {
             const shown = displayUnit(p.priceUnit);
             return (
               <li key={p.id} className="flex items-center gap-2">
-                <span className="min-w-0 flex-1 truncate">{p.name}</span>
+                <button
+                  type="button"
+                  onClick={() => setEditing(p.id)}
+                  className="min-w-0 flex-1 cursor-pointer truncate text-left hover:text-accent hover:underline"
+                >
+                  {p.name}
+                </button>
                 <TrendMark trend={overview.get(p.id)?.trend} />
                 <Input
                   key={p.unitPrice}
