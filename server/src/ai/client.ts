@@ -44,7 +44,10 @@ const rootOf = (base: URL) => {
 /** A model can answer in a fenced block or add words around the JSON: take the first object or array. */
 export function extractJson(text: string): unknown {
   const fenced = /```(?:json)?\s*([\s\S]*?)```/i.exec(text)?.[1] ?? text;
-  const start = fenced.search(/[[{]/);
+  const obj = fenced.indexOf('{');
+  const arr = fenced.indexOf('[');
+  // Prefer `{` when both appear (e.g. "Here is [1]: {...}"), unless `[` is clearly the outer JSON array before `{`.
+  const start = obj >= 0 && (arr < 0 || obj < arr || !fenced.slice(arr + 1, obj).trim()) ? (arr >= 0 && arr < obj ? arr : obj) : arr;
   if (start < 0) throw new AiError('The model did not answer with JSON');
   const open = fenced[start];
   const close = open === '{' ? '}' : ']';
@@ -79,6 +82,7 @@ function createQueue(max: number) {
  */
 export function createLlmClient(config: LlmConfig, fetchImpl: Fetch = fetch) {
   const base = config.baseUrl;
+  const baseHref = base ? trimSlashes(base.href) : '';
   const queue = createQueue(config.maxConcurrent);
   const busy = new Set<number>();
   let cached: { at: number; models: ModelInfo[] } | null = null;
@@ -103,6 +107,29 @@ export function createLlmClient(config: LlmConfig, fetchImpl: Fetch = fetch) {
     }
   };
 
+  const runChat = (args: { household: number; model: string; messages: ChatMessage[]; json?: boolean }): Promise<string> =>
+    queue(async () => {
+      const body = {
+        model: args.model,
+        stream: false,
+        temperature: 0.2,
+        ...(args.json ? { response_format: { type: 'json_object' } } : {}),
+        messages: args.messages.map((m) => ({
+          role: m.role,
+          content: m.images?.length
+            ? [{ type: 'text', text: m.content }, ...m.images.map((url) => ({ type: 'image_url', image_url: { url } }))]
+            : m.content,
+        })),
+      };
+      const out = await call(`${baseHref}/chat/completions`, { method: 'POST', body: JSON.stringify(body) });
+      const content =
+        isRecord(out) && Array.isArray(out.choices) && isRecord(out.choices[0]) && isRecord(out.choices[0].message)
+          ? out.choices[0].message.content
+          : undefined;
+      if (typeof content !== 'string' || content.trim() === '') throw new AiError('The model gave an empty answer');
+      return content;
+    });
+
   const client = {
     get enabled() {
       return base !== null;
@@ -114,7 +141,7 @@ export function createLlmClient(config: LlmConfig, fetchImpl: Fetch = fetch) {
     /** Model ids the server lists (`GET /v1/models`). */
     async listIds(): Promise<string[]> {
       if (!base) throw new AiError('The AI server is not configured');
-      const body = await call(`${base.href}/models`);
+      const body = await call(`${baseHref}/models`);
       const data = isRecord(body) && Array.isArray(body.data) ? body.data : [];
       return data.flatMap((m) => (isRecord(m) && typeof m.id === 'string' ? [m.id] : []));
     },
@@ -177,27 +204,7 @@ export function createLlmClient(config: LlmConfig, fetchImpl: Fetch = fetch) {
       if (busy.has(args.household)) throw new TooManyRequestsError('An AI request is already running for your household');
       busy.add(args.household);
       try {
-        return await queue(async () => {
-          const body = {
-            model: args.model,
-            stream: false,
-            temperature: 0.2,
-            ...(args.json ? { response_format: { type: 'json_object' } } : {}),
-            messages: args.messages.map((m) => ({
-              role: m.role,
-              content: m.images?.length
-                ? [{ type: 'text', text: m.content }, ...m.images.map((url) => ({ type: 'image_url', image_url: { url } }))]
-                : m.content,
-            })),
-          };
-          const out = await call(`${base.href}/chat/completions`, { method: 'POST', body: JSON.stringify(body) });
-          const content =
-            isRecord(out) && Array.isArray(out.choices) && isRecord(out.choices[0]) && isRecord(out.choices[0].message)
-              ? out.choices[0].message.content
-              : undefined;
-          if (typeof content !== 'string' || content.trim() === '') throw new AiError('The model gave an empty answer');
-          return content;
-        });
+        return await runChat(args);
       } finally {
         busy.delete(args.household);
       }
@@ -208,25 +215,32 @@ export function createLlmClient(config: LlmConfig, fetchImpl: Fetch = fetch) {
      * gets one more try with the problem spelled out; after that the caller gets an error, never half-valid data.
      */
     async json<S extends z.ZodType>(args: { household: number; model: string; messages: ChatMessage[] }, schema: S): Promise<z.output<S>> {
-      let messages = args.messages;
-      let lastProblem = '';
-      for (let attempt = 0; attempt < 2; attempt++) {
-        const text = await client.chat({ ...args, messages, json: true });
-        try {
-          const parsed = schema.safeParse(extractJson(text));
-          if (parsed.success) return parsed.data;
-          lastProblem = parsed.error.issues.map((i) => `${i.path.join('.') || 'value'}: ${i.message}`).join('; ');
-        } catch (err) {
-          if (!(err instanceof AiError)) throw err;
-          lastProblem = err.message;
+      if (!base) throw new AiError('The AI server is not configured');
+      if (busy.has(args.household)) throw new TooManyRequestsError('An AI request is already running for your household');
+      busy.add(args.household);
+      try {
+        let messages = args.messages;
+        let lastProblem = '';
+        for (let attempt = 0; attempt < 2; attempt++) {
+          const text = await runChat({ ...args, messages, json: true });
+          try {
+            const parsed = schema.safeParse(extractJson(text));
+            if (parsed.success) return parsed.data;
+            lastProblem = parsed.error.issues.map((i) => `${i.path.join('.') || 'value'}: ${i.message}`).join('; ');
+          } catch (err) {
+            if (!(err instanceof AiError)) throw err;
+            lastProblem = err.message;
+          }
+          messages = [
+            ...args.messages,
+            { role: 'assistant', content: text.slice(0, 4000) },
+            { role: 'user', content: `That answer was not valid (${lastProblem}). Answer again with only the corrected JSON.` },
+          ];
         }
-        messages = [
-          ...args.messages,
-          { role: 'assistant', content: text.slice(0, 4000) },
-          { role: 'user', content: `That answer was not valid (${lastProblem}). Answer again with only the corrected JSON.` },
-        ];
+        throw new AiError(`The model did not give a usable answer (${lastProblem})`);
+      } finally {
+        busy.delete(args.household);
       }
-      throw new AiError(`The model did not give a usable answer (${lastProblem})`);
     },
   };
   return client;

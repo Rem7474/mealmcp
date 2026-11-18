@@ -38,8 +38,7 @@ export function createAiChat(llm: LlmClient, ai: AiService, services: Services, 
         ...context
       } = services.context.get({ days: 7, historyDays: 14 });
       const { ai: _model, ...shared } = settings as Record<string, unknown>;
-      // The rules of the household come first and the long lists are capped, so cutting the end never drops the diet.
-      const data = JSON.stringify({
+      const payload = {
         household: shared,
         ...context,
         favorites: favorites.slice(0, 15).map((r) => r.name),
@@ -49,13 +48,20 @@ export function createAiChat(llm: LlmClient, ai: AiService, services: Services, 
           .list()
           .map((r) => r.name)
           .slice(0, 60),
-      }).slice(0, MAX_CONTEXT_CHARS);
+      };
+      // Trim optional lists from the end until the JSON fits whole, instead of slicing mid-string.
+      for (const key of ['recipes', 'recentRecipeFrequency', 'neverMade', 'favorites'] as const) {
+        while (JSON.stringify(payload).length > MAX_CONTEXT_CHARS && payload[key].length > 0) {
+          payload[key] = payload[key].slice(0, Math.floor(payload[key].length / 2)) as never;
+        }
+      }
+      const data = JSON.stringify(payload);
       try {
         return await llm.json(
           {
             household,
             model: status.textModel,
-            messages: [{ role: 'system', content: `${SYSTEM}\n\nHousehold data:\n${data}` }, ...messages],
+            messages: [{ role: 'system', content: SYSTEM }, { role: 'user', content: `Household data:\n${data}` }, ...messages],
           },
           answer,
         );

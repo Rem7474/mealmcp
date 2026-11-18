@@ -5,6 +5,7 @@ import { createRateLimiter } from '../auth/rateLimit.js';
 import type { Db } from '../db/index.js';
 import { ForbiddenError, ValidationError } from '../domain/errors.js';
 import { aiChat, aiWeekPlanStart, purchaseText } from '../domain/schemas.js';
+import type { Hub } from '../realtime.js';
 import { createAiService } from '../services/ai.js';
 import { createAiChat } from '../services/aiChat.js';
 import { createAiPurchase } from '../services/aiPurchase.js';
@@ -16,7 +17,7 @@ import { MAX_RECEIPT_BYTES, pdfText, RECEIPT_MIME, sniff } from '../services/rec
  * The optional local AI server: what it offers and which models this household uses. These routes are for a person
  * in a browser (`sessionOnly`): an MCP client is itself a model and has no use for them. Only the owner picks the model.
  */
-export function createAiRoutes(db: Db, llm: LlmClient) {
+export function createAiRoutes(db: Db, llm: LlmClient, hub?: Hub) {
   const r = Router();
   const ai = (household: number) => createAiService(llm, createServices(db, household).settings, household);
   // Listing models and testing hit the model server: keep one household from hammering it.
@@ -93,7 +94,7 @@ export function createAiRoutes(db: Db, llm: LlmClient) {
     const { householdId, id } = req.user!;
     limit.hit(`plan:${householdId}`);
     const services = createServices(db, householdId);
-    const { plan } = await createAiWeekPlan(llm, ai(householdId), services, householdId).start(
+    const { plan } = await createAiWeekPlan(llm, ai(householdId), services, householdId, () => hub?.publish(householdId)).start(
       aiWeekPlanStart.parse(req.body),
       id,
       req.log,
