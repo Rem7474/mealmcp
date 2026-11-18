@@ -1,4 +1,4 @@
-import { Heart, Plus } from '@phosphor-icons/react';
+import { Heart, Play, Plus } from '@phosphor-icons/react';
 import { useQuery } from '@tanstack/react-query';
 import { type FormEvent, useEffect, useState } from 'react';
 import { api, useAction } from '../api';
@@ -6,6 +6,7 @@ import { formatDate, formatMoney, formatQty, MEALS, today } from '../format';
 import { locale, type MessageKey, useI18n, useT } from '../i18n';
 import type { Availability, MealType, Produce, Recipe, RecipeCost, RecipeSummary, Seasonal } from '../types';
 import { Accordion, Badge, Button, Card, Empty, Field, Input, Select, Sheet, Stars } from '../ui';
+import { CookingMode } from './CookingMode';
 import { RecipeNutrition } from './Nutrition';
 import { StarterRecipesCard } from './Starter';
 import { ProductDatalist, parseQty, useCurrency } from './shared';
@@ -20,14 +21,20 @@ const TILE_TONES = [
 /** The same name always gets the same tile colour. */
 const tileTone = (name: string) => [...name].reduce((sum, c) => sum + c.charCodeAt(0), 0) % TILE_TONES.length;
 
-type View = { mode: 'list' } | { mode: 'detail'; id: number } | { mode: 'edit'; recipe?: Recipe };
+type View = { mode: 'list' } | { mode: 'detail'; id: number; cook?: boolean; servings?: number } | { mode: 'edit'; recipe?: Recipe };
 
 export function Recipes() {
   const t = useT();
-  // `#recipes/12` (a link from the planning) opens that recipe directly.
+  // `#recipes/12` (or `#recipes/12/cook?servings=4` from planning) opens that recipe directly.
   const viewFromHash = (): View => {
-    const id = Number(location.hash.match(/^#recipes\/(\d+)/)?.[1]);
-    return id ? { mode: 'detail', id } : { mode: 'list' };
+    const match = location.hash.match(/^#recipes\/(\d+)(\/cook)?(?:\?(.+))?/);
+    if (!match) return { mode: 'list' };
+    const id = Number(match[1]);
+    const cook = Boolean(match[2]);
+    const params = match[3] ? new URLSearchParams(match[3]) : null;
+    const rawServings = Number(params?.get('servings'));
+    const servings = Number.isInteger(rawServings) && rawServings > 0 ? rawServings : undefined;
+    return { mode: 'detail', id, cook, servings };
   };
   const [view, setView] = useState<View>(viewFromHash);
   useEffect(() => {
@@ -214,7 +221,14 @@ export function Recipes() {
         {shown === null ? (
           <Empty>{t('recipes.pick')}</Empty>
         ) : (
-          <RecipeDetail key={shown} id={shown} onBack={openList} onEdit={(recipe) => setView({ mode: 'edit', recipe })} />
+          <RecipeDetail
+            key={shown}
+            id={shown}
+            initialCook={view.mode === 'detail' ? view.cook : undefined}
+            initialServings={view.mode === 'detail' ? view.servings : undefined}
+            onBack={openList}
+            onEdit={(recipe) => setView({ mode: 'edit', recipe })}
+          />
         )}
       </div>
     </div>
@@ -269,12 +283,28 @@ function SeasonCard() {
   );
 }
 
-function RecipeDetail({ id, onBack, onEdit }: { id: number; onBack: () => void; onEdit: (recipe: Recipe) => void }) {
+function RecipeDetail({
+  id,
+  initialCook,
+  initialServings,
+  onBack,
+  onEdit,
+}: {
+  id: number;
+  initialCook?: boolean;
+  initialServings?: number;
+  onBack: () => void;
+  onEdit: (recipe: Recipe) => void;
+}) {
   const [planning, setPlanning] = useState(false);
+  const [cooking, setCooking] = useState(Boolean(initialCook));
   const [planned, setPlanned] = useState<string | null>(null);
-  const [scaledServings, setScaledServings] = useState<number | null>(null);
+  const [scaledServings, setScaledServings] = useState<number | null>(initialServings ?? null);
   const t = useT();
-  useEffect(() => setScaledServings(null), [id]);
+  useEffect(() => {
+    setScaledServings(initialServings ?? null);
+    setCooking(Boolean(initialCook));
+  }, [id, initialCook, initialServings]);
   const { data: recipe } = useQuery({ queryKey: ['recipe', id], queryFn: () => api.get<Recipe>(`/recipes/${id}`) });
   const activeServings = scaledServings ?? recipe?.servings ?? 4;
   const { data: availability } = useQuery({
@@ -301,6 +331,16 @@ function RecipeDetail({ id, onBack, onEdit }: { id: number; onBack: () => void; 
 
   return (
     <>
+      {cooking && recipe.steps.length > 0 && (
+        <CookingMode
+          recipe={recipe}
+          activeServings={activeServings}
+          onClose={() => {
+            setCooking(false);
+            if (location.hash.includes('/cook')) history.replaceState(null, '', `#recipes/${id}`);
+          }}
+        />
+      )}
       {planning && <PlanRecipe recipe={recipe} onClose={() => setPlanning(false)} onPlanned={(date) => setPlanned(date)} />}
       {planned && (
         <p role="status" className="rounded-lg border border-accent/60 bg-accent/10 px-3 py-2 text-sm">
@@ -316,8 +356,14 @@ function RecipeDetail({ id, onBack, onEdit }: { id: number; onBack: () => void; 
       <Card
         title={<span className="text-xl">{recipe.name}</span>}
         actions={
-          <div className="flex gap-2">
-            <Button variant="primary" onClick={() => setPlanning(true)}>
+          <div className="flex flex-wrap gap-2">
+            {recipe.steps.length > 0 && (
+              <Button variant="primary" onClick={() => setCooking(true)}>
+                <Play size={16} weight="fill" />
+                {t('cooking.start')}
+              </Button>
+            )}
+            <Button variant={recipe.steps.length > 0 ? undefined : 'primary'} onClick={() => setPlanning(true)}>
               {t('recipes.plan')}
             </Button>
             <Button onClick={() => onEdit(recipe)}>{t('recipes.edit')}</Button>
@@ -434,13 +480,6 @@ function RecipeDetail({ id, onBack, onEdit }: { id: number; onBack: () => void; 
             </ol>
           </>
         )}
-
-        {recipe.instructions && (
-          <>
-            <h3 className="mt-4 mb-2 font-semibold">{t('recipes.instructions')}</h3>
-            <p className="whitespace-pre-wrap text-sm leading-relaxed">{recipe.instructions}</p>
-          </>
-        )}
       </Card>
     </>
   );
@@ -544,7 +583,6 @@ function RecipeForm({ recipe, onDone }: { recipe?: Recipe; onDone: (id?: number)
     prepMinutes: recipe?.prepMinutes != null ? String(recipe.prepMinutes) : '',
     cookMinutes: recipe?.cookMinutes != null ? String(recipe.cookMinutes) : '',
     tags: recipe?.tags.join(', ') ?? '',
-    instructions: recipe?.instructions ?? '',
     equipment: recipe?.equipment.map((e) => e.name).join(', ') ?? '',
   });
   const [rows, setRows] = useState<Row[]>(
@@ -579,7 +617,6 @@ function RecipeForm({ recipe, onDone }: { recipe?: Recipe; onDone: (id?: number)
         .split(',')
         .map((x) => x.trim())
         .filter(Boolean),
-      instructions: form.instructions || null,
       equipment: form.equipment
         .split(',')
         .map((x) => x.trim())
@@ -787,15 +824,6 @@ function RecipeForm({ recipe, onDone }: { recipe?: Recipe; onDone: (id?: number)
           ))}
           <Button onClick={() => setSteps([...steps, emptyStep()])}>{t('recipes.form.addStep')}</Button>
         </fieldset>
-
-        <textarea
-          placeholder={t('recipes.instructions')}
-          aria-label={t('recipes.instructions')}
-          rows={5}
-          value={form.instructions}
-          onChange={(e) => setForm({ ...form, instructions: e.target.value })}
-          className="w-full rounded-lg border border-line bg-surface p-3 text-sm focus:outline-2 focus:outline-accent"
-        />
 
         <div className="flex gap-2">
           <Button type="submit" variant="primary" disabled={pending}>

@@ -253,7 +253,6 @@ export interface Equipment {
 
 export interface Recipe extends Omit<RecipeSummary, 'ingredientCount'> {
   equipment: Equipment[];
-  instructions: string | null;
   ingredients: Ingredient[];
   steps: RecipeStep[];
   tags: string[];

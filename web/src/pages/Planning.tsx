@@ -419,7 +419,10 @@ function MealCard({ meal, insight, large = false }: { meal: PlannedMeal; insight
         className={`font-semibold tracking-tight leading-tight text-pretty ${large ? 'text-xl' : 'text-[15px]'} ${meal.cooked ? 'text-muted line-through' : ''}`}
       >
         {meal.recipeId ? (
-          <a href={`#recipes/${meal.recipeId}`} className="hover:text-accent hover:underline">
+          <a
+            href={meal.cooked ? `#recipes/${meal.recipeId}` : `#recipes/${meal.recipeId}/cook?servings=${meal.servings}`}
+            className="hover:text-accent hover:underline"
+          >
             {meal.recipeName}
           </a>
         ) : (
