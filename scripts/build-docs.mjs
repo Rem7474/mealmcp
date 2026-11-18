@@ -545,23 +545,15 @@ web/src      React + Vite + Tailwind UI (EN / FR)</code></pre>
   <span>MealMCP · ${c.foot}</span>
   <span><a href="${REPO}">${c.links.repo}</a> · <a href="${readme}">${c.links.docs}</a> · <a href="${REPO}/releases">${c.links.rel}</a></span>
 </div></footer>
-<dialog id="lightbox" aria-label="${c.zoom}"><img alt=""></dialog>
-<script>
-(function () {
-  var box = document.getElementById('lightbox');
-  if (!box || !box.showModal) return;
-  var img = box.querySelector('img');
-  document.querySelectorAll('a.zoom').forEach(function (a) {
-    a.addEventListener('click', function (e) {
-      e.preventDefault();
-      img.src = a.href;
-      img.alt = a.querySelector('img').alt;
-      box.showModal();
-    });
-  });
-  box.addEventListener('click', function () { box.close(); });
-})();
-</script>
+<dialog id="lightbox" aria-label="${c.zoom}">
+  <div class="lb-stage">
+    <button type="button" class="lb-nav" data-dir="-1" aria-label="Previous">&#8249;</button>
+    <img alt="">
+    <button type="button" class="lb-nav" data-dir="1" aria-label="Next">&#8250;</button>
+  </div>
+  <p class="lb-caption"></p>
+</dialog>
+<script src="${a}assets/lightbox.js" defer></script>
 </body>
 </html>
 `;
