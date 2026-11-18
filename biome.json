@@ -6,6 +6,8 @@
       "web/src/**",
       "web/public/sw.js",
       "scripts/**",
+      "e2e/**",
+      "playwright.config.ts",
       "*.json",
       "!**/dist",
       "!**/node_modules",

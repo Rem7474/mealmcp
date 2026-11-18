@@ -16,12 +16,14 @@
     "format": "biome check --write .",
     "typecheck": "npm run typecheck -w server && npm run typecheck -w web",
     "test": "npm test --workspaces --if-present",
+    "test:e2e": "playwright test",
     "test:coverage": "npm run test:coverage --workspaces --if-present",
     "db:generate": "npm run db:generate -w server",
     "release": "node scripts/release.mjs"
   },
   "devDependencies": {
     "@biomejs/biome": "2.6.6",
+    "@playwright/test": "^1.65.1",
     "concurrently": "^10.0.7"
   },
   "engines": {
