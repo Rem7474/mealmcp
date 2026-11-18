@@ -77,7 +77,7 @@ export function createApiRouter({ db, config, accounts, oauth, hub, llm }: Deps)
   });
 
   r.use(createAccountRoutes({ config, accounts, oauth }));
-  r.use(createAiRoutes(db, llm));
+  r.use(createAiRoutes(db, llm, hub));
   r.use(createKitchenRoutes(db));
 
   r.use((_req, res) => void res.status(404).json({ error: 'Not found' }));

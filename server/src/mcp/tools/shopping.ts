@@ -1,7 +1,7 @@
 import * as s from '../../domain/schemas.js';
 import type { ToolContext } from './context.js';
 
-export function registerShoppingTools({ shopping, tool, ro, rw, del }: ToolContext) {
+export function registerShoppingTools({ shopping, purchase, tool, ro, rw, del }: ToolContext) {
   // --- Shopping list -------------------------------------------------------
   tool('list_shopping_list', 'List the shopping list (unchecked items first).', {}, ro, () => shopping.list());
   tool(
@@ -32,5 +32,19 @@ export function registerShoppingTools({ shopping, tool, ro, rw, del }: ToolConte
     s.shoppingComplete.shape,
     rw,
     (a) => shopping.completePurchase(a.location, { store: a.store, total: a.total, date: a.date }),
+  );
+  tool(
+    'parse_purchase_text',
+    'Parse free-text shopping notes into structured lines matched against household products and the shopping list (read-only).',
+    s.purchaseText.shape,
+    ro,
+    (a) => purchase.parse(a.text),
+  );
+  tool(
+    'apply_purchase',
+    'Put bought items into stock, remove matching lines from the shopping list and record the expense in one transaction.',
+    s.purchaseApply.shape,
+    rw,
+    (a) => purchase.apply(a),
   );
 }
