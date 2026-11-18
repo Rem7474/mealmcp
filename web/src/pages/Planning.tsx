@@ -144,10 +144,8 @@ export function Planning() {
             <section
               key={day}
               id={`day-${day}`}
-              className={`scroll-mt-32 rounded-xl p-3 ${
-                isToday
-                  ? 'bg-accent-deep p-4 shadow-[0_0_0_1px_var(--accent)] sm:col-span-2'
-                  : `bg-surface shadow-[0_0_0_1px_var(--line)] ${day < today() ? 'opacity-60' : ''}`
+              className={`scroll-mt-32 rounded-2xl p-3.5 ${
+                isToday ? 'bg-accent-deep p-4 ring-2 ring-accent sm:col-span-2' : `bg-surface ${day < today() ? 'opacity-60' : ''}`
               }`}
             >
               {dayMeals.length === 0 && daySlots.length === 0 ? (
@@ -171,7 +169,7 @@ export function Planning() {
                         <button
                           type="button"
                           onClick={() => setComposer({ date: day, mealType: slot.mealType })}
-                          className="min-h-11 w-full cursor-pointer rounded-lg border border-dashed border-control px-2 py-1.5 text-left text-sm text-muted hover:border-accent hover:text-accent"
+                          className="min-h-11 w-full cursor-pointer rounded-xl border-2 border-dashed border-control px-3 py-1.5 text-left text-sm font-medium text-muted hover:border-accent hover:text-accent"
                         >
                           {t('plan.slot', { meal: t(`meal.${slot.mealType}`) })}
                         </button>
@@ -195,13 +193,13 @@ export function Planning() {
           <div className="mt-3 flex flex-wrap gap-2">
             <a
               href="#recipes"
-              className="inline-flex h-11 items-center rounded-lg border border-accent bg-accent px-4 text-sm font-medium text-accent-ink sm:h-9"
+              className="inline-flex h-11 items-center rounded-xl bg-accent px-4 text-sm font-semibold text-accent-ink sm:h-10"
             >
               {t('firstSteps.recipe')}
             </a>
             <a
               href="#account/connect"
-              className="inline-flex h-11 items-center rounded-lg border border-control px-4 text-sm font-medium hover:border-muted sm:h-9"
+              className="inline-flex h-11 items-center rounded-xl bg-surface-high px-4 text-sm font-semibold text-ink hover:bg-line sm:h-10"
             >
               {t('firstSteps.connect')}
             </a>
@@ -307,10 +305,7 @@ function WeekMatrix({
             return (
               <div key={day} className={`flex min-h-24 flex-col gap-1.5 rounded-lg p-1 ${day === today() ? 'bg-accent/10' : ''}`}>
                 {here.map((meal) => (
-                  <div
-                    key={meal.id}
-                    className={`flex-1 rounded-lg bg-surface px-2.5 py-2 shadow-[0_0_0_1px_var(--line)] ${meal.cooked ? 'opacity-70' : ''}`}
-                  >
+                  <div key={meal.id} className={`flex-1 rounded-xl bg-surface px-3 py-2.5 ${meal.cooked ? 'opacity-70' : ''}`}>
                     <MealCard meal={meal} insight={insights.get(meal.id)} />
                   </div>
                 ))}
@@ -320,7 +315,7 @@ function WeekMatrix({
                     onClick={() => onAdd(day, mealType)}
                     aria-label={t('plan.slot', { meal: t(`meal.${mealType}`) })}
                     title={t('plan.slot', { meal: t(`meal.${mealType}`) })}
-                    className={`grid flex-1 cursor-pointer place-items-center rounded-lg border border-dashed text-muted hover:border-accent hover:text-accent ${expected ? 'border-muted' : 'border-control'}`}
+                    className={`grid flex-1 cursor-pointer place-items-center rounded-xl border-2 border-dashed text-muted hover:border-accent hover:text-accent ${expected ? 'border-muted' : 'border-control'}`}
                   >
                     <Plus size={16} />
                   </button>
@@ -376,7 +371,7 @@ function MealCard({ meal, insight, large = false }: { meal: PlannedMeal; insight
         >
           ⋯
         </summary>
-        <div className="absolute right-0 z-20 mt-1 w-44 rounded-xl border border-line bg-surface p-1">
+        <div className="absolute right-0 z-20 mt-1 w-44 rounded-2xl bg-surface-high p-1.5 shadow-lg">
           {!meal.cooked && (
             <button
               type="button"

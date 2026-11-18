@@ -103,11 +103,11 @@ export function Stock() {
               </h2>
               {here.length === 0 ? (
                 // An empty place is one quiet line, not a card of its own. Nothing is said while the stock is still loading.
-                <p className="rounded-xl border border-dashed border-line px-3 py-2.5 text-sm text-muted">
+                <p className="rounded-2xl border-2 border-dashed border-line px-3.5 py-2.5 text-sm text-muted">
                   {stock.data ? t('stock.nothingHere') : ' '}
                 </p>
               ) : (
-                <ul className="divide-y divide-line rounded-xl bg-surface px-3 shadow-[0_0_0_1px_var(--line)]">
+                <ul className="divide-y divide-line rounded-2xl bg-surface px-3.5">
                   {here.map((item) => (
                     <StockRow key={item.id} item={item} />
                   ))}
@@ -395,7 +395,7 @@ function AddForm() {
                 ))}
               </div>
             )}
-            <label className="flex min-h-11 cursor-pointer items-center justify-between gap-3 rounded-lg border border-line px-3 text-sm">
+            <label className="flex min-h-11 cursor-pointer items-center justify-between gap-3 rounded-xl bg-surface-high px-3.5 text-sm font-medium">
               {t('stock.approximate')}
               <input
                 type="checkbox"
@@ -404,7 +404,7 @@ function AddForm() {
                 onChange={(e) => set({ approximate: e.target.checked })}
               />
             </label>
-            <label className="flex min-h-11 cursor-pointer items-center justify-between gap-3 rounded-lg border border-line px-3 text-sm">
+            <label className="flex min-h-11 cursor-pointer items-center justify-between gap-3 rounded-xl bg-surface-high px-3.5 text-sm font-medium">
               {t('stock.alreadyOpened')}
               <input type="checkbox" className="size-5" checked={form.opened} onChange={(e) => set({ opened: e.target.checked })} />
             </label>
@@ -601,7 +601,7 @@ function StockRow({ item }: { item: StockItem }) {
         >
           ⋯
         </summary>
-        <div className="absolute right-0 z-20 mt-1 w-48 rounded-xl border border-line bg-surface p-1">
+        <div className="absolute right-0 z-20 mt-1 w-48 rounded-2xl bg-surface-high p-1.5 shadow-lg">
           {actions.map((a) => (
             <button
               key={a.key}
@@ -830,7 +830,7 @@ export function EditStock({ item, onClose }: { item: StockItem; onClose: () => v
           </Field>
         )}
         {product && (
-          <fieldset className="space-y-3 rounded-xl border border-line p-3">
+          <fieldset className="space-y-3 rounded-2xl bg-surface-high/60 p-3.5">
             <legend className="px-1 text-xs font-medium text-muted">{t('stock.editProduct', { name: item.name })}</legend>
             <Field label={t('stock.shelfLifeLabel')}>
               <Input

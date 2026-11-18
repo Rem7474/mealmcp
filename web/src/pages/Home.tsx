@@ -257,7 +257,7 @@ function BudgetTile({ budget }: { budget: NonNullable<NextActions['budget']> }) 
       type="button"
       onClick={() => go('budget')}
       aria-label={`${t('home.budget.title')}: ${text}`}
-      className="flex w-full cursor-pointer items-center gap-3 rounded-xl bg-surface p-4 text-left shadow-[0_0_0_1px_var(--line)] hover:bg-ink/5"
+      className="flex w-full cursor-pointer items-center gap-3 rounded-2xl bg-surface p-4 text-left transition-[background-color,transform] hover:bg-surface-high active:scale-[0.99]"
     >
       <Wallet size={20} weight="duotone" className="shrink-0 text-accent" />
       <span className="min-w-0 flex-1">

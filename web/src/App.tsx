@@ -1,4 +1,14 @@
-import { BookOpen, CalendarBlank, CookingPot, House, type IconWeight, Package, ShoppingCart, Wallet } from '@phosphor-icons/react';
+import {
+  BookOpen,
+  CalendarBlank,
+  CookingPot,
+  House,
+  IconContext,
+  type IconWeight,
+  Package,
+  ShoppingCart,
+  Wallet,
+} from '@phosphor-icons/react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import type { ComponentType } from 'react';
 import { useCallback, useEffect, useState } from 'react';
@@ -65,18 +75,21 @@ export function App() {
   const me = useQuery({ queryKey: meKey, queryFn: fetchMe });
 
   if (me.isLoading) return null;
-  if (me.error || !me.data)
-    return (
+  let content: ReturnType<typeof Shell>;
+  if (me.error || !me.data) {
+    content = (
       <p role="alert" className="p-8 text-center text-danger">
         {t('app.unreachable')}
       </p>
     );
-  if (!me.data.user) return <AuthPage registrationOpen={me.data.registrationOpen} />;
-
-  const { user } = me.data;
-  // An MCP client sent the browser here to ask for access (see server/src/auth/oauth.ts).
-  if (location.pathname === '/consent') return <Consent userName={user.name} householdName={user.householdName} />;
-  return <Shell user={user} />;
+  } else if (!me.data.user) {
+    content = <AuthPage registrationOpen={me.data.registrationOpen} />;
+  } else if (location.pathname === '/consent') {
+    content = <Consent userName={me.data.user.name} householdName={me.data.user.householdName} />;
+  } else {
+    content = <Shell user={me.data.user} />;
+  }
+  return <IconContext.Provider value={{ weight: 'bold' }}>{content}</IconContext.Provider>;
 }
 
 function Shell({ user }: { user: User }) {
@@ -112,26 +125,27 @@ function Shell({ user }: { user: User }) {
 
   return (
     <ErrorContext.Provider value={report}>
-      <header className="sticky top-0 z-10 border-b border-line bg-bg">
-        <div className="mx-auto flex max-w-6xl flex-wrap items-center gap-x-5 px-4">
+      <header className="sticky top-0 z-10 bg-surface">
+        <div className="mx-auto flex max-w-6xl flex-wrap items-center gap-x-4 px-4">
           <h1 className="flex flex-1 items-center gap-2 py-3 text-xl sm:flex-none">
-            <CookingPot size={22} weight="duotone" className="text-accent" />
+            <CookingPot size={24} weight="duotone" className="text-accent" />
             {/* Phones say where you are; the brand is for wider screens. */}
             <span className="sm:hidden">{t(`tab.${tab}`)}</span>
             <span className="max-sm:hidden">MealMCP</span>
           </h1>
-          <nav className="hidden flex-1 gap-0.5 self-stretch overflow-x-auto [scrollbar-width:none] sm:flex [&::-webkit-scrollbar]:hidden">
+          <nav className="hidden flex-1 items-center gap-1 overflow-x-auto py-2 [scrollbar-width:none] sm:flex [&::-webkit-scrollbar]:hidden">
             {NAV.map(({ id, Icon }) => (
               <button
                 type="button"
                 key={id}
                 onClick={() => select(id)}
                 aria-current={tab === id ? 'page' : undefined}
-                className={`relative flex cursor-pointer items-center gap-2 px-3 text-sm ${tab === id ? 'text-ink' : 'text-muted hover:text-ink'}`}
+                className={`flex cursor-pointer items-center gap-2 rounded-full px-3.5 py-1.5 text-sm font-semibold transition-colors ${
+                  tab === id ? 'bg-accent/20 text-accent-soft' : 'text-muted hover:bg-surface-high hover:text-ink'
+                }`}
               >
-                <Icon size={16} className={tab === id ? 'text-accent' : ''} />
+                <Icon size={17} weight={tab === id ? 'fill' : 'bold'} className={tab === id ? 'text-accent' : ''} />
                 {t(`tab.${id}`)}
-                {tab === id && <span className="absolute inset-x-2.5 bottom-0 h-0.5 rounded-full bg-accent" />}
               </button>
             ))}
           </nav>
@@ -153,10 +167,8 @@ function Shell({ user }: { user: User }) {
             className="-mr-1.5 grid size-11 cursor-pointer place-items-center rounded-full sm:mr-0 sm:size-8"
           >
             <span
-              className={`grid size-8 place-items-center rounded-full text-xs ${
-                tab === 'account'
-                  ? 'bg-accent-deep text-accent-soft shadow-[0_0_0_1px_var(--accent)]'
-                  : 'bg-line text-ink hover:bg-muted/40'
+              className={`grid size-8 place-items-center rounded-full text-xs font-bold ${
+                tab === 'account' ? 'bg-accent-deep text-accent-soft ring-2 ring-accent' : 'bg-surface-high text-ink hover:bg-line'
               }`}
             >
               {initials(user.name)}
@@ -168,7 +180,7 @@ function Shell({ user }: { user: User }) {
         {error && (
           <div
             role="alert"
-            className="flex items-center justify-between gap-3 rounded-lg border border-danger px-3 py-2 text-sm text-danger"
+            className="flex items-center justify-between gap-3 rounded-xl border-2 border-danger bg-danger/10 px-3.5 py-2.5 text-sm font-medium text-danger"
           >
             <span>{localizeError(t, error)}</span>
             <button type="button" className="cursor-pointer text-muted hover:text-ink" onClick={() => setError(null)}>
@@ -189,20 +201,20 @@ function Shell({ user }: { user: User }) {
       </main>
       <UndoHost />
       {/* Phones: the tabs move to a bar under the thumb. */}
-      <nav className="fixed inset-x-0 bottom-0 z-10 flex border-t border-line bg-bg pb-[env(safe-area-inset-bottom)] sm:hidden">
+      <nav className="fixed inset-x-0 bottom-0 z-10 flex bg-surface pb-[env(safe-area-inset-bottom)] sm:hidden">
         {PHONE_NAV.map(({ id, Icon }) => (
           <button
             type="button"
             key={id}
             onClick={() => select(id)}
             aria-current={tab === id ? 'page' : undefined}
-            className={`flex flex-1 cursor-pointer flex-col items-center gap-1 pt-2 pb-1.5 text-[11px] ${tab === id ? 'text-ink' : 'text-muted'}`}
+            className={`flex flex-1 cursor-pointer flex-col items-center gap-1 pt-2 pb-1.5 text-xs font-medium ${tab === id ? 'text-ink' : 'text-muted'}`}
           >
             {/* The current tab is a filled pill around its icon, the way a native tab bar shows it. */}
             <span
-              className={`grid h-7 w-14 place-items-center rounded-full transition-colors ${tab === id ? 'bg-accent/20 text-accent' : ''}`}
+              className={`grid h-8 w-16 place-items-center rounded-full transition-colors ${tab === id ? 'bg-accent/20 text-accent' : ''}`}
             >
-              <Icon size={20} weight={tab === id ? 'fill' : 'regular'} />
+              <Icon size={20} weight={tab === id ? 'fill' : 'bold'} />
             </span>
             {t(`tab.${id}`)}
           </button>

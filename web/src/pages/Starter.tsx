@@ -27,7 +27,7 @@ function Tick({
 }) {
   return (
     <label
-      className={`flex min-h-11 cursor-pointer items-center gap-3 rounded-xl px-3 py-2 shadow-[0_0_0_1px_var(--line)] ${disabled ? 'opacity-60' : ''} ${checked ? 'bg-accent/10' : 'bg-surface'}`}
+      className={`flex min-h-11 cursor-pointer items-center gap-3 rounded-2xl px-3.5 py-2.5 transition-colors ${disabled ? 'opacity-60' : ''} ${checked ? 'bg-accent/15 ring-2 ring-accent' : 'bg-surface hover:bg-surface-high'}`}
     >
       <input type="checkbox" className="size-5 shrink-0 accent-accent" checked={checked} disabled={disabled} onChange={onChange} />
       <span className="min-w-0 flex-1">

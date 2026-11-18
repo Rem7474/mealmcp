@@ -149,7 +149,7 @@ export function WeekPlanner({ start, onClose }: { start: string; onClose: () => 
           {ai?.text && (
             <Field label={t('week.wishes')} hint={t('week.wishesHint')}>
               <textarea
-                className="min-h-16 w-full rounded-lg border border-line bg-surface px-3 py-2 text-sm"
+                className="min-h-16 w-full rounded-xl border-2 border-transparent bg-surface-high px-3.5 py-2.5 text-base text-ink placeholder:text-muted focus:border-accent focus:bg-surface"
                 maxLength={500}
                 value={wishes}
                 onChange={(e) => setWishes(e.target.value)}
@@ -179,7 +179,7 @@ export function WeekPlanner({ start, onClose }: { start: string; onClose: () => 
                   ]
                 : [];
               return (
-                <li key={slot.key} className="rounded-lg border border-line p-3 text-sm">
+                <li key={slot.key} className="rounded-2xl bg-surface-high p-3.5 text-sm">
                   <div className="text-xs tracking-wider text-muted uppercase">
                     {formatDay(slot.date)} · {t(`meal.${slot.mealType}`)}
                   </div>
@@ -261,7 +261,7 @@ export function WeekPlanner({ start, onClose }: { start: string; onClose: () => 
               );
             })}
           </ul>
-          <footer className="flex flex-wrap items-center gap-2 border-t border-line px-5 py-3">
+          <footer className="flex flex-wrap items-center gap-2 border-t-2 border-line px-5 py-3">
             <Button
               variant="ghost"
               onClick={() => {

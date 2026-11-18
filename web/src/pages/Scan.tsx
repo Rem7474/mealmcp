@@ -76,7 +76,7 @@ export function CameraScan({ onCode, onClose }: { onCode: (code: string) => void
   return (
     <div className="space-y-2">
       {failed ? (
-        <p role="alert" className="rounded-lg border border-line px-3 py-2 text-sm text-warn">
+        <p role="alert" className="rounded-xl bg-surface-high px-3.5 py-2.5 text-sm font-medium text-warn">
           {t('stock.scan.noCamera')}
         </p>
       ) : (

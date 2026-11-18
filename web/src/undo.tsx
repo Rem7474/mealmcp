@@ -73,7 +73,7 @@ export function UndoHost() {
     return (
       <div
         role="status"
-        className="fixed inset-x-3 bottom-[calc(5rem+env(safe-area-inset-bottom))] z-30 rounded-xl border border-line bg-surface px-4 py-3 text-sm sm:inset-x-auto sm:right-6 sm:bottom-6 sm:w-80"
+        className="fixed inset-x-3 bottom-[calc(5.25rem+env(safe-area-inset-bottom))] z-30 rounded-2xl bg-surface-high px-4 py-3 text-sm font-medium shadow-lg sm:inset-x-auto sm:right-6 sm:bottom-6 sm:w-80"
       >
         {message.text}
       </div>
@@ -82,7 +82,7 @@ export function UndoHost() {
   return (
     <div
       role="status"
-      className="fixed inset-x-3 bottom-[calc(5rem+env(safe-area-inset-bottom))] z-30 flex items-center justify-between gap-3 rounded-xl border border-line bg-surface py-1 pr-1 pl-4 text-sm sm:inset-x-auto sm:right-6 sm:bottom-6 sm:w-80"
+      className="fixed inset-x-3 bottom-[calc(5.25rem+env(safe-area-inset-bottom))] z-30 flex items-center justify-between gap-3 rounded-2xl bg-surface-high py-1.5 pr-1.5 pl-4 text-sm font-medium shadow-lg sm:inset-x-auto sm:right-6 sm:bottom-6 sm:w-80"
     >
       <span>{t('undo.removed')}</span>
       <Button variant="active" onClick={() => settle(false)}>

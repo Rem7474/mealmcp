@@ -54,7 +54,7 @@ export function Assistant({ onClose }: { onClose: () => void }) {
       <div className="flex-1 space-y-3 overflow-y-auto p-5 text-sm" aria-live="polite">
         <p className="text-muted">{t('assistant.intro')}</p>
         {turns.map((turn, i) => (
-          <div key={i} className={turn.role === 'user' ? 'ml-8 rounded-lg bg-accent/10 p-3' : 'mr-8 rounded-lg border border-line p-3'}>
+          <div key={i} className={turn.role === 'user' ? 'ml-8 rounded-2xl bg-accent/15 p-3.5' : 'mr-8 rounded-2xl bg-surface-high p-3.5'}>
             <p className="whitespace-pre-wrap">{turn.content}</p>
             {turn.suggest && turn.suggest.length > 0 && (
               <div className="mt-2 flex flex-wrap gap-2">
@@ -83,7 +83,7 @@ export function Assistant({ onClose }: { onClose: () => void }) {
         <div ref={endRef} />
       </div>
       <form
-        className="flex items-end gap-2 border-t border-line px-5 py-3"
+        className="flex items-end gap-2 border-t-2 border-line px-5 py-3"
         onSubmit={(e) => {
           e.preventDefault();
           void send();
@@ -91,7 +91,7 @@ export function Assistant({ onClose }: { onClose: () => void }) {
       >
         <textarea
           aria-label={t('assistant.ask')}
-          className="min-h-11 flex-1 rounded-lg border border-control bg-transparent p-2 text-sm"
+          className="min-h-11 flex-1 rounded-xl border-2 border-transparent bg-surface-high p-2.5 text-base text-ink placeholder:text-muted focus:border-accent focus:bg-surface"
           maxLength={2000}
           rows={2}
           value={text}

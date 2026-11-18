@@ -57,7 +57,7 @@ export function Account({ user }: { user: User }) {
           <Fold id="connect" open title={t('account.connect.title')}>
             <Card>
               <p className="text-sm">{t('account.connect.address')}</p>
-              <code className="mt-1 block rounded-lg border border-line px-3 py-2 text-sm break-all">{mcpUrl}</code>
+              <code className="mt-1 block rounded-xl bg-surface-high px-3.5 py-2.5 text-sm break-all">{mcpUrl}</code>
               <p className="mt-2 text-sm text-muted">{rich('account.connect.help', { header: <code>Authorization: Bearer …</code> })}</p>
             </Card>
           </Fold>
@@ -160,7 +160,7 @@ function HouseholdCard({ user }: { user: User }) {
         ))}
       </ul>
       {invite && (
-        <div className="mt-3 rounded-lg border border-accent p-3 text-sm">
+        <div className="mt-3 rounded-xl border-2 border-accent bg-accent/10 p-3.5 text-sm">
           <p>{rich('household.inviteCode', { code: <code className="text-base font-semibold select-all">{invite.code}</code> })}</p>
           <p className="mt-1 text-muted">{t('household.inviteHelp', { date: day(invite.expiresAt) })}</p>
         </div>
@@ -322,7 +322,7 @@ function SettingsCard() {
       {draft && (
         <div
           role="status"
-          className="sticky bottom-20 z-10 mt-4 flex flex-wrap items-center justify-between gap-2 rounded-xl border border-accent bg-surface p-3 text-sm sm:bottom-4"
+          className="sticky bottom-20 z-10 mt-4 flex flex-wrap items-center justify-between gap-2 rounded-2xl border-2 border-accent bg-surface-high p-3.5 text-sm shadow-lg sm:bottom-4"
         >
           <span className="font-medium">{t('settings.unsaved')}</span>
           <span className="flex gap-2">

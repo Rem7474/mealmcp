@@ -2,26 +2,29 @@
 @import '@fontsource-variable/plus-jakarta-sans';
 
 /*
- * Flat theme: a charcoal ground, cream ink and one accent (lavender by default, user-selectable), set in a single
- * geometric sans. No gradients, glows, grain or shadows: depth comes from surface tones and 1px outlines.
- * Everything in the app takes its colours from the semantic variables below, so restyling means editing this block.
+ * Material / Flat theme: a deep charcoal ground, distinct tonal surface containers, cream ink and one accent
+ * (lavender by default, user-selectable), set in a single geometric sans. Depth comes from surface contrast
+ * rather than 1px hairline borders.
  */
 :root {
-  --bg: #131212;
-  --surface: #1e1c1b;
-  --ink: #f6f1ea;
-  --muted: #aaa39a;
-  --line: #38342f;
-  /* Borders of controls (inputs, buttons): 3:1 against the ground, which --line is not meant to reach. */
-  --control: #7c7670;
-  --warn: #f0c24f;
-  --danger: #ff8fa0;
-  --neutral-800: #38342f;
-  --divider: color-mix(in srgb, #f6f1ea 16%, transparent);
-
   /* Lavender is the default accent; theme.ts overrides --accent and --accent-ink when the user picks another. */
   --accent: #b9a6f0;
   --accent-ink: #1a1230;
+
+  /* Material You surface tinting: ground and containers take a subtle hint of the chosen accent. */
+  --bg: color-mix(in srgb, var(--accent) 2%, #111010);
+  --surface: color-mix(in srgb, var(--accent) 4%, #1e1c1b);
+  --surface-high: color-mix(in srgb, var(--accent) 8%, #2a2725);
+  --ink: #f6f1ea;
+  --muted: #c0b9af;
+  --line: #3e3934;
+  /* Borders of controls (inputs, buttons) when outlined: 3:1+ against the ground. */
+  --control: #8a837c;
+  --warn: #f0c24f;
+  --danger: #ff8fa0;
+  --neutral-800: #3e3934;
+  --divider: color-mix(in srgb, #f6f1ea 18%, transparent);
+
   /* "In stock" green: a meaning, so it does not follow the accent. */
   --herb: #a8d672;
   --accent-300: color-mix(in srgb, var(--accent) 45%, white);
@@ -33,6 +36,7 @@
 @theme inline {
   --color-bg: var(--bg);
   --color-surface: var(--surface);
+  --color-surface-high: var(--surface-high);
   --color-ink: var(--ink);
   --color-muted: var(--muted);
   --color-line: var(--line);
@@ -72,7 +76,8 @@ body {
   background-color: var(--bg);
   color: var(--ink);
   font-family: var(--font-sans);
-  font-size: 15px;
+  font-size: 16px;
+  font-weight: 450;
   line-height: 1.55;
   color-scheme: dark;
   min-height: 100dvh;
@@ -87,13 +92,13 @@ body {
 h1,
 h2,
 h3 {
-  font-weight: 650;
+  font-weight: 700;
   letter-spacing: -0.02em;
 }
 
-/* A plain 1px rule. */
+/* A 2px tonal rule. */
 .fade-rule {
-  height: 1px;
+  height: 2px;
   background: var(--line);
 }
 
@@ -140,8 +145,8 @@ summary::before {
   width: 0.45em;
   height: 0.45em;
   margin-right: 0.6em;
-  border-right: 1.5px solid var(--accent);
-  border-bottom: 1.5px solid var(--accent);
+  border-right: 2px solid var(--accent);
+  border-bottom: 2px solid var(--accent);
   transform: translateY(-0.15em) rotate(-45deg);
   transition: transform 0.2s ease;
 }
@@ -183,7 +188,7 @@ input[type='checkbox'] {
   appearance: none;
   display: inline-grid;
   place-content: center;
-  border: 1.5px solid var(--control);
+  border: 2px solid var(--control);
   border-radius: 6px;
   background: transparent;
   cursor: pointer;

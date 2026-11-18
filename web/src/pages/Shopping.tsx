@@ -190,7 +190,7 @@ export function Shopping() {
             {group(items, groupBy).map((g) => (
               <section key={g.key}>
                 {g.title && (
-                  <h3 className="mb-1 flex items-center gap-2 px-2 text-[11px] font-normal tracking-wider text-muted uppercase">
+                  <h3 className="mb-1.5 flex items-center gap-2 px-2 text-xs font-semibold tracking-wider text-muted uppercase">
                     {g.title}
                     <span className="tabular-nums">{g.items.length}</span>
                   </h3>
@@ -379,9 +379,9 @@ export function Shopping() {
       </div>
 
       {/* Phones: the total stays in view above the tab bar while you walk the aisles. */}
-      <div className="fixed inset-x-3 bottom-[calc(4.6rem+env(safe-area-inset-bottom))] z-10 flex items-center justify-between gap-3 rounded-xl bg-surface px-4 py-2.5 shadow-[0_0_0_1px_var(--line),0_8px_24px_rgba(0,0,0,0.5)] lg:hidden">
+      <div className="fixed inset-x-3 bottom-[calc(4.75rem+env(safe-area-inset-bottom))] z-10 flex items-center justify-between gap-3 rounded-2xl bg-surface-high px-4 py-3 shadow-lg lg:hidden">
         <div>
-          <div className="text-[11px] tracking-wider text-muted uppercase">{t('shopping.rail.toBuy')}</div>
+          <div className="text-xs font-semibold tracking-wider text-muted uppercase">{t('shopping.rail.toBuy')}</div>
           <div className="font-semibold tracking-tight text-2xl leading-none tabular-nums">≈ {formatMoney(toBuy, currency)}</div>
         </div>
         <div className="text-right text-sm text-muted tabular-nums">
@@ -395,7 +395,7 @@ export function Shopping() {
       </div>
       <aside className="space-y-3 max-lg:hidden lg:pt-2">
         <Card>
-          <h3 className="text-[11px] font-normal tracking-wider text-muted uppercase">{t('shopping.rail.toBuy')}</h3>
+          <h3 className="text-xs font-semibold tracking-wider text-muted uppercase">{t('shopping.rail.toBuy')}</h3>
           <div className="font-semibold tracking-tight mt-2 text-4xl tracking-tight tabular-nums">≈ {formatMoney(toBuy, currency)}</div>
           {unpriced > 0 && <p className="mt-1 text-xs text-muted">{t('shopping.unpriced', { n: unpriced })}</p>}
           <dl className="mt-4 space-y-1.5 text-sm">

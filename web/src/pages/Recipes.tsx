@@ -155,7 +155,7 @@ export function Recipes() {
               <button
                 type="button"
                 onClick={() => openDetail(r.id)}
-                className={`flex h-full w-full cursor-pointer items-start gap-3 rounded-xl bg-surface p-3 text-left hover:shadow-[0_0_0_1px_var(--muted)] ${shown === r.id ? 'shadow-[0_0_0_1px_var(--accent)]' : 'shadow-[0_0_0_1px_var(--line)]'}`}
+                className={`flex h-full w-full cursor-pointer items-start gap-3 rounded-2xl bg-surface p-3.5 text-left transition-[background-color,transform] hover:bg-surface-high active:scale-[0.99] ${shown === r.id ? 'ring-2 ring-accent' : ''}`}
               >
                 {/* A monogram tile gives every recipe a colour to find it by, until recipes carry photos. */}
                 <span
@@ -726,7 +726,7 @@ function RecipeForm({ recipe, onDone }: { recipe?: Recipe; onDone: (id?: number)
           {rows.map((row, i) => (
             <div
               key={i}
-              className="grid grid-cols-[5rem_minmax(0,1fr)_auto] gap-2 rounded-lg border border-line p-2 sm:flex sm:flex-wrap sm:items-center sm:border-0 sm:p-0"
+              className="grid grid-cols-[5rem_minmax(0,1fr)_auto] gap-2 rounded-2xl bg-surface-high/60 p-2.5 sm:flex sm:flex-wrap sm:items-center sm:bg-transparent sm:p-0"
             >
               <Input
                 disabled={row.toTaste}
@@ -788,7 +788,7 @@ function RecipeForm({ recipe, onDone }: { recipe?: Recipe; onDone: (id?: number)
           {steps.map((step, i) => (
             <div
               key={i}
-              className="grid grid-cols-[1.5rem_repeat(3,minmax(0,1fr))_auto] gap-2 rounded-lg border border-line p-2 sm:flex sm:flex-wrap sm:items-center sm:border-0 sm:p-0"
+              className="grid grid-cols-[1.5rem_repeat(3,minmax(0,1fr))_auto] gap-2 rounded-2xl bg-surface-high/60 p-2.5 sm:flex sm:flex-wrap sm:items-center sm:bg-transparent sm:p-0"
             >
               <span className="w-5 text-right text-sm text-muted">{i + 1}.</span>
               <Input
