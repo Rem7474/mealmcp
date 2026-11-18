@@ -235,10 +235,13 @@ export function createBudgetService(
     },
 
     /** Cost of one recipe at a given number of servings, from the last known product prices. */
-    recipeCost({ id, servings }: z.infer<typeof recipeAvailability>) {
+    recipeCost(
+      { id, servings }: z.infer<typeof recipeAvailability>,
+      preloaded?: { byId: Map<number, ReturnType<ProductService['list']>[number]>; currency: string },
+    ) {
       const recipe = recipes.get(id);
       const scale = (servings ?? recipe.servings) / recipe.servings;
-      const byId = new Map(productService.list().map((p) => [p.id, p]));
+      const byId = preloaded?.byId ?? new Map(productService.list().map((p) => [p.id, p]));
       let total = 0;
       const unpriced: string[] = [];
       for (const ing of recipe.ingredients) {
@@ -254,7 +257,7 @@ export function createBudgetService(
         recipeId: recipe.id,
         name: recipe.name,
         servings: servingsUsed,
-        currency: svc.household().currency,
+        currency: preloaded?.currency ?? svc.household().currency,
         totalCents: Math.round(total),
         perServingCents: Math.round(total / servingsUsed),
         /** Ingredients with no price in the right unit: the total is a lower bound while this is not empty. */
@@ -263,7 +266,10 @@ export function createBudgetService(
     },
 
     planCost(range: { from: string; to: string }) {
-      const meals = planner.list(range).map((meal) => {
+      const planned = planner.list(range);
+      const currency = svc.household().currency;
+      const byId = planned.some((m) => m.recipeId) ? new Map(productService.list().map((p) => [p.id, p])) : new Map();
+      const meals = planned.map((meal) => {
         if (!meal.recipeId)
           return {
             id: meal.id,
@@ -275,7 +281,7 @@ export function createBudgetService(
             missing: [] as string[],
             missingEquipment: [] as string[],
           };
-        const cost = svc.recipeCost({ id: meal.recipeId, servings: meal.servings });
+        const cost = svc.recipeCost({ id: meal.recipeId, servings: meal.servings }, { byId, currency });
         // Stock status of this meal on its own (other planned meals are not subtracted).
         const availability = recipes.availability({ id: meal.recipeId, servings: meal.servings });
         return {
@@ -291,7 +297,7 @@ export function createBudgetService(
       });
       return {
         ...range,
-        currency: svc.household().currency,
+        currency,
         totalCents: meals.reduce((sum, m) => sum + (m.costCents ?? 0), 0),
         meals,
         /** Meals whose cost is incomplete (no recipe, or ingredients without a price). */

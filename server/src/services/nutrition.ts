@@ -167,6 +167,7 @@ export function createNutritionService(
     recipe(recipeId: number) {
       requireOn();
       const recipe = recipeService.get(recipeId);
+      const byId = new Map(productService.list().map((p) => [p.id, p]));
       const total = emptyTotals();
       const missing: string[] = [];
       let counted = 0;
@@ -174,7 +175,7 @@ export function createNutritionService(
       for (const ing of recipe.ingredients) {
         if (ing.toTaste) continue;
         counted += 1;
-        const product = productService.get(ing.productId);
+        const product = byId.get(ing.productId)!;
         const grams = product.nutrition ? gramsOf(product, ing.quantity, ing.unit) : null;
         if (!product.nutrition || grams === null) {
           missing.push(product.name);

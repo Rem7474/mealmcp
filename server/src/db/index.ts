@@ -13,6 +13,8 @@ export function createDb(path: string) {
   if (path !== ':memory:') mkdirSync(dirname(resolve(path)), { recursive: true });
   const sqlite = new Database(path);
   sqlite.pragma('journal_mode = WAL');
+  sqlite.pragma('synchronous = NORMAL');
+  sqlite.pragma('busy_timeout = 5000');
   sqlite.pragma('foreign_keys = ON');
   const db = drizzle(sqlite, { schema });
   migrate(db, { migrationsFolder });
