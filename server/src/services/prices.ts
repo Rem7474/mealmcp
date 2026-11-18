@@ -52,8 +52,8 @@ export function createPriceService(db: Db, hid: number, productService: ProductS
     },
 
     /** The price history of a product, in the unit people read (per kg, per litre or per piece). */
-    history(productId: number) {
-      const product = productService.get(productId);
+    history(productId: number, preloaded?: ReturnType<ProductService['get']>) {
+      const product = preloaded ?? productService.get(productId);
       const rows = db
         .select()
         .from(priceObservations)
@@ -122,8 +122,9 @@ export function createPriceService(db: Db, hid: number, productService: ProductS
     /** One line per product that has a price history: trend and whether the latest price is high. For lists and screens. */
     overview() {
       const ids = db.selectDistinct({ id: priceObservations.productId }).from(priceObservations).where(mineObs).all();
+      const byId = ids.length ? new Map(productService.list().map((p) => [p.id, p])) : new Map();
       return ids.flatMap(({ id }) => {
-        const h = svc.history(id);
+        const h = svc.history(id, byId.get(id));
         if (h.count === 0) return [];
         return [
           {

@@ -1,4 +1,4 @@
-import { and, asc, eq, gte, like, lte, or, sql } from 'drizzle-orm';
+import { and, asc, eq, gte, inArray, like, lte, or, sql } from 'drizzle-orm';
 import type { z } from 'zod';
 import type { Db } from '../db/index.js';
 import {
@@ -112,8 +112,46 @@ export function createRecipeService(
     return out;
   };
   /** When a recipe was last on the plan (up to today) and how many times, to avoid cooking the same things over and over. */
-  const madeOn = sql<string | null>`(select max(date) from meal_plan mp where mp.recipe_id = recipes.id and mp.date <= ${today()})`;
-  const madeCount = sql<number>`(select count(*) from meal_plan mp where mp.recipe_id = recipes.id and mp.date <= ${today()})`;
+  const madeOn = sql<
+    string | null
+  >`(select max(date) from meal_plan mp where mp.household_id = ${hid} and mp.recipe_id = recipes.id and mp.date <= ${today()})`;
+  const madeCount = sql<number>`(select count(*) from meal_plan mp where mp.household_id = ${hid} and mp.recipe_id = recipes.id and mp.date <= ${today()})`;
+
+  type Snap = ReturnType<StockService['snapshot']>;
+  type ProductMap = Map<number, ReturnType<ProductService['list']>[number]>;
+  const computeAvailability = (
+    recipe: {
+      id: number;
+      name: string;
+      servings: number;
+      ingredients: { productId: number; name: string; quantity: number; unit: string; toTaste: boolean }[];
+      equipment: { name: string; owned: boolean }[];
+    },
+    servings: number | undefined,
+    snap: Snap,
+    byId: ProductMap,
+  ) => {
+    const scale = (servings ?? recipe.servings) / recipe.servings;
+    const ingredients = recipe.ingredients.map((ing) => {
+      const product = byId.get(ing.productId)!;
+      const needed = round(ing.quantity * scale);
+      const base = { name: ing.name, unit: ing.unit, needed };
+      if (ing.toTaste) return { ...base, inStock: 0, missing: 0, toTaste: true as const };
+      if (product.isStaple) return { ...base, inStock: needed, missing: 0, staple: true as const };
+      if (snap.hasApproximate(product.id)) return { ...base, inStock: needed, missing: 0, approximate: true as const };
+      const inStock = snap.available(product, ing.unit);
+      return { ...base, inStock, missing: round(Math.max(0, needed - inStock)) };
+    });
+    const missingEquipment = recipe.equipment.filter((e) => !e.owned).map((e) => e.name);
+    return {
+      recipeId: recipe.id,
+      name: recipe.name,
+      servings: servings ?? recipe.servings,
+      canCook: ingredients.every((i) => i.missing === 0),
+      missingEquipment,
+      ingredients,
+    };
+  };
 
   const svc = {
     list({ search, tag, favorite, minRating }: z.input<typeof recipeList> = {}) {
@@ -153,7 +191,18 @@ export function createRecipeService(
         )
         .orderBy(recipes.name)
         .all();
-      const tags = db.select().from(recipeTags).all();
+      const tags = rows.length
+        ? db
+            .select()
+            .from(recipeTags)
+            .where(
+              inArray(
+                recipeTags.recipeId,
+                rows.map((r) => r.id),
+              ),
+            )
+            .all()
+        : [];
       const conflicts = dietConflicts();
       return rows.map((r) => ({
         ...r,
@@ -200,7 +249,7 @@ export function createRecipeService(
       const made = db
         .select({ lastMadeOn: sql<string | null>`max(${mealPlan.date})`, timesMade: sql<number>`count(*)` })
         .from(mealPlan)
-        .where(and(eq(mealPlan.recipeId, id), lte(mealPlan.date, today())))
+        .where(and(eq(mealPlan.householdId, hid), eq(mealPlan.recipeId, id), lte(mealPlan.date, today())))
         .get();
       return {
         ...recipe,
@@ -281,29 +330,7 @@ export function createRecipeService(
      * "to taste" ingredients are never missing; "plenty of it" stock covers any quantity.
      */
     availability({ id, servings }: z.infer<typeof recipeAvailability>) {
-      const recipe = svc.get(id);
-      const scale = (servings ?? recipe.servings) / recipe.servings;
-      const snap = stock.snapshot();
-      const byId = new Map(productService.list().map((p) => [p.id, p]));
-      const ingredients = recipe.ingredients.map((ing) => {
-        const product = byId.get(ing.productId)!;
-        const needed = round(ing.quantity * scale);
-        const base = { name: ing.name, unit: ing.unit, needed };
-        if (ing.toTaste) return { ...base, inStock: 0, missing: 0, toTaste: true as const };
-        if (product.isStaple) return { ...base, inStock: needed, missing: 0, staple: true as const };
-        if (snap.hasApproximate(product.id)) return { ...base, inStock: needed, missing: 0, approximate: true as const };
-        const inStock = snap.available(product, ing.unit);
-        return { ...base, inStock, missing: round(Math.max(0, needed - inStock)) };
-      });
-      const missingEquipment = recipe.equipment.filter((e) => !e.owned).map((e) => e.name);
-      return {
-        recipeId: recipe.id,
-        name: recipe.name,
-        servings: servings ?? recipe.servings,
-        canCook: ingredients.every((i) => i.missing === 0),
-        missingEquipment,
-        ingredients,
-      };
+      return computeAvailability(svc.get(id), servings, stock.snapshot(), new Map(productService.list().map((p) => [p.id, p])));
     },
 
     /**
@@ -321,29 +348,71 @@ export function createRecipeService(
       servings?: number;
     }) {
       const servingsToUse = servings ?? settings.get().defaultServings;
-      return svc
-        .list({ tag })
+      const summaries = svc.list({ tag });
+      if (summaries.length === 0) return [];
+      const ids = summaries.map((r) => r.id);
+      const snap = stock.snapshot();
+      const byId = new Map(productService.list().map((p) => [p.id, p]));
+      const allIngredients = db
+        .select({
+          recipeId: recipeIngredients.recipeId,
+          productId: recipeIngredients.productId,
+          name: products.name,
+          quantity: recipeIngredients.quantity,
+          unit: recipeIngredients.unit,
+          toTaste: recipeIngredients.toTaste,
+        })
+        .from(recipeIngredients)
+        .innerJoin(products, eq(products.id, recipeIngredients.productId))
+        .where(inArray(recipeIngredients.recipeId, ids))
+        .orderBy(recipeIngredients.id)
+        .all();
+      const allEquipment = db
+        .select({
+          recipeId: recipeEquipment.recipeId,
+          name: equipmentTable.name,
+          owned: equipmentTable.owned,
+        })
+        .from(recipeEquipment)
+        .innerJoin(equipmentTable, eq(equipmentTable.id, recipeEquipment.equipmentId))
+        .where(inArray(recipeEquipment.recipeId, ids))
+        .orderBy(equipmentTable.name)
+        .all();
+      const ingByRecipe = new Map<number, typeof allIngredients>();
+      for (const row of allIngredients) {
+        const list = ingByRecipe.get(row.recipeId) ?? [];
+        list.push(row);
+        ingByRecipe.set(row.recipeId, list);
+      }
+      const eqByRecipe = new Map<number, typeof allEquipment>();
+      for (const row of allEquipment) {
+        const list = eqByRecipe.get(row.recipeId) ?? [];
+        list.push(row);
+        eqByRecipe.set(row.recipeId, list);
+      }
+      return summaries
         .map((summary) => {
-          const recipe = svc.get(summary.id);
-          const inSeason = recipe.ingredients.filter((i) => !i.toTaste && seasons.statusOf(i.name)?.inSeason);
-          const uses = recipe.ingredients.filter((i) => !i.toTaste && targets.has(i.productId)).map((i) => targets.get(i.productId)!);
-          const availability = svc.availability({ id: recipe.id, servings: servingsToUse });
+          const ingredients = ingByRecipe.get(summary.id) ?? [];
+          const equipment = eqByRecipe.get(summary.id) ?? [];
+          const inSeason = ingredients.filter((i) => !i.toTaste && seasons.statusOf(i.name)?.inSeason);
+          const uses = ingredients.filter((i) => !i.toTaste && targets.has(i.productId)).map((i) => targets.get(i.productId)!);
+          const availability = computeAvailability({ ...summary, ingredients, equipment }, servingsToUse, snap, byId);
           const missing = availability.ingredients
             .filter((i) => i.missing > 0)
             .map((i) => ({ name: i.name, unit: i.unit, missing: i.missing }));
           return {
-            recipeId: recipe.id,
-            name: recipe.name,
-            tags: recipe.tags,
-            prepMinutes: recipe.prepMinutes,
-            cookMinutes: recipe.cookMinutes,
-            rating: recipe.rating,
-            favorite: recipe.favorite,
+            recipeId: summary.id,
+            name: summary.name,
+            tags: summary.tags,
+            prepMinutes: summary.prepMinutes,
+            cookMinutes: summary.cookMinutes,
+            rating: summary.rating,
+            favorite: summary.favorite,
             usesExpiring: uses,
-            lastMadeOn: recipe.lastMadeOn,
-            timesMade: recipe.timesMade,
+            lastMadeOn: summary.lastMadeOn,
+            timesMade: summary.timesMade,
             inSeason: inSeason.map((i) => i.name),
-            dietConflicts: recipe.dietConflicts,
+            dietConflicts: summary.dietConflicts,
             canCook: availability.canCook,
             missingEquipment: availability.missingEquipment,
             missing,
@@ -353,8 +422,8 @@ export function createRecipeService(
               (availability.canCook ? 5 : 0) -
               availability.missingEquipment.length * 4 +
               // Taste counts too: a loved recipe beats an equally practical one, a disliked one drops.
-              (recipe.favorite ? 3 : 0) +
-              (recipe.rating ? (recipe.rating - 3) * 2 : 0) +
+              (summary.favorite ? 3 : 0) +
+              (summary.rating ? (summary.rating - 3) * 2 : 0) +
               // In-season produce is cheaper and tastier.
               Math.min(inSeason.length, 3),
           };

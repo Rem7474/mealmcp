@@ -19,19 +19,23 @@ export const expenses = sqliteTable(
   (t) => [index('expenses_household_date_idx').on(t.householdId, t.date)],
 );
 
-export const expenseItems = sqliteTable('expense_items', {
-  id: integer('id').primaryKey({ autoIncrement: true }),
-  expenseId: integer('expense_id')
-    .notNull()
-    .references(() => expenses.id, { onDelete: 'cascade' }),
-  /** Kept when the product is deleted, so history stays readable. */
-  productId: integer('product_id').references(() => products.id, { onDelete: 'set null' }),
-  name: text('name').notNull(),
-  quantity: real('quantity'),
-  unit: text('unit'),
-  /** Line total in cents. */
-  priceCents: integer('price_cents').notNull(),
-});
+export const expenseItems = sqliteTable(
+  'expense_items',
+  {
+    id: integer('id').primaryKey({ autoIncrement: true }),
+    expenseId: integer('expense_id')
+      .notNull()
+      .references(() => expenses.id, { onDelete: 'cascade' }),
+    /** Kept when the product is deleted, so history stays readable. */
+    productId: integer('product_id').references(() => products.id, { onDelete: 'set null' }),
+    name: text('name').notNull(),
+    quantity: real('quantity'),
+    unit: text('unit'),
+    /** Line total in cents. */
+    priceCents: integer('price_cents').notNull(),
+  },
+  (t) => [index('expense_items_expense_idx').on(t.expenseId), index('expense_items_product_idx').on(t.productId)],
+);
 
 export const PRICE_SOURCES = ['receipt', 'manual'] as const;
 export type PriceSource = (typeof PRICE_SOURCES)[number];
@@ -56,5 +60,5 @@ export const priceObservations = sqliteTable(
     source: text('source', { enum: PRICE_SOURCES }).notNull(),
     expenseId: integer('expense_id').references(() => expenses.id, { onDelete: 'set null' }),
   },
-  (t) => [index('price_obs_product_idx').on(t.householdId, t.productId, t.date)],
+  (t) => [index('price_obs_product_idx').on(t.householdId, t.productId, t.date), index('price_obs_expense_idx').on(t.expenseId)],
 );
