@@ -89,8 +89,8 @@ export function Shopping() {
     <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_18.5rem]">
       <ProductDatalist />
       {typing && <PurchaseFromText onClose={() => setTyping(false)} />}
-      <div className="min-w-0 space-y-4 max-lg:pb-16">
-        <div className="flex items-end gap-2">
+      <div className="min-w-0 space-y-4">
+        <div className="flex flex-wrap items-end gap-2">
           <div className="mr-auto">
             <h2 className="text-xl">{t('shopping.list.title')}</h2>
             <p className="text-sm text-muted">{t('shopping.list.toBuy', { n: open.length })}</p>
@@ -379,8 +379,8 @@ export function Shopping() {
         )}
       </div>
 
-      {/* Phones: the total stays in view above the tab bar while you walk the aisles. */}
-      <div className="fixed inset-x-3 bottom-[calc(4.75rem+env(safe-area-inset-bottom))] z-10 flex items-center justify-between gap-3 rounded-2xl bg-surface-high px-4 py-3 shadow-lg lg:hidden">
+      {/* Phones: compact summary below the list instead of a fixed overlay that can cover items. */}
+      <div className="flex items-center justify-between gap-3 rounded-2xl bg-surface-high px-4 py-3 lg:hidden">
         <div>
           <div className="text-xs font-semibold tracking-wider text-muted uppercase">{t('shopping.rail.toBuy')}</div>
           <div className="font-semibold tracking-tight text-2xl leading-none tabular-nums">≈ {formatMoney(toBuy, currency)}</div>

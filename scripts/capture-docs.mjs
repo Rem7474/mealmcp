@@ -171,7 +171,7 @@ async function capture() {
   const browser = await chromium.launch();
   try {
     for (const lang of ['en', 'fr']) {
-      const context = await browser.newContext({ viewport: { width: 1280, height: 800 }, deviceScaleFactor: 1 });
+      const context = await browser.newContext({ viewport: { width: 1280, height: 800 }, deviceScaleFactor: 2 });
       const page = await context.newPage();
       await page.addInitScript((l) => {
         localStorage.setItem('mealmcp.lang', l);
@@ -186,16 +186,16 @@ async function capture() {
       const desktopTabs = ['planning', 'recipes', 'shopping', 'stock', 'budget'];
       for (const tab of desktopTabs) {
         await page.goto(`${baseUrl}/#${tab}`);
-        await page.waitForTimeout(450);
-        await page.screenshot({ path: join(outDir, `${tab}-${lang}.jpg`), type: 'jpeg', quality: 88 });
+        await page.waitForTimeout(600);
+        await page.screenshot({ path: join(outDir, `${tab}-${lang}.jpg`), type: 'jpeg', quality: 95 });
       }
 
       // Nutrition screenshot: open first recipe and scroll nutrition card into view.
       await page.goto(`${baseUrl}/#recipes/1`);
-      await page.waitForTimeout(450);
+      await page.waitForTimeout(600);
       await page.mouse.wheel(0, 320);
       await page.waitForTimeout(200);
-      await page.screenshot({ path: join(outDir, `nutrition-${lang}.jpg`), type: 'jpeg', quality: 88 });
+      await page.screenshot({ path: join(outDir, `nutrition-${lang}.jpg`), type: 'jpeg', quality: 95 });
 
       // Mobile screenshots (390x844 @2x -> 780x1688).
       await page.setViewportSize({ width: 390, height: 844 });
@@ -210,8 +210,8 @@ async function capture() {
       }, lang);
       for (const tab of ['planning', 'shopping', 'stock', 'budget']) {
         await mPage.goto(`${baseUrl}/#${tab}`);
-        await mPage.waitForTimeout(450);
-        await mPage.screenshot({ path: join(outDir, `m-${tab}-${lang}.jpg`), type: 'jpeg', quality: 88 });
+        await mPage.waitForTimeout(600);
+        await mPage.screenshot({ path: join(outDir, `m-${tab}-${lang}.jpg`), type: 'jpeg', quality: 95 });
       }
       await mobileContext.close();
       await context.close();

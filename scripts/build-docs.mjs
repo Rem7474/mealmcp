@@ -545,21 +545,49 @@ web/src      React + Vite + Tailwind UI (EN / FR)</code></pre>
   <span>MealMCP · ${c.foot}</span>
   <span><a href="${REPO}">${c.links.repo}</a> · <a href="${readme}">${c.links.docs}</a> · <a href="${REPO}/releases">${c.links.rel}</a></span>
 </div></footer>
-<dialog id="lightbox" aria-label="${c.zoom}"><img alt=""></dialog>
+<dialog id="lightbox" aria-label="${c.zoom}">
+  <div class="lb-stage">
+    <button type="button" class="lb-nav" data-dir="-1" aria-label="Previous">&#8249;</button>
+    <img alt="">
+    <button type="button" class="lb-nav" data-dir="1" aria-label="Next">&#8250;</button>
+  </div>
+  <p class="lb-caption"></p>
+</dialog>
 <script>
 (function () {
   var box = document.getElementById('lightbox');
   if (!box || !box.showModal) return;
   var img = box.querySelector('img');
-  document.querySelectorAll('a.zoom').forEach(function (a) {
+  var caption = box.querySelector('.lb-caption');
+  var items = Array.prototype.slice.call(document.querySelectorAll('a.zoom'));
+  var index = 0;
+  function show(i) {
+    index = (i + items.length) % items.length;
+    var a = items[index];
+    var thumb = a.querySelector('img');
+    img.src = a.href;
+    img.alt = thumb ? thumb.alt : '';
+    caption.textContent = thumb ? thumb.alt : '';
+  }
+  items.forEach(function (a, i) {
     a.addEventListener('click', function (e) {
       e.preventDefault();
-      img.src = a.href;
-      img.alt = a.querySelector('img').alt;
+      show(i);
       box.showModal();
     });
   });
-  box.addEventListener('click', function () { box.close(); });
+  box.querySelectorAll('.lb-nav').forEach(function (btn) {
+    btn.addEventListener('click', function (e) {
+      e.stopPropagation();
+      show(index + Number(btn.getAttribute('data-dir')));
+    });
+  });
+  img.addEventListener('click', function () { box.close(); });
+  box.addEventListener('click', function (e) { if (e.target === box) box.close(); });
+  box.addEventListener('keydown', function (e) {
+    if (e.key === 'ArrowLeft') show(index - 1);
+    else if (e.key === 'ArrowRight') show(index + 1);
+  });
 })();
 </script>
 </body>
