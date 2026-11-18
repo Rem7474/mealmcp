@@ -1,9 +1,13 @@
 import { ArrowCounterClockwise, ArrowLeft, ArrowRight, CookingPot, Pause, Play, Thermometer, Timer, X } from '@phosphor-icons/react';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useId, useMemo, useRef, useState } from 'react';
+import { api, useAction } from '../api';
 import { formatQty } from '../format';
 import { useI18n } from '../i18n';
 import type { Ingredient, Recipe } from '../types';
 import { Button } from '../ui';
+import { confirmation } from '../undo';
+
+type StepTimer = { remaining: number; running: boolean; done: boolean };
 
 const STOPWORDS = new Set([
   'de',
@@ -85,44 +89,72 @@ function playBeep() {
   }
 }
 
-export function CookingMode({ recipe, activeServings, onClose }: { recipe: Recipe; activeServings: number; onClose: () => void }) {
+export function CookingMode({
+  recipe,
+  activeServings,
+  mealId,
+  onClose,
+}: {
+  recipe: Recipe;
+  activeServings: number;
+  mealId?: number;
+  onClose: () => void;
+}) {
   const { t } = useI18n();
+  const { run, pending } = useAction();
+  const titleId = useId();
+  const dialogRef = useRef<HTMLDialogElement>(null);
   const [stepIndex, setStepIndex] = useState(0);
   const [showAllIngredients, setShowAllIngredients] = useState(false);
+  const [timers, setTimers] = useState<Record<number, StepTimer>>({});
 
   const steps = recipe.steps;
   const total = steps.length;
   const step = steps[stepIndex];
 
-  const initialSeconds = step?.durationMinutes != null ? step.durationMinutes * 60 : 0;
-  const [remainingSeconds, setRemainingSeconds] = useState(initialSeconds);
-  const [timerRunning, setTimerRunning] = useState(false);
-  const [timerDone, setTimerDone] = useState(false);
+  const defaultSeconds = step?.durationMinutes != null ? step.durationMinutes * 60 : 0;
+  const currentTimer = timers[stepIndex] ?? { remaining: defaultSeconds, running: false, done: false };
+  const hasRunningTimers = Object.values(timers).some((tm) => tm.running);
 
-  // Reset the step timer whenever the user moves to another step.
+  // Open as a native modal <dialog> so focus stays trapped and background scrolling is blocked.
   useEffect(() => {
-    setRemainingSeconds(step?.durationMinutes != null ? step.durationMinutes * 60 : 0);
-    setTimerRunning(false);
-    setTimerDone(false);
+    const d = dialogRef.current;
+    if (!d || d.open) return;
+    if (typeof d.showModal === 'function') d.showModal();
+    else d.setAttribute('open', '');
+  }, []);
+
+  // Collapse the full-ingredient drawer when moving to another step.
+  useEffect(() => {
     setShowAllIngredients(false);
-  }, [stepIndex, step?.durationMinutes]);
+  }, [stepIndex]);
 
-  // Tick the countdown timer once per second while active.
+  // Tick all running step timers once per second, even when viewing another step.
   useEffect(() => {
-    if (!timerRunning) return;
+    if (!hasRunningTimers) return;
     const id = window.setInterval(() => {
-      setRemainingSeconds((prev) => {
-        if (prev <= 1) {
-          setTimerRunning(false);
-          setTimerDone(true);
-          playBeep();
-          return 0;
+      setTimers((prev) => {
+        let changed = false;
+        const next: Record<number, StepTimer> = {};
+        for (const [k, tm] of Object.entries(prev)) {
+          const idx = Number(k);
+          if (!tm.running) {
+            next[idx] = tm;
+            continue;
+          }
+          changed = true;
+          if (tm.remaining <= 1) {
+            next[idx] = { remaining: 0, running: false, done: true };
+            playBeep();
+          } else {
+            next[idx] = { ...tm, remaining: tm.remaining - 1 };
+          }
         }
-        return prev - 1;
+        return changed ? next : prev;
       });
     }, 1000);
     return () => window.clearInterval(id);
-  }, [timerRunning]);
+  }, [hasRunningTimers]);
 
   // Keep the screen awake while cooking when the browser supports Wake Lock.
   useEffect(() => {
@@ -141,10 +173,10 @@ export function CookingMode({ recipe, activeServings, onClose }: { recipe: Recip
     };
   }, []);
 
-  // Keyboard navigation: Left/Right to step, Escape to close.
+  // Keyboard navigation: Left/Right to step, Escape fallback when showModal is unavailable.
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') onClose();
+      if (e.key === 'Escape' && typeof dialogRef.current?.showModal !== 'function') onClose();
       else if (e.key === 'ArrowRight' && stepIndex < total - 1) setStepIndex((i) => i + 1);
       else if (e.key === 'ArrowLeft' && stepIndex > 0) setStepIndex((i) => i - 1);
     };
@@ -159,13 +191,30 @@ export function CookingMode({ recipe, activeServings, onClose }: { recipe: Recip
   const displayedIngredients = showAllIngredients ? recipe.ingredients : matchedIngredients;
   const progressPct = Math.round(((stepIndex + 1) / total) * 100);
   const isLast = stepIndex === total - 1;
+  const otherTimers = Object.entries(timers)
+    .map(([k, tm]) => ({ idx: Number(k), ...tm }))
+    .filter((tm) => tm.idx !== stepIndex && (tm.running || tm.done));
+
+  const finishAndCook = async () => {
+    if (mealId === undefined) return;
+    await run(() => api.post(`/plan/${mealId}/cook`));
+    confirmation(t('plan.cookedToast'));
+    onClose();
+  };
 
   return (
-    <div role="dialog" aria-modal="true" aria-label={recipe.name} className="fixed inset-0 z-50 flex flex-col bg-bg text-ink">
+    <dialog
+      ref={dialogRef}
+      aria-labelledby={titleId}
+      onClose={onClose}
+      className="fixed inset-0 z-50 m-0 h-dvh max-h-none w-screen max-w-none flex-col bg-bg p-0 text-ink open:flex"
+    >
       <header className="border-b border-line px-4 py-3 sm:px-6">
         <div className="mx-auto flex max-w-4xl items-center justify-between gap-3">
           <div className="min-w-0">
-            <h2 className="truncate text-lg font-semibold sm:text-xl">{recipe.name}</h2>
+            <h2 id={titleId} className="truncate text-lg font-semibold sm:text-xl">
+              {recipe.name}
+            </h2>
             <p className="text-sm text-muted">
               {t('cooking.stepOf', { current: stepIndex + 1, total })} · {t('common.servings', { n: activeServings })}
             </p>
@@ -177,6 +226,25 @@ export function CookingMode({ recipe, activeServings, onClose }: { recipe: Recip
         <div className="mx-auto mt-3 h-1.5 max-w-4xl overflow-hidden rounded-full bg-line">
           <div className="h-full bg-accent transition-all duration-200" style={{ width: `${progressPct}%` }} />
         </div>
+        {otherTimers.length > 0 && (
+          <div className="mx-auto mt-2.5 flex max-w-4xl flex-wrap gap-2">
+            {otherTimers.map((tm) => (
+              <button
+                key={tm.idx}
+                type="button"
+                onClick={() => setStepIndex(tm.idx)}
+                className={`inline-flex cursor-pointer items-center gap-1.5 rounded-full border px-3 py-1 text-xs font-medium tabular-nums ${
+                  tm.done ? 'border-accent bg-accent/15 text-accent' : 'border-line bg-surface text-ink hover:border-accent'
+                }`}
+              >
+                <Timer size={14} className="text-accent" />
+                {tm.done
+                  ? t('cooking.timer.doneStep', { step: tm.idx + 1 })
+                  : t('cooking.timer.runningStep', { step: tm.idx + 1, time: formatCountdown(tm.remaining) })}
+              </button>
+            ))}
+          </div>
+        )}
       </header>
 
       <main className="flex-1 overflow-y-auto px-4 py-6 sm:px-6">
@@ -186,41 +254,42 @@ export function CookingMode({ recipe, activeServings, onClose }: { recipe: Recip
               {step.durationMinutes !== null && (
                 <div
                   className={`flex flex-wrap items-center gap-3 rounded-xl border px-4 py-3 ${
-                    timerDone ? 'border-accent bg-accent/10' : 'border-line bg-surface'
+                    currentTimer.done ? 'border-accent bg-accent/10' : 'border-line bg-surface'
                   }`}
                 >
                   <div className="flex items-center gap-2">
                     <Timer size={24} className="text-accent" />
-                    <span className="text-2xl font-bold tabular-nums sm:text-3xl">{formatCountdown(remainingSeconds)}</span>
+                    <span className="text-2xl font-bold tabular-nums sm:text-3xl">{formatCountdown(currentTimer.remaining)}</span>
                   </div>
                   <div className="flex items-center gap-2">
                     <Button
                       variant="primary"
                       compact
-                      onClick={() => {
-                        if (remainingSeconds === 0) {
-                          setRemainingSeconds(step.durationMinutes! * 60);
-                          setTimerDone(false);
-                        }
-                        setTimerRunning((r) => !r);
-                      }}
+                      onClick={() =>
+                        setTimers((prev) => {
+                          const cur = prev[stepIndex] ?? { remaining: defaultSeconds, running: false, done: false };
+                          const remaining = cur.remaining === 0 ? defaultSeconds : cur.remaining;
+                          return { ...prev, [stepIndex]: { remaining, running: !cur.running, done: false } };
+                        })
+                      }
                     >
-                      {timerRunning ? <Pause size={16} /> : <Play size={16} />}
-                      {timerRunning ? t('cooking.timer.pause') : t('cooking.timer.start')}
+                      {currentTimer.running ? <Pause size={16} /> : <Play size={16} />}
+                      {currentTimer.running ? t('cooking.timer.pause') : t('cooking.timer.start')}
                     </Button>
                     <Button
                       compact
                       aria-label={t('cooking.timer.reset')}
-                      onClick={() => {
-                        setTimerRunning(false);
-                        setTimerDone(false);
-                        setRemainingSeconds(step.durationMinutes! * 60);
-                      }}
+                      onClick={() =>
+                        setTimers((prev) => ({
+                          ...prev,
+                          [stepIndex]: { remaining: defaultSeconds, running: false, done: false },
+                        }))
+                      }
                     >
                       <ArrowCounterClockwise size={16} />
                     </Button>
                   </div>
-                  {timerDone && (
+                  {currentTimer.done && (
                     <span role="status" className="text-sm font-semibold text-accent">
                       {t('cooking.timer.done')}
                     </span>
@@ -288,9 +357,16 @@ export function CookingMode({ recipe, activeServings, onClose }: { recipe: Recip
             {t('cooking.prev')}
           </Button>
           {isLast ? (
-            <Button variant="primary" onClick={onClose}>
-              {t('cooking.finish')}
-            </Button>
+            <div className="flex flex-wrap items-center gap-2">
+              {mealId !== undefined && (
+                <Button onClick={onClose} disabled={pending}>
+                  {t('cooking.finish')}
+                </Button>
+              )}
+              <Button variant="primary" disabled={pending} onClick={mealId !== undefined ? finishAndCook : onClose}>
+                {mealId !== undefined ? t('cooking.finishAndCook') : t('cooking.finish')}
+              </Button>
+            </div>
           ) : (
             <Button variant="primary" onClick={() => setStepIndex((i) => i + 1)}>
               {t('cooking.next')}
@@ -299,6 +375,6 @@ export function CookingMode({ recipe, activeServings, onClose }: { recipe: Recip
           )}
         </div>
       </footer>
-    </div>
+    </dialog>
   );
 }
