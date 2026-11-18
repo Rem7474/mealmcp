@@ -1,13 +1,16 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useSyncExternalStore } from 'react';
 import { useT } from './i18n';
 import { Button } from './ui';
 
 /**
  * Deleting is deferred for a few seconds so that it can be taken back: the caller hides the thing at once,
  * and `commit` only runs once the delay is over. A second deletion commits the first right away.
+ *
+ * The key of what is waiting is kept here, not in the page: a page that is left and re-opened during the delay
+ * would otherwise show the item again while the "undo" bar is still up.
  */
 const DELAY_MS = 6000;
-type Pending = { commit: () => void; undo: () => void; timer: ReturnType<typeof setTimeout> };
+type Pending = { key: string | null; commit: () => void; undo: () => void; timer: ReturnType<typeof setTimeout> };
 let pending: Pending | null = null;
 const listeners = new Set<() => void>();
 const notify = () => {
@@ -24,10 +27,20 @@ function settle(commit: boolean) {
   notify();
 }
 
-export function deferDelete({ commit, undo }: { commit: () => void; undo: () => void }) {
+export function deferDelete({ commit, undo, key = null }: { commit: () => void; undo: () => void; key?: string | null }) {
   settle(true);
-  pending = { commit, undo, timer: setTimeout(() => settle(true), DELAY_MS) };
+  pending = { key, commit, undo, timer: setTimeout(() => settle(true), DELAY_MS) };
   notify();
+}
+
+const subscribe = (l: () => void) => {
+  listeners.add(l);
+  return () => void listeners.delete(l);
+};
+
+/** The key of the item waiting for its deletion, if any: pages hide it, whichever of them shows it. */
+export function usePendingKey(): string | null {
+  return useSyncExternalStore(subscribe, () => pending?.key ?? null);
 }
 
 /** A short confirmation for an action that has no undo ("meal cooked, stock updated"). */

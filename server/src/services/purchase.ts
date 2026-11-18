@@ -77,7 +77,7 @@ export function createPurchaseService(
       return db.transaction(() => {
         let removedFromList = 0;
         for (const line of lines) {
-          const added = stock.add({ name: line.name, quantity: line.quantity, unit: line.unit, location });
+          const added = stock.add({ name: line.name, quantity: line.quantity, unit: line.unit, location, price: line.price });
           const base = toBase(line.quantity, line.unit ?? 'piece');
           removedFromList += shopping.consume(added.productId, base.quantity, normalizeUnit(base.unit));
         }

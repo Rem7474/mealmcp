@@ -557,4 +557,9 @@ describe('partial freezing', () => {
     expect(part).toMatchObject({ quantity: 100, opened: true, frozen: true });
     expect(() => svc.stock.freeze({ id: part.id, quantity: 50 })).toThrow(/already frozen/);
   });
+
+  it('refuses to thaw an approximate marker', () => {
+    const marker = svc.stock.add({ name: 'Ice', approximate: true, location: 'freezer' });
+    expect(() => svc.stock.thaw(marker.id)).toThrow(/cannot be thawed/);
+  });
 });

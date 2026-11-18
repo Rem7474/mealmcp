@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it } from 'vitest';
 import { createDb, type Db } from '../db/index.js';
 import { households } from '../db/schema.js';
 import { addDays, today } from '../domain/dates.js';
+import { recipeList, suggestRecipes } from '../domain/schemas.js';
 import { createServices, type Services } from './index.js';
 
 let db: Db;
@@ -190,5 +191,12 @@ describe('diets and allergens', () => {
     const product = svc.products.list().find((p) => p.name === 'Lait de coco')!;
     svc.products.update({ id: product.id, allergens: ['milk'] });
     expect(svc.recipes.get(curry.id).dietConflicts.flatMap((c) => c.reasons)).toContain('allergen:milk');
+  });
+
+  it('parses query booleans strictly so "false" does not bypass the diet filter', () => {
+    expect(suggestRecipes.parse({ ignoreDiet: 'false' }).ignoreDiet).toBe(false);
+    expect(suggestRecipes.parse({ ignoreDiet: 'true' }).ignoreDiet).toBe(true);
+    expect(recipeList.parse({ favorite: 'false' }).favorite).toBe(false);
+    expect(recipeList.parse({ favorite: '1' }).favorite).toBe(true);
   });
 });

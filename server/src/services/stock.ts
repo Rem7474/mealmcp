@@ -442,6 +442,11 @@ export function createStockService(db: Db, hid: number, productService: ProductS
         else if (current.location === 'freezer' && patch.location !== 'freezer')
           Object.assign(changes, thawChanges(current, product, changes));
       }
+      // Out of the freezer with a date given by the caller: the date is theirs, but the line is now thawed.
+      if (patch.location !== undefined && patch.location !== 'freezer' && current.frozenOn && patch.expiresOn !== undefined) {
+        changes.frozenOn = null;
+        changes.thawedOn = today();
+      }
       if (Object.keys(changes).length)
         db.update(stockItems)
           .set(changes)
@@ -543,6 +548,7 @@ export function createStockService(db: Db, hid: number, productService: ProductS
     /** Takes a line out of the freezer: it must now be used within the product's thawed shelf life. */
     thaw(id: number) {
       const line = svc.get(id);
+      if (line.approximate) throw new ValidationError('A "plenty of it" marker cannot be thawed');
       if (!line.frozenOn && line.location !== 'freezer') throw new ValidationError('This is not frozen');
       const product = productService.get(line.productId);
       db.update(stockItems)
@@ -784,6 +790,11 @@ export function createStockService(db: Db, hid: number, productService: ProductS
       };
     },
   };
+  // These write several rows one after the other: all of it or none of it.
+  for (const name of ['open', 'unopen', 'consume'] as const) {
+    const write = svc[name] as (...args: never[]) => unknown;
+    (svc as Record<string, unknown>)[name] = (...args: never[]) => db.transaction(() => write(...args));
+  }
   return svc;
 }
 
