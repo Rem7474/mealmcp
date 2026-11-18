@@ -452,7 +452,7 @@ export const fr: Messages = {
   'recipes.form.equipment': 'Matériel nécessaire (séparé par des virgules, ex. air fryer, fouet)',
   'recipes.equipment.missingBadge': 'non possédé',
   'recipes.equipment.missing': 'Il vous manque : {names}',
-  'shopping.rail.toBuy': 'Reste à acheter',
+  'shopping.rail.toBuy': 'Total estimé',
   'shopping.rail.basket': 'Dans le panier',
   'shopping.rail.after': 'Budget restant après',
   'recipes.pick': 'Choisissez une recette pour voir son détail.',

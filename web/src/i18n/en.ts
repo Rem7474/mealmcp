@@ -448,7 +448,7 @@ export const en = {
   'recipes.form.equipment': 'Equipment needed (comma-separated, e.g. air fryer, whisk)',
   'recipes.equipment.missingBadge': 'not owned',
   'recipes.equipment.missing': 'Missing: {names}',
-  'shopping.rail.toBuy': 'Still to buy',
+  'shopping.rail.toBuy': 'Estimated total',
   'shopping.rail.basket': 'In the basket',
   'shopping.rail.after': 'Budget left after',
   'recipes.pick': 'Pick a recipe to see its details.',
