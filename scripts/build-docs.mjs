@@ -553,43 +553,7 @@ web/src      React + Vite + Tailwind UI (EN / FR)</code></pre>
   </div>
   <p class="lb-caption"></p>
 </dialog>
-<script>
-(function () {
-  var box = document.getElementById('lightbox');
-  if (!box || !box.showModal) return;
-  var img = box.querySelector('img');
-  var caption = box.querySelector('.lb-caption');
-  var items = Array.prototype.slice.call(document.querySelectorAll('a.zoom'));
-  var index = 0;
-  function show(i) {
-    index = (i + items.length) % items.length;
-    var a = items[index];
-    var thumb = a.querySelector('img');
-    img.src = a.href;
-    img.alt = thumb ? thumb.alt : '';
-    caption.textContent = thumb ? thumb.alt : '';
-  }
-  items.forEach(function (a, i) {
-    a.addEventListener('click', function (e) {
-      e.preventDefault();
-      show(i);
-      box.showModal();
-    });
-  });
-  box.querySelectorAll('.lb-nav').forEach(function (btn) {
-    btn.addEventListener('click', function (e) {
-      e.stopPropagation();
-      show(index + Number(btn.getAttribute('data-dir')));
-    });
-  });
-  img.addEventListener('click', function () { box.close(); });
-  box.addEventListener('click', function (e) { if (e.target === box) box.close(); });
-  box.addEventListener('keydown', function (e) {
-    if (e.key === 'ArrowLeft') show(index - 1);
-    else if (e.key === 'ArrowRight') show(index + 1);
-  });
-})();
-</script>
+<script src="${a}assets/lightbox.js" defer></script>
 </body>
 </html>
 `;
