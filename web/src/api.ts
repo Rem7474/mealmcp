@@ -7,7 +7,12 @@ function apiUrl(path: string): string {
   if (!path.startsWith('/') || path.startsWith('//') || path.includes('..')) {
     throw new Error(`Invalid API path: ${path}`);
   }
-  return `/api${path}`;
+  const base = typeof location !== 'undefined' && location.origin !== 'null' ? location.origin : 'http://localhost';
+  const url = new URL(`/api${path}`, base);
+  if (url.origin !== base || !url.pathname.startsWith('/api/')) {
+    throw new Error(`Invalid API path: ${path}`);
+  }
+  return `${url.pathname}${url.search}`;
 }
 
 async function request<T>(method: string, path: string, body?: unknown): Promise<T> {
