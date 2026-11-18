@@ -79,10 +79,12 @@ const bearerOf = (header: string | undefined) => {
 export function attachUser(accounts: AccountService): RequestHandler {
   return (req, _res, next) => {
     const bearer = bearerOf(req.headers.authorization);
-    const identity = bearer ? accounts.verifyToken(bearer) : null;
-    if (identity) {
-      req.user = accounts.getUser(identity.userId);
-      req.authVia = 'bearer';
+    if (bearer) {
+      const identity = accounts.verifyToken(bearer);
+      if (identity) {
+        req.user = accounts.getUser(identity.userId);
+        req.authVia = 'bearer';
+      }
     } else {
       const session = sessionTokenOf(req);
       const user = session ? accounts.userForSession(session) : null;
