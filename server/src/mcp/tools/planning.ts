@@ -9,6 +9,13 @@ export function registerPlanningTools({ planner, tool, ro, rw, del }: ToolContex
     meals: planner.list(a),
   }));
   tool('plan_meal', 'Plan a meal on a date: either a recipe (recipeId) or a free-text title.', s.planAdd.shape, rw, (a) => planner.add(a));
+  tool(
+    'update_planned_meal',
+    'Move a planned meal to another date/slot or change its servings (refuses cooked meals).',
+    s.planUpdate.shape,
+    rw,
+    (a) => planner.update(a),
+  );
   tool('remove_planned_meal', 'Remove a planned meal. Use the id from list_meal_plan.', s.idParam.shape, del, (a) => planner.remove(a.id));
   tool(
     'cook_planned_meal',
