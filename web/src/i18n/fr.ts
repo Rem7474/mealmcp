@@ -540,6 +540,7 @@ export const fr: Messages = {
   'products.barcodes': 'Codes-barres',
   'products.price': 'Prix',
   'products.setPrice': 'Définir le prix',
+  'products.drainedInvalid': 'Saisissez les deux poids (net et égoutté), avec égoutté ≤ net.',
 
   'settings.location': 'Où vous habitez',
   'settings.locationHelp': 'Choisit le calendrier des fruits et légumes de saison.',

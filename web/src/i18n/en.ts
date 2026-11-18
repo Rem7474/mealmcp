@@ -535,6 +535,7 @@ export const en = {
   'products.barcodes': 'Barcodes',
   'products.price': 'Price',
   'products.setPrice': 'Set price',
+  'products.drainedInvalid': 'Enter both net and drained weights, with drained ≤ net.',
 
   'settings.location': 'Where you live',
   'settings.locationHelp': 'Picks the seasonal calendar of fruit and vegetables.',
