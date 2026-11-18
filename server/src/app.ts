@@ -5,6 +5,7 @@ import { requireBearerAuth } from '@modelcontextprotocol/sdk/server/auth/middlew
 import { getOAuthProtectedResourceMetadataUrl, mcpAuthRouter } from '@modelcontextprotocol/sdk/server/auth/router.js';
 import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/streamableHttp.js';
 import express, { type NextFunction, type Request, type RequestHandler, type Response } from 'express';
+import rateLimit from 'express-rate-limit';
 import { createLlmClient } from './ai/client.js';
 import { createApiRouter } from './api/router.js';
 import { createAccountService } from './auth/accounts.js';
@@ -97,13 +98,14 @@ export function createApp(db: Db, config: Config, logger: Logger = loggerFor(con
 
   // Built web UI, with fallback to index.html for client-side pages such as /consent.
   if (existsSync(webDist)) {
+    const staticLimit = rateLimit({ windowMs: 60_000, limit: 600, standardHeaders: false, legacyHeaders: false });
     // The service worker must always be revalidated so updates reach installed copies.
-    app.get('/sw.js', (_req, res) => {
+    app.get('/sw.js', staticLimit, (_req, res) => {
       res.setHeader('Cache-Control', 'no-cache');
       res.sendFile(join(webDist, 'sw.js'));
     });
     app.use(express.static(webDist));
-    app.use((req, res, next) => (req.method === 'GET' ? res.sendFile(join(webDist, 'index.html')) : next()));
+    app.use(staticLimit, (req, res, next) => (req.method === 'GET' ? res.sendFile(join(webDist, 'index.html')) : next()));
   }
 
   // Last resort, for everything outside /api (malformed JSON on /mcp, oversized bodies, bugs): JSON, never a stack trace.
@@ -116,6 +118,10 @@ export function createApp(db: Db, config: Config, logger: Logger = loggerFor(con
   });
 
   return app;
+}
+
+function isLoopback(addr: string): boolean {
+  return addr === '::1' || addr === '127.0.0.1' || addr.endsWith(':127.0.0.1');
 }
 
 /**
@@ -133,11 +139,7 @@ function warnOnProxyMisconfiguration(config: Config, logger: Logger): RequestHan
         logger.warn(
           'X-Forwarded-For received but TRUST_PROXY=0: all clients share the proxy address for rate limiting. Set TRUST_PROXY=1 behind one reverse proxy.',
         );
-      } else if (
-        !forwarded &&
-        config.trustProxy > 0 &&
-        !['::1', '127.0.0.1', '::ffff:127.0.0.1'].includes(req.socket.remoteAddress ?? '')
-      ) {
+      } else if (!forwarded && config.trustProxy > 0 && !isLoopback(req.socket.remoteAddress ?? '')) {
         warned = true;
         logger.warn(
           'TRUST_PROXY is set but a request arrived without X-Forwarded-For: is the app reachable without going through the proxy?',

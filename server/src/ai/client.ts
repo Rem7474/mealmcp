@@ -41,9 +41,20 @@ const rootOf = (base: URL) => {
   return trimSlashes(root.href);
 };
 
+function unwrapFence(text: string): string {
+  const start = text.indexOf('```');
+  if (start < 0) return text;
+  const end = text.indexOf('```', start + 3);
+  if (end < 0) return text;
+  return text
+    .slice(start + 3, end)
+    .replace(/^json\b/i, '')
+    .trim();
+}
+
 /** A model can answer in a fenced block or add words around the JSON: take the first object or array. */
 export function extractJson(text: string): unknown {
-  const fenced = /```(?:json)?\s*([\s\S]*?)```/i.exec(text)?.[1] ?? text;
+  const fenced = unwrapFence(text);
   const obj = fenced.indexOf('{');
   const arr = fenced.indexOf('[');
   // Prefer `{` when both appear (e.g. "Here is [1]: {...}"), unless `[` is clearly the outer JSON array before `{`.
