@@ -2,7 +2,7 @@ import { and, count, desc, eq, gt, isNull, like, lt, ne } from 'drizzle-orm';
 import { z } from 'zod';
 import type { Config } from '../config.js';
 import type { Db } from '../db/index.js';
-import { accessTokens, households, invites, sessions, users } from '../db/schema.js';
+import { accessTokens, authCodes, households, invites, sessions, users } from '../db/schema.js';
 import { ForbiddenError, NotFoundError, UnauthorizedError, ValidationError } from '../domain/errors.js';
 import { DUMMY_HASH, hashPassword, randomToken, sha256, verifyPassword } from './crypto.js';
 
@@ -38,7 +38,7 @@ const BAD_INVITE = 'This invite code is invalid, expired or already used';
 const CANNOT_REGISTER = 'This account could not be created. Check your details, or sign in if you already have an account';
 
 export const loginInput = z.object({
-  email: z.string().trim().toLowerCase(),
+  email: z.string().trim().toLowerCase().max(200),
   password: z.string().min(1).max(200),
 });
 
@@ -226,6 +226,8 @@ export function createAccountService(db: Db, config: Config) {
       const passwordHash = await hashPassword(input.newPassword);
       db.transaction(() => {
         db.update(users).set({ passwordHash }).where(eq(users.id, userId)).run();
+        // A pending authorization must not survive the change of password.
+        db.delete(authCodes).where(eq(authCodes.userId, userId)).run();
         const others = currentToken ? ne(sessions.tokenHash, sha256(currentToken)) : undefined;
         db.delete(sessions)
           .where(and(eq(sessions.userId, userId), others))
@@ -283,6 +285,17 @@ export function createAccountService(db: Db, config: Config) {
 
     createInvite(user: CurrentUser) {
       if (user.role !== 'owner') throw new ForbiddenError('Only the household owner can invite people');
+      // Expired or used codes are of no use: drop them, and keep the number of open ones reasonable.
+      db.delete(invites)
+        .where(and(eq(invites.householdId, user.householdId), lt(invites.expiresAt, Date.now())))
+        .run();
+      const open =
+        db
+          .select({ n: count() })
+          .from(invites)
+          .where(and(eq(invites.householdId, user.householdId), isNull(invites.usedAt)))
+          .get()?.n ?? 0;
+      if (open >= 50) throw new ValidationError('Too many pending invitations: wait for them to expire');
       const code = randomToken(12);
       const expiresAt = Date.now() + INVITE_TTL;
       db.insert(invites)
@@ -294,6 +307,8 @@ export function createAccountService(db: Db, config: Config) {
     // --- Bearer tokens (personal tokens and OAuth access tokens) ----------
 
     createPersonalToken(userId: number, name: string, expiresInDays?: number | null) {
+      const existing = db.select({ n: count() }).from(accessTokens).where(eq(accessTokens.userId, userId)).get()?.n ?? 0;
+      if (existing >= 50) throw new ValidationError('Too many active tokens: revoke unused ones first');
       const token = PAT_PREFIX + randomToken();
       const now = Date.now();
       const expiresAt = expiresInDays ? now + expiresInDays * DAY : null;

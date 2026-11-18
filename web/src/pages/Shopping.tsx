@@ -6,7 +6,7 @@ import { addDays, currencySymbol, formatDay, formatMoney, formatQty, MEALS, toda
 import { type MessageKey, useI18n, useT } from '../i18n';
 import type { BudgetStatus, HouseholdSettings, ShoppingItem } from '../types';
 import { Badge, Button, Card, Disclose, Empty, Input, Select } from '../ui';
-import { deferDelete } from '../undo';
+import { deferDelete, usePendingKey } from '../undo';
 import { PurchaseFromText } from './PurchaseFromText';
 import { LocationSelect, ProductDatalist, parseQty, UnitPrice, useCurrency, usePriceOverview } from './shared';
 
@@ -45,7 +45,8 @@ export function Shopping() {
   const { data: all = [] } = useQuery({ queryKey: ['shopping'], queryFn: () => api.get<ShoppingItem[]>('/shopping') });
   // Items deleted a moment ago stay out of sight while the deletion can still be undone.
   const [removed, setRemoved] = useState<number[]>([]);
-  const items = all.filter((i) => !removed.includes(i.id));
+  const pendingKey = usePendingKey();
+  const items = all.filter((i) => !removed.includes(i.id) && pendingKey !== `shopping:${i.id}`);
   const { data: budget } = useQuery({ queryKey: ['budget', 'status'], queryFn: () => api.get<BudgetStatus>('/budget/status') });
   const { data: settings } = useQuery({ queryKey: ['settings'], queryFn: () => api.get<HouseholdSettings>('/settings') });
   const groupBy: GroupBy = settings?.shoppingGroupBy ?? 'none';
@@ -289,6 +290,7 @@ export function Shopping() {
                           onClick={() => {
                             setRemoved((r) => [...r, item.id]);
                             deferDelete({
+                              key: `shopping:${item.id}`,
                               commit: () =>
                                 void run(() => api.del(`/shopping/${item.id}`)).finally(() =>
                                   setRemoved((r) => r.filter((x) => x !== item.id)),

@@ -96,6 +96,24 @@ describe('shopping list organisation', () => {
     // Manual lines are not tied to a meal.
     expect(svc.shopping.add({ name: 'Bread', quantity: 1 }).meals).toEqual([]);
   });
+
+  it('does not count the same stock twice across units and stops consuming once covered', () => {
+    // 1 sweet potato = 300 g; 300 g in stock can cover either 1 piece or 300 g, not both.
+    const sp = svc.products.findOrCreate('Sweet potato', 'piece');
+    svc.products.update({ id: sp.id, gramsPerPiece: 300 });
+    svc.stock.add({ name: 'Sweet potato', quantity: 300, unit: 'g' });
+    const r1 = svc.recipes.create({ name: 'Mash', ingredients: [{ name: 'Sweet potato', quantity: 1, unit: 'piece' }] });
+    const r2 = svc.recipes.create({ name: 'Soup', ingredients: [{ name: 'Sweet potato', quantity: 300, unit: 'g' }] });
+    svc.planner.add({ date: '2030-02-01', mealType: 'lunch', recipeId: r1.id });
+    svc.planner.add({ date: '2030-02-01', mealType: 'dinner', recipeId: r2.id });
+    const list = svc.shopping.generateFromPlan({ from: '2030-02-01', to: '2030-02-01', includeLowStock: false });
+    expect(list.find((i) => i.productId === sp.id)).toMatchObject({ quantity: 300, unit: 'g' });
+
+    // Consuming 300 g covers the generated line and must not delete another line of the same product in pieces.
+    svc.shopping.add({ name: 'Sweet potato', quantity: 2, unit: 'piece' });
+    svc.shopping.consume(sp.id, 300, 'g');
+    expect(svc.shopping.list().map((i) => [i.quantity, i.unit])).toEqual([[2, 'piece']]);
+  });
 });
 
 describe('seasons', () => {

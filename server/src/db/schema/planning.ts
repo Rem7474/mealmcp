@@ -19,21 +19,25 @@ export const mealPlan = sqliteTable(
     servings: integer('servings').notNull().default(4),
     cooked: integer('cooked', { mode: 'boolean' }).notNull().default(false),
   },
-  (t) => [index('meal_plan_household_date_idx').on(t.householdId, t.date)],
+  (t) => [index('meal_plan_household_date_idx').on(t.householdId, t.date), index('meal_plan_recipe_idx').on(t.recipeId)],
 );
 
 /** Which planned meals a generated shopping line is for (a line can serve several meals). */
-export const shoppingItemMeals = sqliteTable('shopping_item_meals', {
-  id: integer('id').primaryKey({ autoIncrement: true }),
-  shoppingItemId: integer('shopping_item_id')
-    .notNull()
-    .references(() => shoppingItems.id, { onDelete: 'cascade' }),
-  mealId: integer('meal_id')
-    .notNull()
-    .references(() => mealPlan.id, { onDelete: 'cascade' }),
-  /** Share of the line attributed to this meal, in the line's unit. */
-  quantity: real('quantity'),
-});
+export const shoppingItemMeals = sqliteTable(
+  'shopping_item_meals',
+  {
+    id: integer('id').primaryKey({ autoIncrement: true }),
+    shoppingItemId: integer('shopping_item_id')
+      .notNull()
+      .references(() => shoppingItems.id, { onDelete: 'cascade' }),
+    mealId: integer('meal_id')
+      .notNull()
+      .references(() => mealPlan.id, { onDelete: 'cascade' }),
+    /** Share of the line attributed to this meal, in the line's unit. */
+    quantity: real('quantity'),
+  },
+  (t) => [index('shopping_item_meals_item_idx').on(t.shoppingItemId), index('shopping_item_meals_meal_idx').on(t.mealId)],
+);
 
 export const shoppingItems = sqliteTable(
   'shopping_items',

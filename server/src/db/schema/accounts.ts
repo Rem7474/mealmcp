@@ -17,47 +17,59 @@ export const households = sqliteTable('households', {
   settings: text('settings').notNull().default('{}'),
 });
 
-export const users = sqliteTable('users', {
-  id: integer('id').primaryKey({ autoIncrement: true }),
-  email: text('email').notNull().unique(),
-  name: text('name').notNull(),
-  passwordHash: text('password_hash').notNull(),
-  householdId: integer('household_id')
-    .notNull()
-    .references(() => households.id, { onDelete: 'cascade' }),
-  role: text('role', { enum: ['owner', 'member'] })
-    .notNull()
-    .default('member'),
-  createdAt: integer('created_at').notNull(),
-});
+export const users = sqliteTable(
+  'users',
+  {
+    id: integer('id').primaryKey({ autoIncrement: true }),
+    email: text('email').notNull().unique(),
+    name: text('name').notNull(),
+    passwordHash: text('password_hash').notNull(),
+    householdId: integer('household_id')
+      .notNull()
+      .references(() => households.id, { onDelete: 'cascade' }),
+    role: text('role', { enum: ['owner', 'member'] })
+      .notNull()
+      .default('member'),
+    createdAt: integer('created_at').notNull(),
+  },
+  (t) => [index('users_household_idx').on(t.householdId)],
+);
 
 /** One-time codes an owner hands out so someone can join the household. Only the hash is stored. */
-export const invites = sqliteTable('invites', {
-  id: integer('id').primaryKey({ autoIncrement: true }),
-  householdId: integer('household_id')
-    .notNull()
-    .references(() => households.id, { onDelete: 'cascade' }),
-  codeHash: text('code_hash').notNull().unique(),
-  createdBy: integer('created_by')
-    .notNull()
-    .references(() => users.id, { onDelete: 'cascade' }),
-  expiresAt: integer('expires_at').notNull(),
-  usedAt: integer('used_at'),
-});
+export const invites = sqliteTable(
+  'invites',
+  {
+    id: integer('id').primaryKey({ autoIncrement: true }),
+    householdId: integer('household_id')
+      .notNull()
+      .references(() => households.id, { onDelete: 'cascade' }),
+    codeHash: text('code_hash').notNull().unique(),
+    createdBy: integer('created_by')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    expiresAt: integer('expires_at').notNull(),
+    usedAt: integer('used_at'),
+  },
+  (t) => [index('invites_household_idx').on(t.householdId)],
+);
 
 /** Browser sessions (cookie). The primary key is the SHA-256 of the cookie value. */
-export const sessions = sqliteTable('sessions', {
-  tokenHash: text('token_hash').primaryKey(),
-  userId: integer('user_id')
-    .notNull()
-    .references(() => users.id, { onDelete: 'cascade' }),
-  expiresAt: integer('expires_at').notNull(),
-  /** Shown in the list of signed-in devices (epoch ms; 0 for sessions created before this was recorded). */
-  createdAt: integer('created_at').notNull().default(0),
-  lastSeenAt: integer('last_seen_at').notNull().default(0),
-  /** Browser identification, cut short, so people can recognise their own devices. */
-  userAgent: text('user_agent'),
-});
+export const sessions = sqliteTable(
+  'sessions',
+  {
+    tokenHash: text('token_hash').primaryKey(),
+    userId: integer('user_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    expiresAt: integer('expires_at').notNull(),
+    /** Shown in the list of signed-in devices (epoch ms; 0 for sessions created before this was recorded). */
+    createdAt: integer('created_at').notNull().default(0),
+    lastSeenAt: integer('last_seen_at').notNull().default(0),
+    /** Browser identification, cut short, so people can recognise their own devices. */
+    userAgent: text('user_agent'),
+  },
+  (t) => [index('sessions_user_idx').on(t.userId)],
+);
 
 /**
  * Bearer tokens accepted by the API and the MCP endpoint: OAuth access tokens
@@ -82,17 +94,21 @@ export const accessTokens = sqliteTable(
   (t) => [index('access_tokens_user_idx').on(t.userId)],
 );
 
-export const refreshTokens = sqliteTable('refresh_tokens', {
-  tokenHash: text('token_hash').primaryKey(),
-  accessTokenId: integer('access_token_id')
-    .notNull()
-    .references(() => accessTokens.id, { onDelete: 'cascade' }),
-  clientId: text('client_id').notNull(),
-  userId: integer('user_id')
-    .notNull()
-    .references(() => users.id, { onDelete: 'cascade' }),
-  expiresAt: integer('expires_at').notNull(),
-});
+export const refreshTokens = sqliteTable(
+  'refresh_tokens',
+  {
+    tokenHash: text('token_hash').primaryKey(),
+    accessTokenId: integer('access_token_id')
+      .notNull()
+      .references(() => accessTokens.id, { onDelete: 'cascade' }),
+    clientId: text('client_id').notNull(),
+    userId: integer('user_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    expiresAt: integer('expires_at').notNull(),
+  },
+  (t) => [index('refresh_tokens_access_idx').on(t.accessTokenId), index('refresh_tokens_user_idx').on(t.userId)],
+);
 
 // ---------------------------------------------------------------------------
 // OAuth authorization server (used by MCP clients).
@@ -117,15 +133,19 @@ export const oauthRequests = sqliteTable('oauth_requests', {
   expiresAt: integer('expires_at').notNull(),
 });
 
-export const authCodes = sqliteTable('auth_codes', {
-  codeHash: text('code_hash').primaryKey(),
-  clientId: text('client_id').notNull(),
-  userId: integer('user_id')
-    .notNull()
-    .references(() => users.id, { onDelete: 'cascade' }),
-  redirectUri: text('redirect_uri').notNull(),
-  codeChallenge: text('code_challenge').notNull(),
-  scopes: text('scopes').notNull().default(''),
-  resource: text('resource'),
-  expiresAt: integer('expires_at').notNull(),
-});
+export const authCodes = sqliteTable(
+  'auth_codes',
+  {
+    codeHash: text('code_hash').primaryKey(),
+    clientId: text('client_id').notNull(),
+    userId: integer('user_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    redirectUri: text('redirect_uri').notNull(),
+    codeChallenge: text('code_challenge').notNull(),
+    scopes: text('scopes').notNull().default(''),
+    resource: text('resource'),
+    expiresAt: integer('expires_at').notNull(),
+  },
+  (t) => [index('auth_codes_user_idx').on(t.userId)],
+);

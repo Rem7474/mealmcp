@@ -7,6 +7,9 @@ import type { Response } from 'express';
  *
  * In memory: it works for a single server process, which is how the app runs.
  */
+/** Open tabs one household may keep: the oldest is closed beyond it, so a runaway client cannot exhaust sockets. */
+const MAX_PER_HOUSEHOLD = 20;
+
 export function createHub() {
   const clients = new Map<number, Set<Response>>();
 
@@ -14,6 +17,11 @@ export function createHub() {
     /** Registers an open event stream; returns the function that unregisters it. */
     subscribe(householdId: number, res: Response): () => void {
       const set = clients.get(householdId) ?? new Set<Response>();
+      while (set.size >= MAX_PER_HOUSEHOLD) {
+        const oldest = set.values().next().value as Response;
+        set.delete(oldest);
+        oldest.end();
+      }
       set.add(res);
       clients.set(householdId, set);
       return () => {

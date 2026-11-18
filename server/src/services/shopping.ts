@@ -3,7 +3,7 @@ import type { z } from 'zod';
 import type { Db } from '../db/index.js';
 import { type Location, mealPlan, products, recipes, shoppingItemMeals, shoppingItems } from '../db/schema.js';
 import { guessCategory } from '../domain/categories.js';
-import { toDrainedFrame, toNetFrame } from '../domain/convert.js';
+import { convertQuantity, toDrainedFrame, toNetFrame } from '../domain/convert.js';
 import { NotFoundError } from '../domain/errors.js';
 import { costCents, toCents } from '../domain/pricing.js';
 import type { shoppingAdd, shoppingComplete, shoppingGenerate } from '../domain/schemas.js';
@@ -214,10 +214,19 @@ export function createShoppingService(
         db.delete(shoppingItems)
           .where(and(mine, eq(shoppingItems.source, 'plan'), eq(shoppingItems.checked, false)))
           .run();
+        // The same stock must not cover two needs of one product in different units (2 pieces and 300 g of the
+        // same thing): what an earlier need already claimed is taken off before the next one is compared.
+        const claimed = new Map<number, { quantity: number; unit: string }[]>();
         for (const [k, n] of needs) {
           const product = byId.get(n.productId)!;
           if (product.isStaple || snap.hasApproximate(product.id)) continue;
-          const short = round(n.quantity - snap.available(product, n.unit));
+          const taken = (claimed.get(product.id) ?? []).reduce(
+            (sum, c) => sum + (convertQuantity(c.quantity, c.unit, n.unit, product) ?? 0),
+            0,
+          );
+          const free = Math.max(0, snap.available(product, n.unit) - taken);
+          const short = round(n.quantity - free);
+          claimed.set(product.id, [...(claimed.get(product.id) ?? []), { quantity: Math.min(n.quantity, free), unit: n.unit }]);
           // Nobody buys 0.25 of a lemon: round countable items up to whole pieces.
           const missing = n.unit === 'piece' ? Math.ceil(short - 1e-9) : short;
           if (missing > 0) {
@@ -260,8 +269,8 @@ export function createShoppingService(
         .orderBy(shoppingItems.id)
         .all();
       for (const line of lines) {
+        if (left <= 0) break;
         if (line.quantity !== null && line.unit === unit) {
-          if (left <= 0) break;
           if (line.quantity > left) {
             db.update(shoppingItems)
               .set({ quantity: round(line.quantity - left) })
@@ -286,8 +295,9 @@ export function createShoppingService(
      * (or a total is given) the purchase is also recorded as an expense, which teaches product prices.
      */
     completePurchase(location: Location = 'pantry', opts: Omit<z.infer<typeof shoppingComplete>, 'location'> = {}) {
-      const bought = this.list().filter((i) => i.checked);
-      db.transaction(() => {
+      // One transaction for the whole thing: a failed expense must not leave a half-emptied list.
+      return db.transaction(() => {
+        const bought = this.list().filter((i) => i.checked);
         for (const item of bought) {
           stock.add({
             name: item.name,
@@ -300,25 +310,25 @@ export function createShoppingService(
             .where(and(mine, eq(shoppingItems.id, item.id)))
             .run();
         }
+        const priced = bought.filter((i) => i.priceCents !== null);
+        const expense =
+          priced.length > 0 || (opts.total != null && bought.length > 0)
+            ? budget.recordExpense({
+                date: opts.date,
+                store: opts.store,
+                total: opts.total ?? undefined,
+                items: priced.map((i) => ({
+                  name: i.name,
+                  quantity: i.quantity ?? undefined,
+                  unit: i.unit,
+                  price: (i.priceCents as number) / 100,
+                })),
+                addToStock: false,
+                location,
+              })
+            : null;
+        return { movedToStock: bought.length, location, expenseId: expense?.id ?? null };
       });
-      const priced = bought.filter((i) => i.priceCents !== null);
-      const expense =
-        priced.length > 0 || (opts.total != null && bought.length > 0)
-          ? budget.recordExpense({
-              date: opts.date,
-              store: opts.store,
-              total: opts.total ?? undefined,
-              items: priced.map((i) => ({
-                name: i.name,
-                quantity: i.quantity ?? undefined,
-                unit: i.unit,
-                price: (i.priceCents as number) / 100,
-              })),
-              addToStock: false,
-              location,
-            })
-          : null;
-      return { movedToStock: bought.length, location, expenseId: expense?.id ?? null };
     },
   };
 }

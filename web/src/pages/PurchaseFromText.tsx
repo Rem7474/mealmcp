@@ -7,6 +7,7 @@ import { useT } from '../i18n';
 import { shrinkImage } from '../receiptImage';
 import type { AiStatus, Location } from '../types';
 import { Badge, Button, Field, Input, Select, Sheet } from '../ui';
+import { parseQty } from './shared';
 
 interface ParsedPurchaseLine {
   text: string;
@@ -77,7 +78,9 @@ export function PurchaseFromText({ onClose }: { onClose: () => void }) {
     );
   };
 
-  const kept = (drafts ?? []).filter((d) => d.include && d.name.trim() && Number(d.quantity) > 0);
+  // A decimal comma ("1,5") is what a French keypad types: Number("1,5") would be NaN and drop the line silently.
+  const num = (value: string) => parseQty(value) ?? Number.NaN;
+  const kept = (drafts ?? []).filter((d) => d.include && d.name.trim() && num(d.quantity) > 0);
   const edit = (i: number, patch: Partial<Draft>) => setDrafts((all) => all?.map((d, j) => (j === i ? { ...d, ...patch } : d)) ?? null);
 
   const apply = async () => {
@@ -85,13 +88,13 @@ export function PurchaseFromText({ onClose }: { onClose: () => void }) {
       api.post('/shopping/from-text/apply', {
         lines: kept.map((d) => ({
           name: d.name.trim(),
-          quantity: Number(d.quantity),
+          quantity: num(d.quantity),
           ...(d.unit.trim() ? { unit: d.unit.trim() } : {}),
-          ...(d.price !== '' && Number(d.price) >= 0 ? { price: Number(d.price) } : {}),
+          ...(num(d.price) >= 0 ? { price: num(d.price) } : {}),
         })),
         location: meta.location,
         ...(meta.store.trim() ? { store: meta.store.trim() } : {}),
-        ...(meta.total !== '' && Number(meta.total) >= 0 ? { total: Number(meta.total) } : {}),
+        ...(num(meta.total) >= 0 ? { total: num(meta.total) } : {}),
       }),
     )) as { addedToStock: number; removedFromList: number };
     setDone({ added: result.addedToStock, removed: result.removedFromList });

@@ -65,6 +65,8 @@ function createQueue(max: number) {
   let running = 0;
   const waiting: (() => void)[] = [];
   return async <T>(job: () => Promise<T>): Promise<T> => {
+    // A long line of waiting jobs only means every one of them will time out: refuse early instead.
+    if (running >= max && waiting.length >= max * 8) throw new TooManyRequestsError('The AI server is busy, try again in a moment');
     if (running >= max) await new Promise<void>((resolve) => waiting.push(resolve));
     running++;
     try {
