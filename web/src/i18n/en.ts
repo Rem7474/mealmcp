@@ -351,6 +351,8 @@ export const en = {
   'budget.prices.help': 'Learned from your purchases; correct them here. They are used for cost estimates.',
   'budget.prices.aria': 'Price of {name} per {unit}',
   'budget.prices.empty': 'No product has a price yet.',
+  'budget.prices.add': 'Add a price',
+  'budget.prices.product': 'Product',
 
   'shopping.estimate': 'Estimated cost: {total}',
   'shopping.unpriced_one': '({n} item without a price)',
@@ -526,6 +528,13 @@ export const en = {
   'products.none': 'No product matches.',
   'products.more': 'Showing the first {n}. Search to narrow down.',
   'products.staple': 'Always at home',
+  'products.edit': 'Edit {name}',
+  'products.name': 'Name',
+  'products.minStock': 'Alert below',
+  'products.gramsPerMl': 'Density (g / ml)',
+  'products.barcodes': 'Barcodes',
+  'products.price': 'Price',
+  'products.setPrice': 'Set price',
 
   'settings.location': 'Where you live',
   'settings.locationHelp': 'Picks the seasonal calendar of fruit and vegetables.',
