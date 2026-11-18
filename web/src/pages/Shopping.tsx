@@ -379,8 +379,8 @@ export function Shopping() {
         )}
       </div>
 
-      {/* Phones: compact summary below the list instead of a fixed overlay that can cover items. */}
-      <div className="flex items-center justify-between gap-3 rounded-2xl bg-surface-high px-4 py-3 lg:hidden">
+      {/* Phones: sticky above the tab bar while scrolling long lists, and resting cleanly below short ones. */}
+      <div className="sticky bottom-[calc(4.75rem+env(safe-area-inset-bottom))] z-10 flex items-center justify-between gap-3 rounded-2xl bg-surface-high px-4 py-3 shadow-lg lg:hidden">
         <div>
           <div className="text-xs font-semibold tracking-wider text-muted uppercase">{t('shopping.rail.toBuy')}</div>
           <div className="font-semibold tracking-tight text-2xl leading-none tabular-nums">≈ {formatMoney(toBuy, currency)}</div>
