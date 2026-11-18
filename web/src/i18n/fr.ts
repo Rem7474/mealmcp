@@ -355,6 +355,8 @@ export const fr: Messages = {
   'budget.prices.help': 'Appris à partir de vos achats ; corrigez-les ici. Ils servent aux estimations de coût.',
   'budget.prices.aria': 'Prix de {name} par {unit}',
   'budget.prices.empty': 'Aucun produit n’a encore de prix.',
+  'budget.prices.add': 'Ajouter un prix',
+  'budget.prices.product': 'Produit',
 
   'shopping.estimate': 'Coût estimé : {total}',
   'shopping.unpriced_one': '({n} article sans prix)',
@@ -533,6 +535,14 @@ export const fr: Messages = {
   'products.none': 'Aucun produit.',
   'products.more': 'Les {n} premiers sont affichés. Affinez la recherche.',
   'products.staple': 'Toujours à la maison',
+  'products.edit': 'Modifier {name}',
+  'products.name': 'Nom',
+  'products.minStock': 'Alerte sous',
+  'products.gramsPerMl': 'Densité (g / ml)',
+  'products.barcodes': 'Codes-barres',
+  'products.price': 'Prix',
+  'products.setPrice': 'Définir le prix',
+  'products.drainedInvalid': 'Saisissez les deux poids (net et égoutté), avec égoutté ≤ net.',
 
   'settings.location': 'Où vous habitez',
   'settings.locationHelp': 'Choisit le calendrier des fruits et légumes de saison.',

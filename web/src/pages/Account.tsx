@@ -21,8 +21,9 @@ import {
 import { Badge, Button, Card, Empty, Fold, Input, Select } from '../ui';
 import { AiCard } from './AiCard';
 import { resetSession } from './AuthPage';
+import { ProductSheet } from './ProductSheet';
 import { DeleteAccountCard, DevicesCard, PasswordCard } from './Security';
-import { useProducts } from './shared';
+import { AISLES, useProducts } from './shared';
 
 const day = (ms: number) => formatDate(new Date(ms).toISOString().slice(0, 10));
 
@@ -515,7 +516,6 @@ function TokensCard() {
   );
 }
 
-const AISLES = ['produce', 'dairy', 'meat_fish', 'bakery', 'pantry', 'frozen', 'drinks', 'household', 'other'];
 const PRODUCT_LIMIT = 100;
 
 /** Every known product: file it under a store aisle and teach it other names (receipt wording, brands). */
@@ -524,6 +524,8 @@ function ProductsCard() {
   const { data: products = [] } = useProducts();
   const { run } = useAction();
   const [search, setSearch] = useState('');
+  const [editing, setEditing] = useState<number | null>(null);
+  const edited = editing !== null ? (products.find((p) => p.id === editing) ?? null) : null;
   const matches = products.filter((p) => {
     const q = search.trim().toLowerCase();
     return !q || p.name.toLowerCase().includes(q) || p.aliases.some((a) => a.toLowerCase().includes(q));
@@ -531,6 +533,7 @@ function ProductsCard() {
 
   return (
     <Card title={t('products.title')}>
+      {edited && <ProductSheet key={edited.id} product={edited} onClose={() => setEditing(null)} />}
       <p className="mb-3 text-sm text-muted">{t('products.help')}</p>
       <Input
         type="search"
@@ -545,7 +548,7 @@ function ProductsCard() {
       ) : (
         <ul className="max-h-[28rem] divide-y divide-line overflow-y-auto overscroll-contain text-sm">
           {matches.slice(0, PRODUCT_LIMIT).map((p) => (
-            <ProductRow key={p.id} product={p} run={run} />
+            <ProductRow key={p.id} product={p} run={run} onEdit={() => setEditing(p.id)} />
           ))}
         </ul>
       )}
@@ -554,7 +557,15 @@ function ProductsCard() {
   );
 }
 
-function ProductRow({ product: p, run }: { product: Product; run: (fn: () => Promise<unknown>) => Promise<unknown> }) {
+function ProductRow({
+  product: p,
+  run,
+  onEdit,
+}: {
+  product: Product;
+  run: (fn: () => Promise<unknown>) => Promise<unknown>;
+  onEdit: () => void;
+}) {
   const t = useT();
   const [alias, setAlias] = useState('');
   const aisle = p.category ?? p.suggestedCategory ?? '';
@@ -568,7 +579,13 @@ function ProductRow({ product: p, run }: { product: Product; run: (fn: () => Pro
   return (
     <li className="space-y-2 py-3">
       <div className="flex items-center gap-2">
-        <span className="min-w-0 flex-1 truncate font-medium">{p.name}</span>
+        <button
+          type="button"
+          onClick={onEdit}
+          className="min-w-0 flex-1 cursor-pointer truncate text-left font-medium hover:text-accent hover:underline"
+        >
+          {p.name}
+        </button>
         {p.isStaple && <Badge>{t('products.staple')}</Badge>}
         <Select
           aria-label={t('products.aisle')}
@@ -582,7 +599,7 @@ function ProductRow({ product: p, run }: { product: Product; run: (fn: () => Pro
               {t(`aisle.${c}` as MessageKey)}
             </option>
           ))}
-          {aisle && !AISLES.includes(aisle) && <option value={aisle}>{aisle}</option>}
+          {aisle && !(AISLES as readonly string[]).includes(aisle) && <option value={aisle}>{aisle}</option>}
         </Select>
       </div>
       <div className="flex flex-wrap items-center gap-1.5">
