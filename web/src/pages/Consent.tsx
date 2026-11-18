@@ -18,7 +18,8 @@ interface RequestInfo {
 export function Consent({ userName, householdName }: { userName: string; householdName: string }) {
   const { t, rich } = useI18n();
   const request = new URLSearchParams(location.search).get('request') ?? '';
-  const info = useQuery({ queryKey: ['oauth-request', request], queryFn: () => api.get<RequestInfo>(`/oauth/requests/${request}`) });
+  const encoded = encodeURIComponent(request);
+  const info = useQuery({ queryKey: ['oauth-request', request], queryFn: () => api.get<RequestInfo>(`/oauth/requests/${encoded}`) });
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -26,7 +27,7 @@ export function Consent({ userName, householdName }: { userName: string; househo
     setBusy(true);
     setError(null);
     try {
-      const { redirectTo } = await api.post<{ redirectTo: string }>(`/oauth/requests/${request}/decision`, { approve });
+      const { redirectTo } = await api.post<{ redirectTo: string }>(`/oauth/requests/${encoded}/decision`, { approve });
       // Back to the application, carrying the authorization code (or the refusal).
       window.location.href = redirectTo;
     } catch (err) {

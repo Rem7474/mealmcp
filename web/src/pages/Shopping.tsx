@@ -204,6 +204,7 @@ export function Shopping() {
                         <label className="flex min-h-11 min-w-0 flex-1 cursor-pointer items-center gap-3">
                           <input
                             type="checkbox"
+                            aria-label={item.name}
                             className="size-[18px] shrink-0 accent-(--accent)"
                             checked={item.checked}
                             onChange={() => run(() => api.patch(`/shopping/${item.id}`, { checked: !item.checked }))}

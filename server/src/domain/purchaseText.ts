@@ -13,7 +13,7 @@ export interface ParsedLine {
 }
 
 const num = (s: string) => Number(s.replace(',', '.'));
-const PRICE = /(?:€\s*(\d+(?:[.,]\d{1,2})?))|(?:(\d+(?:[.,]\d{1,2})?)\s*(?:€|eur(?:o|os)?(?![\p{L}])))/iu;
+const PRICE = /(?:€\s{0,4}(\d{1,6}(?:[.,]\d{1,2})?))|(?:(\d{1,6}(?:[.,]\d{1,2})?)\s{0,4}(?:€|(?:euros?|eur)(?![\p{L}])))/iu;
 const BARCODE = /(?<![\d.,])\d{8,14}(?![\d.,])/;
 /** EAN-8 or EAN-13/GTIN-14 lengths: 9 to 11 digits is a quantity or a price, not a barcode. */
 const isBarcode = (digits: string) => digits.length === 8 || digits.length >= 12;

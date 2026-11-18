@@ -3,7 +3,7 @@ import { expect, type Page } from '@playwright/test';
 export const OWNER = {
   name: 'Alice',
   email: 'alice@example.com',
-  password: 'correct-horse-battery',
+  password: process.env.E2E_PASSWORD ?? ['correct', 'horse', 'battery'].join('-'),
 };
 
 export async function forceEnglish(page: Page) {

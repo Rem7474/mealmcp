@@ -3,8 +3,20 @@ import { createContext, useContext } from 'react';
 
 export class UnauthorizedError extends Error {}
 
+function apiUrl(path: string): string {
+  if (!path.startsWith('/') || path.startsWith('//') || path.includes('..')) {
+    throw new Error(`Invalid API path: ${path}`);
+  }
+  const base = typeof location !== 'undefined' && location.origin !== 'null' ? location.origin : 'http://localhost';
+  const url = new URL(`/api${path}`, base);
+  if (url.origin !== base || !url.pathname.startsWith('/api/')) {
+    throw new Error(`Invalid API path: ${path}`);
+  }
+  return `${url.pathname}${url.search}`;
+}
+
 async function request<T>(method: string, path: string, body?: unknown): Promise<T> {
-  const res = await fetch(`/api${path}`, {
+  const res = await fetch(apiUrl(path), {
     method,
     // The session cookie is sent automatically (same origin).
     headers: body !== undefined ? { 'Content-Type': 'application/json' } : {},
@@ -21,7 +33,7 @@ async function request<T>(method: string, path: string, body?: unknown): Promise
 
 /** Sends a file as the raw request body (a receipt), with its own content type. */
 async function upload<T>(path: string, file: Blob): Promise<T> {
-  const res = await fetch(`/api${path}`, { method: 'POST', headers: { 'Content-Type': file.type }, body: file });
+  const res = await fetch(apiUrl(path), { method: 'POST', headers: { 'Content-Type': file.type }, body: file });
   const data = await res.json().catch(() => null);
   if (res.status === 401) throw new UnauthorizedError(data?.error ?? 'Not signed in');
   if (!res.ok) throw new Error(data?.error ?? `Error ${res.status}`);
