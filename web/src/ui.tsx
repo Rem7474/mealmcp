@@ -14,7 +14,7 @@ import {
 import { useT } from './i18n';
 
 const field =
-  'h-11 min-w-0 rounded-lg border border-control bg-surface px-3 text-base text-ink sm:h-9 sm:text-sm placeholder:text-muted hover:border-muted focus:border-accent focus-visible:outline-2 disabled:opacity-45';
+  'h-11 min-w-0 rounded-xl border-2 border-transparent bg-surface-high px-3.5 text-base text-ink sm:h-10 placeholder:text-muted hover:bg-line/70 focus:border-accent focus:bg-surface focus-visible:outline-2 disabled:opacity-45';
 
 export function Input({ className = '', ...props }: InputHTMLAttributes<HTMLInputElement>) {
   return <input className={`${field} ${className}`} {...props} />;
@@ -25,19 +25,19 @@ export function Select({ className = '', ...props }: SelectHTMLAttributes<HTMLSe
 }
 
 /**
- * Three levels. primary: filled, the one main action of a screen. secondary: outlined, everything else.
+ * Three levels. primary: filled, the one main action of a screen. secondary: tonal filled, everything else.
  * active: a soft accent pill for a chosen filter or option (never for an action). ghost and danger are quiet.
  */
 type Variant = 'primary' | 'secondary' | 'active' | 'ghost' | 'danger';
 const variants: Record<Variant, string> = {
-  primary: 'border border-accent bg-accent text-accent-ink hover:bg-accent-400 active:bg-accent-300',
-  secondary: 'border border-control text-ink hover:border-muted hover:bg-ink/5 active:bg-ink/10',
-  active: 'border border-accent/60 bg-accent/15 text-accent-soft hover:bg-accent/25 active:bg-accent/30',
-  ghost: 'text-muted hover:bg-ink/5 hover:text-ink',
-  danger: 'border border-transparent text-danger hover:bg-danger/10',
+  primary: 'bg-accent text-accent-ink hover:bg-accent-400 active:bg-accent-300',
+  secondary: 'bg-surface-high text-ink hover:bg-line active:bg-line/80',
+  active: 'bg-accent/20 text-accent-soft hover:bg-accent/30 active:bg-accent/35',
+  ghost: 'text-muted hover:bg-ink/8 hover:text-ink',
+  danger: 'text-danger hover:bg-danger/15',
 };
 
-/** 44px tall on touch screens (the minimum for a thumb), denser from 640px up; `compact` is the filter size. */
+/** 44px tall on touch screens (the minimum for a thumb), 40px from 640px up; `compact` is the filter size. */
 export function Button({
   variant = 'secondary',
   compact = false,
@@ -47,7 +47,7 @@ export function Button({
   return (
     <button
       type="button"
-      className={`inline-flex ${compact ? 'h-10 px-3 sm:h-8' : 'h-11 px-4 sm:h-9 sm:px-3'} shrink-0 cursor-pointer items-center justify-center gap-1.5 rounded-lg text-sm font-medium transition-colors disabled:cursor-default disabled:border-line disabled:bg-transparent disabled:text-muted disabled:opacity-70 ${variants[variant]} ${className}`}
+      className={`inline-flex ${compact ? 'h-10 px-3.5 sm:h-9' : 'h-11 px-4 sm:h-10 sm:px-4'} shrink-0 cursor-pointer items-center justify-center gap-1.5 rounded-xl text-sm font-semibold transition-[color,background-color,transform] active:scale-[0.98] disabled:cursor-default disabled:bg-surface-high/50 disabled:text-muted disabled:opacity-60 disabled:active:scale-100 ${variants[variant]} ${className}`}
       {...props}
     />
   );
@@ -55,7 +55,7 @@ export function Button({
 
 export function Card({ title, actions, children }: { title?: ReactNode; actions?: ReactNode; children: ReactNode }) {
   return (
-    <section className="rounded-xl bg-surface p-4 shadow-[0_0_0_1px_var(--line)]">
+    <section className="rounded-2xl bg-surface p-4 sm:p-5">
       {(title || actions) && (
         <header className="mb-3 flex flex-wrap items-center justify-between gap-2">
           <h2 className="text-lg">{title}</h2>
@@ -70,8 +70,8 @@ export function Card({ title, actions, children }: { title?: ReactNode; actions?
 /** A card whose body folds away behind its title: the one pattern for optional forms and settings. */
 export function Accordion({ summary, children }: { summary: ReactNode; children: ReactNode }) {
   return (
-    <details className="rounded-xl bg-surface p-4 shadow-[0_0_0_1px_var(--line)]">
-      <summary className="flex min-h-11 cursor-pointer items-center py-0.5 font-medium sm:min-h-0 sm:block">{summary}</summary>
+    <details className="rounded-2xl bg-surface p-4 sm:p-5">
+      <summary className="flex min-h-11 cursor-pointer items-center py-0.5 font-semibold sm:min-h-0 sm:block">{summary}</summary>
       {children}
     </details>
   );
@@ -98,8 +98,8 @@ function useWide() {
 export function Fold({ title, children, open, id }: { title: ReactNode; children: ReactNode; open?: boolean; id?: string }) {
   const wide = useWide();
   return (
-    <details id={id} open={open ?? wide} className="scroll-mt-20 group rounded-xl bg-surface p-4 shadow-[0_0_0_1px_var(--line)]">
-      <summary className="flex min-h-11 cursor-pointer items-center font-medium sm:min-h-0 sm:block">{title}</summary>
+    <details id={id} open={open ?? wide} className="scroll-mt-20 group rounded-2xl bg-surface p-4 sm:p-5">
+      <summary className="flex min-h-11 cursor-pointer items-center font-semibold sm:min-h-0 sm:block">{title}</summary>
       <div className="mt-3 [&>section]:bg-transparent [&>section]:p-0 [&>section]:shadow-none [&>section>header:not(:has(button))]:hidden [&>section>header>h2]:hidden">
         {children}
       </div>
@@ -111,8 +111,8 @@ export function Fold({ title, children, open, id }: { title: ReactNode; children
 export function Disclose({ summary, children, className = '' }: { summary: ReactNode; children: ReactNode; className?: string }) {
   const wide = useWide();
   return (
-    <details open={wide} className={`group rounded-xl border border-line px-3 py-2.5 lg:border-0 lg:p-0 ${className}`}>
-      <summary className="flex min-h-11 cursor-pointer items-center text-sm font-medium lg:hidden">{summary}</summary>
+    <details open={wide} className={`group rounded-2xl bg-surface px-3.5 py-2.5 lg:bg-transparent lg:p-0 ${className}`}>
+      <summary className="flex min-h-11 cursor-pointer items-center text-sm font-semibold lg:hidden">{summary}</summary>
       <div className="mt-3 lg:mt-0">{children}</div>
     </details>
   );
@@ -120,16 +120,21 @@ export function Disclose({ summary, children, className = '' }: { summary: React
 
 export function Badge({ tone = 'muted', children }: { tone?: 'muted' | 'warn' | 'danger' | 'accent'; children: ReactNode }) {
   const tones = {
-    muted: 'border border-line text-muted',
-    warn: 'bg-warn/12 text-warn',
-    danger: 'bg-danger/12 text-danger',
-    accent: 'bg-accent/15 text-accent-soft',
+    muted: 'bg-surface-high text-ink/85',
+    warn: 'bg-warn/15 text-warn',
+    danger: 'bg-danger/15 text-danger',
+    accent: 'bg-accent/20 text-accent-soft',
   };
-  return <span className={`rounded-md px-1.5 py-0.5 text-xs ${tones[tone]}`}>{children}</span>;
+  return <span className={`rounded-full px-2.5 py-0.5 text-xs font-semibold ${tones[tone]}`}>{children}</span>;
 }
 
 export function Empty({ children }: { children: ReactNode }) {
   return <p className="py-6 text-center text-sm text-muted">{children}</p>;
+}
+
+/** Tonal placeholder block shown while a section's data is loading. */
+export function Skeleton({ className = 'h-20 w-full' }: { className?: string }) {
+  return <div aria-hidden="true" className={`animate-pulse rounded-2xl bg-surface-high ${className}`} />;
 }
 
 /** Five stars: read-only when `onChange` is missing. Clicking the current rating clears it. */
@@ -249,7 +254,7 @@ export function Sheet({ title, onClose, children }: { title: ReactNode; onClose:
       onClick={(e) => e.target === e.currentTarget && onClose()}
       onKeyDown={(e) => e.key === 'Escape' && typeof ref.current?.showModal !== 'function' && onClose()}
       {...swipe}
-      className="sheet m-0 mt-auto max-h-[92dvh] w-full max-w-none flex-col overflow-hidden rounded-t-3xl border border-line bg-surface p-0 text-ink open:flex sm:m-auto sm:max-w-lg sm:rounded-2xl"
+      className="sheet m-0 mt-auto max-h-[92dvh] w-full max-w-none flex-col overflow-hidden rounded-t-3xl bg-surface p-0 text-ink shadow-2xl open:flex sm:m-auto sm:max-w-lg sm:rounded-3xl"
     >
       <div className="flex shrink-0 touch-none justify-center pt-2 sm:hidden" aria-hidden="true">
         <div className="h-1 w-10 rounded-full bg-control" />
@@ -283,14 +288,14 @@ export function Field({
 }) {
   return (
     <label className={`block min-w-0 ${className}`}>
-      <span className="mb-1 block text-xs font-medium text-muted">{label}</span>
+      <span className="mb-1.5 block text-sm font-medium text-muted">{label}</span>
       {children}
       {hint && <span className="mt-1 block text-xs text-muted">{hint}</span>}
     </label>
   );
 }
 
-/** The one main action of a screen on a phone: a round button within thumb reach, above the tab bar. */
+/** The one main action of a screen on a phone: a squircle button within thumb reach, above the tab bar. */
 export function Fab({ label, onClick }: { label: string; onClick: () => void }) {
   return (
     <button
@@ -298,9 +303,9 @@ export function Fab({ label, onClick }: { label: string; onClick: () => void }) 
       aria-label={label}
       title={label}
       onClick={onClick}
-      className="fixed right-4 bottom-[calc(4.75rem+env(safe-area-inset-bottom))] z-10 grid size-14 cursor-pointer place-items-center rounded-full bg-accent text-accent-ink active:scale-95 sm:hidden"
+      className="fixed right-4 bottom-[calc(5rem+env(safe-area-inset-bottom))] z-10 grid size-14 cursor-pointer place-items-center rounded-2xl bg-accent text-accent-ink shadow-lg active:scale-95 sm:hidden"
     >
-      <Plus size={24} />
+      <Plus size={24} weight="bold" />
     </button>
   );
 }

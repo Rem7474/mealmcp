@@ -162,7 +162,7 @@ export function CookingMode({ recipe, activeServings, onClose }: { recipe: Recip
 
   return (
     <div role="dialog" aria-modal="true" aria-label={recipe.name} className="fixed inset-0 z-50 flex flex-col bg-bg text-ink">
-      <header className="border-b border-line px-4 py-3 sm:px-6">
+      <header className="bg-surface px-4 py-3 sm:px-6">
         <div className="mx-auto flex max-w-4xl items-center justify-between gap-3">
           <div className="min-w-0">
             <h2 className="truncate text-lg font-semibold sm:text-xl">{recipe.name}</h2>
@@ -185,8 +185,8 @@ export function CookingMode({ recipe, activeServings, onClose }: { recipe: Recip
             <div className="flex flex-wrap items-center gap-3">
               {step.durationMinutes !== null && (
                 <div
-                  className={`flex flex-wrap items-center gap-3 rounded-xl border px-4 py-3 ${
-                    timerDone ? 'border-accent bg-accent/10' : 'border-line bg-surface'
+                  className={`flex flex-wrap items-center gap-3 rounded-2xl px-4 py-3 ${
+                    timerDone ? 'bg-accent/15 ring-2 ring-accent' : 'bg-surface'
                   }`}
                 >
                   <div className="flex items-center gap-2">
@@ -236,7 +236,7 @@ export function CookingMode({ recipe, activeServings, onClose }: { recipe: Recip
               )}
 
               {step.appliance && (
-                <span className="inline-flex items-center gap-1.5 rounded-full border border-line bg-surface px-3 py-2 text-base font-medium">
+                <span className="inline-flex items-center gap-1.5 rounded-full bg-surface-high px-3.5 py-2 text-base font-medium">
                   <CookingPot size={18} />
                   {step.appliance}
                 </span>
@@ -247,7 +247,7 @@ export function CookingMode({ recipe, activeServings, onClose }: { recipe: Recip
           <p className="text-xl leading-relaxed font-medium sm:text-2xl sm:leading-relaxed">{step.text}</p>
 
           {recipe.ingredients.length > 0 && (
-            <section className="rounded-xl border border-line bg-surface p-4">
+            <section className="rounded-2xl bg-surface p-4 sm:p-5">
               <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
                 <h3 className="text-sm font-semibold uppercase tracking-wide text-muted">
                   {showAllIngredients ? t('cooking.allIngredients', { n: recipe.ingredients.length }) : t('cooking.stepIngredients')}
@@ -281,7 +281,7 @@ export function CookingMode({ recipe, activeServings, onClose }: { recipe: Recip
         </div>
       </main>
 
-      <footer className="border-t border-line px-4 py-3 sm:px-6">
+      <footer className="bg-surface px-4 py-3 sm:px-6">
         <div className="mx-auto flex max-w-4xl items-center justify-between gap-3">
           <Button disabled={stepIndex === 0} onClick={() => setStepIndex((i) => i - 1)}>
             <ArrowLeft size={18} />

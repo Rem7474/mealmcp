@@ -122,7 +122,7 @@ export function PurchaseFromText({ onClose }: { onClose: () => void }) {
           <p className="text-sm text-muted">{t('purchase.intro')}</p>
           <Field label={t('purchase.text')}>
             <textarea
-              className="min-h-36 w-full rounded-lg border border-control bg-transparent p-2 text-sm"
+              className="min-h-36 w-full rounded-xl border-2 border-transparent bg-surface-high p-3 text-base text-ink placeholder:text-muted focus:border-accent focus:bg-surface"
               placeholder={t('purchase.placeholder')}
               value={text}
               onChange={(e) => setText(e.target.value)}
@@ -163,7 +163,7 @@ export function PurchaseFromText({ onClose }: { onClose: () => void }) {
             {drafts.length === 0 && <p className="text-sm text-muted">{t('purchase.empty')}</p>}
             <ul className="space-y-3">
               {drafts.map((d, i) => (
-                <li key={i} className={`rounded-lg border border-line p-3 text-sm ${d.include ? '' : 'opacity-60'}`}>
+                <li key={i} className={`rounded-2xl bg-surface-high/60 p-3.5 text-sm ${d.include ? '' : 'opacity-60'}`}>
                   <div className="mb-2 flex flex-wrap items-center gap-2">
                     <label className="flex min-h-11 items-center gap-1.5 sm:min-h-0">
                       <input type="checkbox" checked={d.include} onChange={(e) => edit(i, { include: e.target.checked })} />
@@ -226,7 +226,7 @@ export function PurchaseFromText({ onClose }: { onClose: () => void }) {
               </Field>
             </div>
           </div>
-          <footer className="flex flex-wrap items-center gap-2 border-t border-line px-5 py-3">
+          <footer className="flex flex-wrap items-center gap-2 border-t-2 border-line px-5 py-3">
             <Button onClick={() => setDrafts(null)}>{t('purchase.back')}</Button>
             <Button variant="primary" disabled={pending || kept.length === 0} onClick={apply}>
               {t('purchase.apply', { n: kept.length })}
