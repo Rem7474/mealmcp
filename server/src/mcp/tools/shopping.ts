@@ -13,10 +13,10 @@ export function registerShoppingTools({ shopping, purchase, tool, ro, rw, del }:
   );
   tool(
     'check_shopping_item',
-    'Check (bought) or uncheck a shopping list item, optionally with what the line cost.',
+    'Check (bought) or uncheck a shopping list item, optionally updating its price or quantity.',
     s.shoppingCheck.shape,
     rw,
-    (a) => shopping.setChecked(a.id, a.checked, a.price),
+    (a) => shopping.setChecked(a.id, a.checked, a.price, a.quantity),
   );
   tool('remove_shopping_item', 'Remove an item from the shopping list.', s.idParam.shape, del, (a) => shopping.remove(a.id));
   tool(

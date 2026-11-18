@@ -34,6 +34,7 @@ const TOOLS = {
     'list_meal_plan',
     'plan_meal',
     'plan_meals_bulk',
+    'update_planned_meal',
     'remove_planned_meal',
     'cook_planned_meal',
     'list_planning_slots',
