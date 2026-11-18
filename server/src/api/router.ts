@@ -1,4 +1,5 @@
 import { type ErrorRequestHandler, Router } from 'express';
+import rateLimit from 'express-rate-limit';
 import { ZodError } from 'zod';
 import type { LlmClient } from '../ai/client.js';
 import type { AccountService } from '../auth/accounts.js';
@@ -32,6 +33,15 @@ export function createApiRouter({ db, config, accounts, oauth, hub, llm }: Deps)
     next();
   });
   r.use(sameOriginOnly(config));
+  r.use(
+    rateLimit({
+      windowMs: 60_000,
+      limit: 600,
+      standardHeaders: false,
+      legacyHeaders: false,
+      message: { error: 'Too many requests, try again later' },
+    }),
+  );
   r.use(attachUser(accounts));
 
   r.use(createPublicAuthRoutes({ config, accounts }));
