@@ -17,7 +17,7 @@ export const householdSettings = z.object({
     .optional()
     .describe('How many people eat by default (e.g. 1). Planned meals are scaled to it unless a number of servings is given.'),
   plannedMeals: z
-    .partialRecord(z.enum(MEAL_TYPES), z.array(weekday))
+    .partialRecord(z.enum(MEAL_TYPES), z.array(weekday).max(7))
     .optional()
     .describe('Which meals are expected on which weekdays, e.g. {"dinner": [0,1,2,3,4]} for dinners from Sunday to Thursday (0 = Sunday).'),
   country: z
@@ -32,16 +32,19 @@ export const householdSettings = z.object({
     .object({
       diets: z
         .array(z.enum(DIETS))
+        .max(20)
         .max(DIETS.length)
         .optional()
         .describe('Diets the household follows; recipes with ingredients that break them are flagged and not suggested.'),
       allergens: z
         .array(z.enum(ALLERGENS))
+        .max(20)
         .max(ALLERGENS.length)
         .optional()
         .describe('Allergens to avoid (EU list). Matching is by ingredient name, so verify labels: this is a safety net, not a guarantee.'),
       avoid: z
         .array(z.string().trim().min(1).max(60))
+        .max(100)
         .max(50)
         .optional()
         .describe('Ingredient names the household does not want (dislikes, intolerances), e.g. ["coriander", "olives"].'),

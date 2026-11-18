@@ -78,6 +78,8 @@ const spend = (household: number, now = Date.now()) => {
     throw new ValidationError('Too many catalogue lookups in a minute. Try again shortly, or type the details by hand.');
   calls.push(now);
   recent.set(household, calls);
+  // Households that have not looked anything up for a minute have nothing left to remember.
+  if (recent.size > 1000) for (const [h, times] of recent) if (times.every((t) => now - t >= WINDOW_MS)) recent.delete(h);
 };
 /** For tests: forget the lookups counted so far. */
 export const resetCatalogLimit = () => recent.clear();

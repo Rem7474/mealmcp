@@ -25,7 +25,7 @@ const safeDecode = (v: string) => {
 };
 
 function parseCookies(header: string | undefined): Record<string, string> {
-  const out: Record<string, string> = {};
+  const out: Record<string, string> = Object.create(null);
   for (const part of header?.split(';') ?? []) {
     const i = part.indexOf('=');
     if (i > 0) out[part.slice(0, i).trim()] = safeDecode(part.slice(i + 1).trim());
@@ -43,9 +43,30 @@ export function setSessionCookie(res: Response, config: Config, token: string) {
   });
 }
 
-export const clearSessionCookie = (res: Response) => void res.clearCookie(SESSION_COOKIE, { path: '/' });
+export const clearSessionCookie = (res: Response, config: Config) =>
+  void res.clearCookie(SESSION_COOKIE, {
+    httpOnly: true,
+    sameSite: 'lax',
+    secure: isSecure(config),
+    path: '/',
+  });
 
 export const sessionTokenOf = (req: Request) => parseCookies(req.headers.cookie)[SESSION_COOKIE];
+
+/** One cookie of the request, by name. */
+export const cookieOf = (req: Request, name: string) => parseCookies(req.headers.cookie)[name];
+
+/** Binds an OAuth authorization request to the browser that started it (see auth/oauth.ts). */
+export const OAUTH_COOKIE = 'mealmcp_oauth';
+export function setOauthCookie(res: Response, config: Config, requestId: string) {
+  res.cookie(OAUTH_COOKIE, requestId, {
+    httpOnly: true,
+    sameSite: 'lax',
+    secure: isSecure(config),
+    maxAge: 10 * 60_000,
+    path: '/',
+  });
+}
 
 /** The token of an `Authorization: Bearer <token>` header (plain string handling, no backtracking regex). */
 const bearerOf = (header: string | undefined) => {
@@ -92,19 +113,30 @@ export const requireUser: RequestHandler = (req, _res, next) => {
 };
 
 /**
- * Defence in depth on top of SameSite=Lax cookies: a state-changing request
- * from a browser must come from the same host as the page it targets.
+ * Defence in depth on top of SameSite=Lax cookies: a state-changing request from a browser must come from the
+ * page's own origin (scheme included). Browsers that say `Sec-Fetch-Site: cross-site` or `same-site` (a sibling
+ * subdomain) are refused too, even when the Origin header is missing.
  */
-export const sameOriginOnly: RequestHandler = (req, _res, next) => {
-  const origin = req.headers.origin;
-  if (origin && !['GET', 'HEAD', 'OPTIONS'].includes(req.method)) {
-    let host = '';
-    try {
-      host = new URL(origin).host;
-    } catch {
-      /* invalid origin: rejected below */
+export const sameOriginOnly = (config: Config): RequestHandler => {
+  const own = config.publicUrl.origin;
+  return (req, _res, next) => {
+    if (!['GET', 'HEAD', 'OPTIONS'].includes(req.method)) {
+      const site = req.headers['sec-fetch-site'];
+      if (site === 'cross-site' || site === 'same-site') throw new ForbiddenError('Cross-origin request refused');
+      const origin = req.headers.origin;
+      if (origin) {
+        let host = '';
+        let protocol = '';
+        try {
+          ({ host, protocol } = new URL(origin));
+        } catch {
+          /* invalid origin: rejected below */
+        }
+        // Behind a TLS proxy the app sees http: the host must match, and the scheme must match what is published.
+        if (host !== req.host || (protocol !== req.protocol && protocol !== new URL(own).protocol))
+          throw new ForbiddenError('Cross-origin request refused');
+      }
     }
-    if (host !== req.host) throw new ForbiddenError('Cross-origin request refused');
-  }
-  next();
+    next();
+  };
 };

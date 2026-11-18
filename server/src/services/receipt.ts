@@ -28,8 +28,9 @@ export function sniff(buf: Buffer): ReceiptKind | null {
  * says so and falls back to the photo path. Pages and characters are capped; nothing is stored.
  */
 export async function pdfText(buf: Buffer): Promise<{ text: string } | { scan: true }> {
+  let pdf: Awaited<ReturnType<typeof getDocumentProxy>> | undefined;
   try {
-    const pdf = await getDocumentProxy(new Uint8Array(buf));
+    pdf = await getDocumentProxy(new Uint8Array(buf));
     if (pdf.numPages > MAX_PAGES) throw new ValidationError(`That PDF has too many pages (at most ${MAX_PAGES})`);
     const { text } = await extractText(pdf, { mergePages: true });
     const clean = text.replace(/[ \t]+/g, ' ').trim();
@@ -38,5 +39,8 @@ export async function pdfText(buf: Buffer): Promise<{ text: string } | { scan: t
   } catch (err) {
     if (err instanceof ValidationError) throw err;
     throw new ValidationError('That PDF could not be read');
+  } finally {
+    // Frees the parser's memory whatever happened.
+    await pdf?.cleanup().catch(() => {});
   }
 }

@@ -1,7 +1,7 @@
 import { type Request, Router } from 'express';
 import { z } from 'zod';
 import { type AccountService, accountDeleteInput, loginInput, passwordChangeInput, registerInput, tokenInput } from '../auth/accounts.js';
-import { clearSessionCookie, sessionOnly, sessionTokenOf, setSessionCookie } from '../auth/http.js';
+import { clearSessionCookie, cookieOf, OAUTH_COOKIE, sessionOnly, sessionTokenOf, setSessionCookie } from '../auth/http.js';
 import type { OAuthProvider } from '../auth/oauth.js';
 import { createRateLimiter } from '../auth/rateLimit.js';
 import type { Config } from '../config.js';
@@ -63,7 +63,7 @@ export function createPublicAuthRoutes({ config, accounts }: Pick<Deps, 'config'
   r.post('/auth/logout', (req, res) => {
     const token = sessionTokenOf(req);
     if (token) accounts.destroySession(token);
-    clearSessionCookie(res);
+    clearSessionCookie(res, config);
     res.status(204).end();
   });
 
@@ -71,12 +71,12 @@ export function createPublicAuthRoutes({ config, accounts }: Pick<Deps, 'config'
 }
 
 /** Account management for a signed-in person: household, devices, tokens, password, consent. Browser sessions only. */
-export function createAccountRoutes({ accounts, oauth }: Pick<Deps, 'accounts' | 'oauth'>) {
+export function createAccountRoutes({ config, accounts, oauth }: Deps) {
   const r = Router();
   // Password checks are a guessing oracle for anyone holding a stolen session: keep them slow.
   const reauth = createRateLimiter(5, 15 * 60_000);
 
-  r.get('/household', (req, res) => {
+  r.get('/household', sessionOnly, (req, res) => {
     const { householdId, householdName } = req.user!;
     res.json({ id: householdId, name: householdName, members: accounts.members(householdId) });
   });
@@ -138,15 +138,19 @@ export function createAccountRoutes({ accounts, oauth }: Pick<Deps, 'accounts' |
       throw err;
     }
     req.log?.info('account deleted', { userId: req.user!.id });
-    clearSessionCookie(res);
+    clearSessionCookie(res, config);
     res.status(204).end();
   });
 
   // Consent step of the OAuth flow for MCP clients (see auth/oauth.ts).
-  r.get('/oauth/requests/:request', sessionOnly, (req, res) => void res.json(oauth.describeRequest(String(req.params.request))));
+  r.get(
+    '/oauth/requests/:request',
+    sessionOnly,
+    (req, res) => void res.json(oauth.describeRequest(String(req.params.request), cookieOf(req, OAUTH_COOKIE))),
+  );
   r.post('/oauth/requests/:request/decision', sessionOnly, (req, res) => {
     const { approve } = decision.parse(req.body);
-    const result = oauth.decide(String(req.params.request), req.user!, approve);
+    const result = oauth.decide(String(req.params.request), req.user!, approve, cookieOf(req, OAUTH_COOKIE));
     req.log?.info(approve ? 'oauth grant approved' : 'oauth grant denied', { userId: req.user!.id });
     res.json(result);
   });

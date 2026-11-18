@@ -1,8 +1,9 @@
 import { type ErrorRequestHandler, Router } from 'express';
+import rateLimit from 'express-rate-limit';
 import { ZodError } from 'zod';
 import type { LlmClient } from '../ai/client.js';
 import type { AccountService } from '../auth/accounts.js';
-import { attachUser, requireUser, sameOriginOnly } from '../auth/http.js';
+import { attachUser, requireUser, sameOriginOnly, sessionOnly } from '../auth/http.js';
 import type { OAuthProvider } from '../auth/oauth.js';
 import type { Config } from '../config.js';
 import type { Db } from '../db/index.js';
@@ -31,7 +32,17 @@ export function createApiRouter({ db, config, accounts, oauth, hub, llm }: Deps)
     res.setHeader('Cache-Control', 'no-store');
     next();
   });
-  r.use(sameOriginOnly, attachUser(accounts));
+  r.use(sameOriginOnly(config));
+  r.use(
+    rateLimit({
+      windowMs: 60_000,
+      limit: 600,
+      standardHeaders: false,
+      legacyHeaders: false,
+      message: { error: 'Too many requests, try again later' },
+    }),
+  );
+  r.use(attachUser(accounts));
 
   r.use(createPublicAuthRoutes({ config, accounts }));
 
@@ -47,7 +58,7 @@ export function createApiRouter({ db, config, accounts, oauth, hub, llm }: Deps)
     next();
   });
 
-  r.get('/events', (req, res) => {
+  r.get('/events', sessionOnly, (req, res) => {
     res.set({
       'Content-Type': 'text/event-stream',
       'Cache-Control': 'no-cache, no-transform',
@@ -65,7 +76,7 @@ export function createApiRouter({ db, config, accounts, oauth, hub, llm }: Deps)
     });
   });
 
-  r.use(createAccountRoutes({ accounts, oauth }));
+  r.use(createAccountRoutes({ config, accounts, oauth }));
   r.use(createAiRoutes(db, llm));
   r.use(createKitchenRoutes(db));
 

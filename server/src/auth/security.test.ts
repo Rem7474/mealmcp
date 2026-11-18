@@ -230,4 +230,19 @@ describe('sign-up and sign-in hardening', () => {
     const cookie = await fetch(`${base}/api/auth/me`, { headers: { cookie: 'mealmcp_session=%E0%A4%A' } });
     expect(cookie.status).toBe(200);
   });
+
+  it('rejects bearer tokens on /api/household and /api/events, cross-site writes and oversized login emails', async () => {
+    const { b } = await signUp();
+    const { token } = await (await b.call('/api/tokens', { json: { name: 'script' } })).json();
+    const bearer = { authorization: `Bearer ${token}` };
+    expect((await fetch(`${base}/api/household`, { headers: bearer })).status).toBe(403);
+    expect((await fetch(`${base}/api/events`, { headers: bearer })).status).toBe(403);
+    expect((await fetch(`${base}/mcp`, { headers: bearer })).status).toBe(405);
+    expect((await fetch(`${base}/mcp`, { headers: bearer })).headers.get('allow')).toBe('POST');
+
+    expect((await b.call('/api/shopping', { json: { name: 'Eggs' }, headers: { 'sec-fetch-site': 'cross-site' } })).status).toBe(403);
+    expect((await browser().call('/api/auth/login', { json: { email: `${'a'.repeat(250)}@x.test`, password: PASSWORD } })).status).toBe(
+      400,
+    );
+  });
 });
