@@ -24,6 +24,14 @@ export const passwordChangeInput = z.object({
   newPassword: registerInput.shape.password,
 });
 
+export const profileUpdateInput = z
+  .object({
+    name: registerInput.shape.name.optional(),
+    email: registerInput.shape.email.optional(),
+    currentPassword: z.string().min(1).max(200).optional(),
+  })
+  .refine((v) => v.name !== undefined || v.email !== undefined, { message: 'Nothing to update' });
+
 export const accountDeleteInput = z.object({ password: z.string().min(1).max(200) });
 
 export const tokenInput = z.object({
@@ -217,6 +225,29 @@ export function createAccountService(db: Db, config: Config) {
     },
 
     // --- Password and account ----------------------------------------------
+
+    /** Updates the user's display name and/or email address. Changing the email requires the current password. */
+    async updateProfile(userId: number, input: z.infer<typeof profileUpdateInput>): Promise<CurrentUser> {
+      const row = db.select().from(users).where(eq(users.id, userId)).get();
+      if (!row) throw new NotFoundError('User', userId);
+      const nextName = input.name ?? row.name;
+      const nextEmail = input.email ?? row.email;
+      if (nextEmail !== row.email) {
+        if (!input.currentPassword || !(await verifyPassword(input.currentPassword, row.passwordHash))) {
+          throw new UnauthorizedError('Current password is incorrect');
+        }
+        const taken = db
+          .select({ id: users.id })
+          .from(users)
+          .where(and(eq(users.email, nextEmail), ne(users.id, userId)))
+          .get();
+        if (taken) throw new ValidationError('This email address is already in use');
+      }
+      if (nextName !== row.name || nextEmail !== row.email) {
+        db.update(users).set({ name: nextName, email: nextEmail }).where(eq(users.id, userId)).run();
+      }
+      return svc.getUser(userId);
+    },
 
     /** Changes the password after checking the current one, and signs every other device out. */
     async changePassword(userId: number, input: z.infer<typeof passwordChangeInput>, currentToken?: string) {
