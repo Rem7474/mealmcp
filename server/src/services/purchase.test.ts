@@ -79,6 +79,8 @@ describe('shopping done, from text', () => {
     // Rice was only partly bought: the rest stays to buy. Milk and salt are done.
     expect(svc.shopping.list().map((i) => [i.name, i.quantity])).toEqual([['Rice', 600]]);
     expect(svc.budget.getExpense(result.expenseId as number)).toMatchObject({ totalCents: 420, store: 'Shop' });
+    // Line prices are kept on the stock lines so waste valuation and paidPer reflect what was paid.
+    expect(svc.stock.list().find((i) => i.name === 'Milk')?.paidUnitPrice).toBeCloseTo(300 / 3000);
   });
 
   it('records no expense without a price or a total, and honours a total alone', () => {

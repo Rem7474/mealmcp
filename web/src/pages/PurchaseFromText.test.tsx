@@ -125,3 +125,34 @@ describe('PurchaseFromText with a receipt', () => {
     expect(screen.getByRole('button', { name: 'Check my list' })).toBeInTheDocument();
   });
 });
+
+describe('PurchaseFromText decimal comma', () => {
+  it('accepts a decimal comma in quantity, price and total', async () => {
+    const { calls } = mockApi({
+      'GET /ai/status': {
+        status: 200,
+        body: { enabled: false, reachable: false, text: false, textModel: null, visionModel: null, vision: 'no' },
+      },
+      'POST /shopping/from-text': {
+        status: 200,
+        body: {
+          lines: [{ text: 'Flour', name: 'Flour', quantity: 1, unit: 'kg', price: null, match: 'new', onList: false, include: true }],
+        },
+      },
+      'POST /shopping/from-text/apply': { status: 200, body: { addedToStock: 1, removedFromList: 0 } },
+    });
+    renderApp(<PurchaseFromText onClose={() => {}} />);
+    await userEvent.type(screen.getByLabelText('What you bought'), 'Flour');
+    await userEvent.click(screen.getByRole('button', { name: 'Check my list' }));
+
+    const qty = await screen.findByLabelText('Quantity of line 1');
+    await userEvent.clear(qty);
+    await userEvent.type(qty, '1,5');
+    await userEvent.type(screen.getByLabelText('Price of line 1'), '2,40');
+    await userEvent.type(screen.getByLabelText('Total paid (optional)'), '10,50');
+    await userEvent.click(screen.getByRole('button', { name: 'Put 1 away' }));
+
+    const sent = calls.find((c) => c.path === '/shopping/from-text/apply')?.body as Record<string, unknown>;
+    expect(sent).toMatchObject({ total: 10.5, lines: [{ name: 'Flour', quantity: 1.5, unit: 'kg', price: 2.4 }] });
+  });
+});

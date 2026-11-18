@@ -9,6 +9,8 @@ async function request<T>(method: string, path: string, body?: unknown): Promise
     // The session cookie is sent automatically (same origin).
     headers: body !== undefined ? { 'Content-Type': 'application/json' } : {},
     body: body !== undefined ? JSON.stringify(body) : undefined,
+    // A deferred deletion may fire while the page is going away: keepalive lets the request outlive it.
+    keepalive: method === 'DELETE',
   });
   if (res.status === 204) return undefined as T;
   const data = await res.json().catch(() => null);

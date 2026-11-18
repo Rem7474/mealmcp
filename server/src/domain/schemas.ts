@@ -11,7 +11,9 @@ const isoDate = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Expected a date formatt
 // Query strings and path parameters arrive as text: these coerce at runtime but are typed as plain numbers and booleans,
 // so callers (services, MCP tools) see the same input types as before.
 const num = () => z.coerce.number() as unknown as z.ZodNumber;
-const bool = () => z.coerce.boolean() as unknown as z.ZodBoolean;
+// Not z.coerce.boolean(): Boolean("false") is true, which would turn `?ignoreDiet=false` into "ignore the diet".
+const bool = () =>
+  z.preprocess((v) => (v === 'true' || v === '1' ? true : v === 'false' || v === '0' ? false : v), z.boolean()) as unknown as z.ZodBoolean;
 
 const id = num().int().positive();
 const unit = z.string().max(30).optional().describe('Unit such as g, kg, ml, l, or a free label (can, pack). Omit for countable pieces.');

@@ -18,7 +18,7 @@ import { addDays, formatDate, formatDay, formatMoney, fromIso, MEALS, monthStart
 import { locale, useT } from '../i18n';
 import type { BudgetStatus, HouseholdSettings, MealType, PlanCost, PlannedMeal, PlanSlot, RecipeSummary, Suggestions } from '../types';
 import { Accordion, Button, Card, Fab, Field, Input, Select, Sheet } from '../ui';
-import { confirmation, deferDelete } from '../undo';
+import { confirmation, deferDelete, usePendingKey } from '../undo';
 import { useCurrency } from './shared';
 import { WeekPlanner } from './WeekPlanner';
 
@@ -347,6 +347,7 @@ function MealCard({ meal, insight, large = false }: { meal: PlannedMeal; insight
   const currency = useCurrency();
   const { run, pending } = useAction();
   const [gone, setGone] = useState(false);
+  const hiddenWhilePending = usePendingKey() === `meal:${meal.id}`;
   const missing = insight ? insight.missing.length : 0;
   const missingEquipment = insight?.missingEquipment ?? [];
 
@@ -381,6 +382,7 @@ function MealCard({ meal, insight, large = false }: { meal: PlannedMeal; insight
               e.currentTarget.closest('details')?.removeAttribute('open');
               setGone(true);
               deferDelete({
+                key: `meal:${meal.id}`,
                 commit: () => void run(() => api.del(`/plan/${meal.id}`)),
                 undo: () => setGone(false),
               });
@@ -393,7 +395,7 @@ function MealCard({ meal, insight, large = false }: { meal: PlannedMeal; insight
     </div>
   );
 
-  if (gone) return null;
+  if (gone || hiddenWhilePending) return null;
 
   // A free-text meal ("Leftovers", "Restaurant") has no recipe, cost or stock status, but its title wraps like any other.
   return (

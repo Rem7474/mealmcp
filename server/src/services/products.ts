@@ -296,6 +296,9 @@ export function createProductService(db: Db, hid: number) {
       if (!removed) throw new NotFoundError('Alias', alias);
     },
   };
+  // Barcodes and the product row change together or not at all.
+  const write = svc.update;
+  svc.update = (input) => db.transaction(() => write(input));
   return svc;
 }
 
