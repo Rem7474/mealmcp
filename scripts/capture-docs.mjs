@@ -18,7 +18,7 @@ const dbPath = join(dbDir, 'demo.db');
 mkdirSync(outDir, { recursive: true });
 mkdirSync(dbDir, { recursive: true });
 
-const server = spawn('node', ['server/dist/index.js'], {
+const server = spawn(process.execPath, ['server/dist/index.js'], {
   cwd: root,
   stdio: 'inherit',
   env: {
