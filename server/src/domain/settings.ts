@@ -32,19 +32,16 @@ export const householdSettings = z.object({
     .object({
       diets: z
         .array(z.enum(DIETS))
-        .max(20)
         .max(DIETS.length)
         .optional()
         .describe('Diets the household follows; recipes with ingredients that break them are flagged and not suggested.'),
       allergens: z
         .array(z.enum(ALLERGENS))
-        .max(20)
         .max(ALLERGENS.length)
         .optional()
         .describe('Allergens to avoid (EU list). Matching is by ingredient name, so verify labels: this is a safety net, not a guarantee.'),
       avoid: z
         .array(z.string().trim().min(1).max(60))
-        .max(100)
         .max(50)
         .optional()
         .describe('Ingredient names the household does not want (dislikes, intolerances), e.g. ["coriander", "olives"].'),
