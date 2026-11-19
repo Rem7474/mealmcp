@@ -4,16 +4,33 @@
 // then commits "Release vX.Y.Z" and tags it. Nothing is pushed: review, then `git push --follow-tags`.
 // The release workflow refuses a tag that does not match these files.
 import { execFileSync } from 'node:child_process';
-import { readFileSync, writeFileSync } from 'node:fs';
-import { resolve } from 'node:path';
+import { existsSync, readFileSync, writeFileSync } from 'node:fs';
+import { delimiter, join, resolve } from 'node:path';
 
 const root = resolve(import.meta.dirname, '..');
 const files = ['package.json', 'server/package.json', 'web/package.json'].map((f) => resolve(root, f));
-const git = (...args) => execFileSync('git', args, { cwd: root, encoding: 'utf8' }).trim();
 const fail = (msg) => {
   console.error(`release: ${msg}`);
   process.exit(1);
 };
+
+function findGit() {
+  const isWin = process.platform === 'win32';
+  const bin = isWin ? 'git.exe' : 'git';
+  const pf = process.env.ProgramFiles ?? 'C:\\Program Files';
+  const standard = isWin
+    ? [join(pf, 'Git', 'cmd', bin), join(pf, 'Git', 'bin', bin)]
+    : ['/usr/bin/git', '/usr/local/bin/git', '/opt/homebrew/bin/git'];
+  const fromPath = (process.env.PATH ?? '')
+    .split(delimiter)
+    .filter(Boolean)
+    .map((dir) => join(dir, bin));
+  const found = [...standard, ...fromPath].find((p) => existsSync(p));
+  return found ?? fail('git executable not found');
+}
+
+const gitBin = findGit();
+const git = (...args) => execFileSync(gitBin, args, { cwd: root, encoding: 'utf8' }).trim();
 
 const read = (f) => JSON.parse(readFileSync(f, 'utf8'));
 const current = read(files[0]).version;
