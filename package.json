@@ -23,7 +23,7 @@
     "docs:screens": "node scripts/capture-docs.mjs"
   },
   "devDependencies": {
-    "@biomejs/biome": "2.6.6",
+    "@biomejs/biome": "2.6.8",
     "@playwright/test": "^1.65.1",
     "concurrently": "^10.0.7"
   },
