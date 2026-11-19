@@ -198,6 +198,8 @@ export const en = {
   'cooking.timer.done': 'Time is up!',
   'cooking.timer.runningStep': 'Step {step}: {time}',
   'cooking.timer.doneStep': 'Step {step}: done!',
+  'cooking.timer.startIn': 'Start this step in {time} to finish with step {step}',
+  'cooking.timer.startNow': 'Start this step now (step {step} finishes in {time})',
   'cooking.prev': 'Previous',
   'cooking.next': 'Next',
   'cooking.finish': 'Finish',

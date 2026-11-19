@@ -3,7 +3,7 @@ import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { mockApi, renderApp } from '../test/utils';
 import type { Ingredient, Recipe } from '../types';
-import { CookingMode, matchStepIngredients } from './CookingMode';
+import { CookingMode, computeStepStartSync, matchStepIngredients } from './CookingMode';
 
 beforeEach(() => {
   try {
@@ -122,5 +122,63 @@ describe('CookingMode', () => {
     await userEvent.click(screen.getByRole('button', { name: 'Finish & mark cooked' }));
     expect(calls.some((c) => c.method === 'POST' && c.path === '/plan/42/cook')).toBe(true);
     expect(onClose).toHaveBeenCalledTimes(1);
+  });
+
+  it('shows when to start the current step to finish together with an earlier running timer', async () => {
+    const twoTimerRecipe: Recipe = {
+      ...recipe,
+      steps: [
+        { position: 1, text: 'Cuire les tomates.', durationMinutes: 15, temperatureC: null, appliance: null },
+        { position: 2, text: 'Griller le pain.', durationMinutes: 5, temperatureC: null, appliance: null },
+      ],
+    };
+    renderApp(<CookingMode recipe={twoTimerRecipe} activeServings={2} onClose={vi.fn()} />);
+
+    await userEvent.click(screen.getByRole('button', { name: 'Start' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Next' }));
+
+    expect(screen.getByRole('status')).toHaveTextContent(/Start this step in (10:00|09:59) to finish with step 1/);
+
+    await userEvent.click(screen.getByRole('button', { name: 'Start' }));
+    expect(screen.queryByRole('status')).not.toBeInTheDocument();
+  });
+
+  it('tells the user to start now when an earlier running timer has less time left than the current step', async () => {
+    const twoTimerRecipe: Recipe = {
+      ...recipe,
+      steps: [
+        { position: 1, text: 'Faire revenir.', durationMinutes: 5, temperatureC: null, appliance: null },
+        { position: 2, text: 'Cuire les pâtes.', durationMinutes: 10, temperatureC: null, appliance: null },
+      ],
+    };
+    renderApp(<CookingMode recipe={twoTimerRecipe} activeServings={2} onClose={vi.fn()} />);
+
+    await userEvent.click(screen.getByRole('button', { name: 'Start' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Next' }));
+
+    expect(screen.getByRole('status')).toHaveTextContent(/Start this step now \(step 1 finishes in (05:00|04:59)\)/);
+  });
+});
+
+describe('computeStepStartSync', () => {
+  it('returns null when current step has no duration, is running, or is done', () => {
+    const timers = { 0: { remaining: 600, running: true, done: false } };
+    expect(computeStepStartSync(timers, 1, { remaining: 0, running: false, done: false })).toBeNull();
+    expect(computeStepStartSync(timers, 1, { remaining: 300, running: true, done: false })).toBeNull();
+    expect(computeStepStartSync(timers, 1, { remaining: 0, running: false, done: true })).toBeNull();
+  });
+
+  it('ignores paused or later timers and picks the longest running earlier timer', () => {
+    const timers = {
+      0: { remaining: 720, running: true, done: false },
+      1: { remaining: 900, running: false, done: false },
+      2: { remaining: 480, running: true, done: false },
+      4: { remaining: 1200, running: true, done: false },
+    };
+    expect(computeStepStartSync(timers, 3, { remaining: 300, running: false, done: false })).toEqual({
+      stepNumber: 1,
+      delaySeconds: 420,
+      targetRemaining: 720,
+    });
   });
 });

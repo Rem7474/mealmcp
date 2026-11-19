@@ -69,6 +69,37 @@ function formatCountdown(totalSeconds: number): string {
   return `${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
 }
 
+export type StepStartSync = {
+  stepNumber: number;
+  delaySeconds: number;
+  targetRemaining: number;
+};
+
+/**
+ * Computes when to start the current step so it finishes at the same time as the longest
+ * running timer from an earlier step, or null if synchronization does not apply.
+ */
+export function computeStepStartSync(timers: Record<number, StepTimer>, stepIndex: number, currentTimer: StepTimer): StepStartSync | null {
+  if (currentTimer.running || currentTimer.done || currentTimer.remaining <= 0) return null;
+
+  let targetIdx = -1;
+  let maxRemaining = 0;
+  for (const [k, tm] of Object.entries(timers)) {
+    const idx = Number(k);
+    if (idx < stepIndex && tm.running && tm.remaining > maxRemaining) {
+      targetIdx = idx;
+      maxRemaining = tm.remaining;
+    }
+  }
+  if (targetIdx === -1) return null;
+
+  return {
+    stepNumber: targetIdx + 1,
+    delaySeconds: maxRemaining - currentTimer.remaining,
+    targetRemaining: maxRemaining,
+  };
+}
+
 function playBeep() {
   try {
     const AudioCtx = window.AudioContext || (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
@@ -194,6 +225,7 @@ export function CookingMode({
   const otherTimers = Object.entries(timers)
     .map(([k, tm]) => ({ idx: Number(k), ...tm }))
     .filter((tm) => tm.idx !== stepIndex && (tm.running || tm.done));
+  const syncHint = computeStepStartSync(timers, stepIndex, currentTimer);
 
   const finishAndCook = async () => {
     if (mealId === undefined) return;
@@ -311,6 +343,20 @@ export function CookingMode({
                 </span>
               )}
             </div>
+          )}
+
+          {syncHint && (
+            <p
+              role="status"
+              className="flex items-center gap-2 rounded-2xl bg-accent/10 px-4 py-2.5 text-sm font-medium text-ink tabular-nums"
+            >
+              <Timer size={18} className="shrink-0 text-accent" />
+              <span>
+                {syncHint.delaySeconds > 0
+                  ? t('cooking.timer.startIn', { time: formatCountdown(syncHint.delaySeconds), step: syncHint.stepNumber })
+                  : t('cooking.timer.startNow', { time: formatCountdown(syncHint.targetRemaining), step: syncHint.stepNumber })}
+              </span>
+            </p>
           )}
 
           <p className="text-xl leading-relaxed font-medium sm:text-2xl sm:leading-relaxed">{step.text}</p>

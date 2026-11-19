@@ -199,6 +199,8 @@ export const fr: Messages = {
   'cooking.timer.done': 'Temps écoulé !',
   'cooking.timer.runningStep': 'Étape {step} : {time}',
   'cooking.timer.doneStep': 'Étape {step} : terminé !',
+  'cooking.timer.startIn': 'Démarrer cette étape dans {time} pour finir avec l’étape {step}',
+  'cooking.timer.startNow': 'Démarrer cette étape maintenant (l’étape {step} finit dans {time})',
   'cooking.prev': 'Précédent',
   'cooking.next': 'Suivant',
   'cooking.finish': 'Terminer',
