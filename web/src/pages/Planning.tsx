@@ -61,10 +61,10 @@ export function Planning() {
   return (
     <>
       <div className="flex flex-wrap items-center gap-2">
-        <Button className="w-11 px-0 sm:w-9" aria-label={t('plan.prevWeek')} onClick={() => setStart(addDays(start, -7))}>
+        <Button className="w-11 px-0! sm:w-9" aria-label={t('plan.prevWeek')} onClick={() => setStart(addDays(start, -7))}>
           <CaretLeft size={16} />
         </Button>
-        <Button className="w-11 px-0 sm:w-9" aria-label={t('plan.nextWeek')} onClick={() => setStart(addDays(start, 7))}>
+        <Button className="w-11 px-0! sm:w-9" aria-label={t('plan.nextWeek')} onClick={() => setStart(addDays(start, 7))}>
           <CaretRight size={16} />
         </Button>
         {start !== weekStart(today()) && (
