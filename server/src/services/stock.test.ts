@@ -173,6 +173,39 @@ describe('packs, opened jars and drained weight', () => {
     });
   });
 
+  it('moves the expiry of packs already open when the opened shelf life changes', () => {
+    const jar = svc.stock.add({ name: 'Pesto', quantity: 200, unit: 'g', expiresOn: addDays(today(), 30) });
+    svc.products.update({ id: jar.productId, openedShelfLifeDays: 5 });
+    const opened = svc.stock.open({ id: jar.id });
+    expect(opened.expiresOn).toBe(addDays(today(), 5));
+
+    svc.products.update({ id: jar.productId, openedShelfLifeDays: 10 });
+    expect(svc.stock.get(opened.id).expiresOn).toBe(addDays(today(), 10));
+    // The printed date still caps it.
+    svc.products.update({ id: jar.productId, openedShelfLifeDays: 90 });
+    expect(svc.stock.get(opened.id).expiresOn).toBe(addDays(today(), 30));
+  });
+
+  it('moves the expiry of frozen and thawed lines when the freezer durations or the category change', () => {
+    const steak = svc.stock.add({ name: 'Steak', quantity: 300, unit: 'g' });
+    svc.products.update({ id: steak.productId, category: 'meat_fish' });
+    const frozen = svc.stock.freeze({ id: steak.id });
+    expect(frozen.expiresOn).toBe(addDays(today(), 90));
+    svc.products.update({ id: steak.productId, frozenShelfLifeDays: 30 });
+    expect(svc.stock.get(steak.id).expiresOn).toBe(addDays(today(), 30));
+    // Back to the category default when the product's own figure is cleared.
+    svc.products.update({ id: steak.productId, frozenShelfLifeDays: null });
+    expect(svc.stock.get(steak.id).expiresOn).toBe(addDays(today(), 90));
+    // The category gives the default.
+    svc.products.update({ id: steak.productId, category: 'produce' });
+    expect(svc.stock.get(steak.id).expiresOn).toBe(addDays(today(), 240));
+
+    svc.stock.thaw(steak.id);
+    expect(svc.stock.get(steak.id).expiresOn).toBe(addDays(today(), 2));
+    svc.products.update({ id: steak.productId, thawedShelfLifeDays: 1 });
+    expect(svc.stock.get(steak.id).expiresOn).toBe(addDays(today(), 1));
+  });
+
   it('compares drained grams in recipes with net grams on the label', () => {
     const beans = svc.stock.add({ name: 'Beans', packCount: 2, packSize: 200, unit: 'g' });
     svc.products.update({ id: beans.productId, drained: { netGrams: 200, drainedGrams: 125 } });
