@@ -324,7 +324,7 @@ export function Shopping() {
                         />
                         <Button
                           variant="ghost"
-                          className="size-11 shrink-0 px-0 sm:size-8"
+                          className="size-11 shrink-0 px-0! sm:size-8"
                           aria-label={t('stock.remove', { name: item.name })}
                           onClick={() => {
                             setRemoved((r) => [...r, item.id]);

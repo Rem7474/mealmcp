@@ -263,7 +263,7 @@ export function Sheet({ title, onClose, children }: { title: ReactNode; onClose:
         <h2 id={titleId} className="text-2xl">
           {title}
         </h2>
-        <Button variant="ghost" className="-mr-2 w-11 px-0 sm:w-9" aria-label={t('app.close')} onClick={onClose}>
+        <Button variant="ghost" className="-mr-2 w-11 px-0! sm:w-9" aria-label={t('app.close')} onClick={onClose}>
           <X size={18} />
         </Button>
       </header>

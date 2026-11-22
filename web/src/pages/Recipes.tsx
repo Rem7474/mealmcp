@@ -359,7 +359,7 @@ function RecipeDetail({
           </a>
         </p>
       )}
-      <Button variant="ghost" className="px-0 lg:hidden" onClick={onBack}>
+      <Button variant="ghost" className="px-0! lg:hidden" onClick={onBack}>
         {t('recipes.back')}
       </Button>
       <Card
