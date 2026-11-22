@@ -1,7 +1,7 @@
-import { and, eq } from 'drizzle-orm';
+import { and, eq, isNotNull, or } from 'drizzle-orm';
 import type { z } from 'zod';
 import type { Db } from '../db/index.js';
-import { productAliases, productBarcodes, products } from '../db/schema.js';
+import { productAliases, productBarcodes, products, stockItems } from '../db/schema.js';
 import { normalizeGtin } from '../domain/barcode.js';
 import { guessCategory } from '../domain/categories.js';
 import type { Allergen } from '../domain/diet.js';
@@ -10,6 +10,7 @@ import type { ProductNutrition } from '../domain/nutrition.js';
 import type { aliasAdd, productUpdate, productUpdateByRef } from '../domain/schemas.js';
 import { shownPrice } from '../domain/unitPrice.js';
 import { normalizeUnit } from '../domain/units.js';
+import { effectiveExpiry, printedDate, type ShelfLifeProduct } from './shelfLife.js';
 
 const key = (name: string) => name.trim().toLowerCase();
 
@@ -244,12 +245,45 @@ export function createProductService(db: Db, hid: number) {
         ...(drained !== undefined ? { drainedRatio: drained ? drained.drainedGrams / drained.netGrams : null } : {}),
         ...(name !== undefined ? { name: name.trim(), nameKey: key(name) } : {}),
       };
+      const before = svc.get(id);
       if (Object.keys(changes).length > 0)
         db.update(products)
           .set(changes)
           .where(and(mine, eq(products.id, id)))
           .run();
-      return svc.get(id);
+      const after = svc.get(id);
+      const clockChanged =
+        after.openedShelfLifeDays !== before.openedShelfLifeDays ||
+        after.frozenShelfLifeDays !== before.frozenShelfLifeDays ||
+        after.thawedShelfLifeDays !== before.thawedShelfLifeDays ||
+        after.category !== before.category; // the category gives the default freezer durations
+      if (clockChanged) svc.refreshStoredExpiries(before, after);
+      return after;
+    },
+
+    /**
+     * New shelf-life figures move the stored expiry of lines already opened, frozen or thawed: the printed date is
+     * worked out with the old figures (it may be unknown for lines that predate the column), then the expiry with the new.
+     */
+    refreshStoredExpiries(before: ShelfLifeProduct, after: ShelfLifeProduct & { id: number }) {
+      const lines = db
+        .select()
+        .from(stockItems)
+        .where(
+          and(
+            eq(stockItems.householdId, hid),
+            eq(stockItems.productId, after.id),
+            or(isNotNull(stockItems.openedOn), isNotNull(stockItems.frozenOn), isNotNull(stockItems.thawedOn)),
+          ),
+        )
+        .all();
+      for (const line of lines) {
+        const printed = printedDate(line, before);
+        db.update(stockItems)
+          .set({ printedExpiresOn: printed, expiresOn: effectiveExpiry({ ...line, printedExpiresOn: printed }, after) })
+          .where(and(eq(stockItems.householdId, hid), eq(stockItems.id, line.id)))
+          .run();
+      }
     },
 
     /** The id of the product a caller means, by id or by name (or alias). */
