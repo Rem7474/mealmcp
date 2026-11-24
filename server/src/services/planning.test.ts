@@ -150,3 +150,42 @@ describe('meal history', () => {
     expect(svc.context.get().recentRecipeFrequency).toHaveLength(1);
   });
 });
+
+describe('recipe stats', () => {
+  it('counts only meals marked as cooked, with last time, frequency and the next planned one', () => {
+    const soup = svc.recipes.create({ name: 'Soup', servings: 4, ingredients: [{ name: 'Leek', quantity: 2, unit: 'piece' }] });
+    expect(svc.planner.recipeStats(soup.id)).toMatchObject({
+      timesCooked: 0,
+      lastCookedOn: null,
+      perMonth: 0,
+      averageServings: null,
+      recent: [],
+    });
+
+    const cook = (daysAgo: number, servings: number) => {
+      const meal = svc.planner.add({ date: addDays(today(), -daysAgo), mealType: 'dinner', recipeId: soup.id, servings });
+      svc.planner.cook(meal.id);
+    };
+    cook(60, 2);
+    cook(3, 4);
+    // Planned in the past but never cooked: not counted. Planned ahead: reported as next.
+    svc.planner.add({ date: addDays(today(), -1), mealType: 'lunch', recipeId: soup.id });
+    svc.planner.add({ date: addDays(today(), 5), mealType: 'dinner', recipeId: soup.id });
+
+    const stats = svc.planner.recipeStats(soup.id);
+    expect(stats).toMatchObject({
+      timesCooked: 2,
+      lastCookedOn: addDays(today(), -3),
+      firstCookedOn: addDays(today(), -60),
+      daysSinceLast: 3,
+      averageServings: 3,
+      nextPlannedOn: addDays(today(), 5),
+    });
+    expect(stats.perMonth).toBeCloseTo(0.98, 1);
+    expect(stats.recent.map((m) => m.date)).toEqual([addDays(today(), -3), addDays(today(), -60)]);
+  });
+
+  it('refuses a recipe that does not exist', () => {
+    expect(() => svc.planner.recipeStats(9999)).toThrow();
+  });
+});

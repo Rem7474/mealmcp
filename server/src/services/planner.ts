@@ -2,7 +2,7 @@ import { and, eq, gte, lte, sql } from 'drizzle-orm';
 import type { z } from 'zod';
 import type { Db } from '../db/index.js';
 import { MEAL_TYPES, mealPlan, recipes } from '../db/schema.js';
-import { addDays, today } from '../domain/dates.js';
+import { addDays, daysBetween, today } from '../domain/dates.js';
 import { NotFoundError, ValidationError } from '../domain/errors.js';
 import type { mealHistory, planAdd, planList } from '../domain/schemas.js';
 import { round } from '../domain/units.js';
@@ -131,6 +131,37 @@ export function createPlannerService(db: Db, hid: number, recipeService: RecipeS
         to: end,
         meals,
         recipes: [...byRecipe.values()].sort((a, b) => b.times - a.times || b.lastMadeOn.localeCompare(a.lastMadeOn)),
+      };
+    },
+
+    /**
+     * How a recipe has actually gone at home: only meals marked as cooked count (a planned meal may never
+     * have happened). A pure read, for the recipe page.
+     */
+    recipeStats(recipeId: number) {
+      recipeService.get(recipeId);
+      const end = today();
+      const cooked = view()
+        .where(and(mine, eq(mealPlan.recipeId, recipeId), eq(mealPlan.cooked, true), lte(mealPlan.date, end)))
+        .orderBy(sql`${mealPlan.date} desc`, sql`${mealPlan.id} desc`)
+        .all();
+      const upcoming = view()
+        .where(and(mine, eq(mealPlan.recipeId, recipeId), eq(mealPlan.cooked, false), gte(mealPlan.date, end)))
+        .orderBy(mealPlan.date, mealPlan.id)
+        .get();
+      const timesCooked = cooked.length;
+      const firstCookedOn = timesCooked ? cooked[timesCooked - 1]!.date : null;
+      // Meals per month over the span since the first time (at least one month, so one cook is not "30 a month").
+      const spanDays = firstCookedOn ? Math.max(30, daysBetween(firstCookedOn, end) + 1) : 0;
+      return {
+        timesCooked,
+        lastCookedOn: cooked[0]?.date ?? null,
+        firstCookedOn,
+        daysSinceLast: cooked[0] ? daysBetween(cooked[0].date, end) : null,
+        perMonth: timesCooked ? round((timesCooked * 30) / spanDays) : 0,
+        averageServings: timesCooked ? round(cooked.reduce((sum, m) => sum + m.servings, 0) / timesCooked) : null,
+        nextPlannedOn: upcoming?.date ?? null,
+        recent: cooked.slice(0, 5).map((m) => ({ id: m.id, date: m.date, mealType: m.mealType, servings: m.servings })),
       };
     },
 

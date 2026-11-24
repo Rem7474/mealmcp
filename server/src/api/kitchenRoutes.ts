@@ -89,6 +89,7 @@ export function createKitchenRoutes(db: Db) {
     '/recipes/:id/availability',
     (req, res) => void res.json(kitchen(req).recipes.availability(s.recipeAvailability.parse({ ...req.query, id: id(req.params) }))),
   );
+  r.get('/recipes/:id/stats', (req, res) => void res.json(kitchen(req).planner.recipeStats(id(req.params))));
   r.post('/recipes', (req, res) => void res.status(201).json(kitchen(req).recipes.create(s.recipeCreate.parse(req.body))));
   r.patch(
     '/recipes/:id',
