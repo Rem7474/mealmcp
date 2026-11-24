@@ -158,13 +158,14 @@ export function createKitchenRoutes(db: Db) {
     const { location, ...opts } = s.shoppingComplete.parse(req.body ?? {});
     res.json(kitchen(req).shopping.completePurchase(location, opts));
   });
+  r.get('/shopping/waste-risks', (req, res) => void res.json(kitchen(req).shopping.wasteRisks()));
   r.get('/shopping/estimate', (req, res) => void res.json(kitchen(req).shopping.estimate()));
   r.patch('/shopping/:id', (req, res) => {
     const shopping = kitchen(req).shopping;
     // A price or quantity edit alone must not change whether the item is checked.
     const current = shopping.get(id(req.params));
-    const { checked, price, quantity } = s.shoppingCheck.parse({ checked: current.checked, ...req.body, id: id(req.params) });
-    res.json(shopping.setChecked(id(req.params), checked, price, quantity));
+    const { checked, price, quantity, location } = s.shoppingCheck.parse({ checked: current.checked, ...req.body, id: id(req.params) });
+    res.json(shopping.setChecked(id(req.params), checked, price, quantity, location));
   });
   r.delete('/shopping/:id', (req, res) => {
     kitchen(req).shopping.remove(id(req.params));

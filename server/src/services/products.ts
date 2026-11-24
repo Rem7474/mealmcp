@@ -1,8 +1,9 @@
 import { and, eq, isNotNull, or } from 'drizzle-orm';
 import type { z } from 'zod';
 import type { Db } from '../db/index.js';
-import { productAliases, productBarcodes, products, stockItems } from '../db/schema.js';
+import { type Location, productAliases, productBarcodes, products, stockItems } from '../db/schema.js';
 import { normalizeGtin } from '../domain/barcode.js';
+import { FORMAT_UNITS, guessLocation } from '../domain/buyFormat.js';
 import { guessCategory } from '../domain/categories.js';
 import type { Allergen } from '../domain/diet.js';
 import { NotFoundError, ValidationError } from '../domain/errors.js';
@@ -229,7 +230,7 @@ export function createProductService(db: Db, hid: number) {
         .get();
     },
 
-    update({ id, name, staple, drained, allergens, barcode, ...rest }: z.infer<typeof productUpdate>) {
+    update({ id, name, staple, drained, allergens, barcode, buyPack, ...rest }: z.infer<typeof productUpdate>) {
       if (drained && drained.drainedGrams > drained.netGrams) throw new ValidationError('Drained weight cannot exceed the net weight');
       svc.get(id);
       if (name !== undefined) {
@@ -241,6 +242,7 @@ export function createProductService(db: Db, hid: number) {
       const changes = {
         ...rest,
         ...(staple !== undefined ? { isStaple: staple } : {}),
+        ...(buyPack !== undefined ? { buyPackSize: buyPack?.size ?? null, buyPackUnit: buyPack?.unit ?? null } : {}),
         ...(allergens !== undefined ? { allergens: allergens === null ? null : JSON.stringify(allergens) } : {}),
         ...(drained !== undefined ? { drainedRatio: drained ? drained.drainedGrams / drained.netGrams : null } : {}),
         ...(name !== undefined ? { name: name.trim(), nameKey: key(name) } : {}),
@@ -259,6 +261,35 @@ export function createProductService(db: Db, hid: number) {
         after.category !== before.category; // the category gives the default freezer durations
       if (clockChanged) svc.refreshStoredExpiries(before, after);
       return after;
+    },
+
+    /** Where this product goes when nobody says: where it was last put away, else a guess from its aisle. */
+    storageOf(product: { name: string; category: string | null; defaultLocation: Location | null }): Location {
+      return product.defaultLocation ?? guessLocation(product.category ?? guessCategory(product.name));
+    },
+
+    /** Remembers where a product was put away, so the next purchase goes there by itself. */
+    learnLocation(productId: number, location: Location) {
+      db.update(products)
+        .set({ defaultLocation: location })
+        .where(and(mine, eq(products.id, productId)))
+        .run();
+    },
+
+    /**
+     * A purchase line teaches the format the product is bought in (eggs by 6, skyr by 450 g): the last one seen wins.
+     * Loose produce and staples have none, and a line in a free unit (a can, a pack) says nothing about a size.
+     */
+    learnFormat(productId: number, quantity: number, unit: string) {
+      const product = svc.get(productId);
+      const u = normalizeUnit(unit);
+      if (product.buyLoose || product.isStaple || quantity <= 0 || !(FORMAT_UNITS as readonly string[]).includes(u)) return;
+      if ((product.category ?? guessCategory(product.name)) === 'produce') return;
+      if (product.buyPackSize === quantity && product.buyPackUnit === u) return;
+      db.update(products)
+        .set({ buyPackSize: quantity, buyPackUnit: u })
+        .where(and(mine, eq(products.id, productId)))
+        .run();
     },
 
     /**

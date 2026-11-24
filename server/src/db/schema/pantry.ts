@@ -41,6 +41,13 @@ export const products = sqliteTable(
     /** Brand and barcode (digits), for telling similar products apart and for the nutrition lookup. */
     brand: text('brand'),
     barcode: text('barcode'),
+    /** How it is usually bought, learned from receipts: one pack holds this much, in `buyPackUnit` (g, ml or piece). Null: no known format. */
+    buyPackSize: real('buy_pack_size'),
+    buyPackUnit: text('buy_pack_unit'),
+    /** Bought by the piece or by weight (carrots, lemons): the list is never rounded up to a pack, and no format is learned. */
+    buyLoose: integer('buy_loose', { mode: 'boolean' }).notNull().default(false),
+    /** Where it goes when bought (fridge, freezer, pantry), learned from where it was last put away. Null: guessed from the aisle. */
+    defaultLocation: text('default_location', { enum: LOCATIONS }),
   },
   (t) => [uniqueIndex('products_household_name_idx').on(t.householdId, t.nameKey)],
 );

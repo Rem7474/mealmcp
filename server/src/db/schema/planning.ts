@@ -1,5 +1,5 @@
 import { index, integer, real, sqliteTable, text } from 'drizzle-orm/sqlite-core';
-import { household, MEAL_TYPES } from './common.js';
+import { household, LOCATIONS, MEAL_TYPES } from './common.js';
 import { products } from './pantry.js';
 import { recipes } from './recipes.js';
 
@@ -56,6 +56,10 @@ export const shoppingItems = sqliteTable(
       .default('manual'),
     /** What this line cost (or is expected to cost), in cents. Entered while shopping. */
     priceCents: integer('price_cents'),
+    /** What the planned meals need, in `unit`, when `quantity` was rounded up to whole packs; the difference is the surplus. */
+    neededQuantity: real('needed_quantity'),
+    /** Where the person said to put it away when checking it (null: the product's usual place). */
+    location: text('location', { enum: LOCATIONS }),
   },
   (t) => [index('shopping_household_idx').on(t.householdId)],
 );
