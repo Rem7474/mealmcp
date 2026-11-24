@@ -105,7 +105,14 @@ export function ProductSheet({ product: p, onClose }: { product: Product; onClos
             <Field label={t('products.name')}>
               <Input required value={name} onChange={(e) => setName(e.target.value)} className="w-full" />
             </Field>
-            <Field label={t('products.aisle')}>
+            <Field
+              label={t('products.aisle')}
+              hint={
+                !category && p.suggestedCategory
+                  ? t('products.suggestedAisle', { aisle: t(`aisle.${p.suggestedCategory}` as MessageKey) })
+                  : undefined
+              }
+            >
               <Select value={category} onChange={(e) => setCategory(e.target.value)} className="w-full">
                 <option value="">{t('aisle.none')}</option>
                 {AISLES.map((c) => (
