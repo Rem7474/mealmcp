@@ -192,7 +192,10 @@ export function Recipes() {
                     )}
                     {/* Only a recipe already cooked says so; "never made" is the default and stays quiet. */}
                     {r.lastMadeOn && (
-                      <span className="text-xs text-muted">{t('recipes.lastMade', { date: formatDate(r.lastMadeOn) })}</span>
+                      <span className="text-xs text-muted">
+                        {t('recipes.lastMade', { date: formatDate(r.lastMadeOn) })}
+                        {r.timesMade > 1 ? ` · ${t('recipes.timesMade', { n: r.timesMade })}` : ''}
+                      </span>
                     )}
                   </span>
                 </span>

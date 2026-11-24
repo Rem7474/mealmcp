@@ -2,23 +2,12 @@ import { Plus } from '@phosphor-icons/react';
 import { useQuery } from '@tanstack/react-query';
 import { type FormEvent, useState } from 'react';
 import { api, useAction } from '../api';
-import {
-  addDays,
-  CURRENCIES,
-  currencyLabel,
-  currencySymbol,
-  formatDate,
-  formatMoney,
-  formatMonth,
-  formatQty,
-  monthStart,
-  today,
-} from '../format';
+import { addDays, CURRENCIES, currencyLabel, formatDate, formatMoney, formatMonth, formatQty, monthStart, today } from '../format';
 import { type MessageKey, useT } from '../i18n';
-import type { BudgetStatus, Expense, ExpenseSummary, Product, SpendingSummary, User } from '../types';
-import { Accordion, Button, Card, Empty, Fab, Field, Input, Select, Sheet } from '../ui';
-import { ProductSheet } from './ProductSheet';
-import { AISLES, ProductDatalist, parseQty, TrendMark, usePriceOverview, useProducts } from './shared';
+import type { BudgetStatus, Expense, ExpenseSummary, SpendingSummary, User } from '../types';
+import { Button, Card, Empty, Fab, Field, Input, Select, Sheet } from '../ui';
+import { PricesCard } from './PricesCard';
+import { AISLES, parseQty } from './shared';
 
 export function Budget({ user }: { user: User }) {
   return (
@@ -213,7 +202,8 @@ function SummaryCard({ currency }: { currency: string }) {
           <p className="font-semibold">
             {t('budget.summary.total', { total: formatMoney(data.totalCents, currency), n: data.expenseCount })}
           </p>
-          <div className="grid gap-6 md:grid-cols-3">
+          {/* One column: this card sits in half the page, too narrow for three side by side. */}
+          <div className="space-y-5">
             <section>
               <h3 className="mb-2 text-sm font-semibold text-muted">{t('budget.byCategory')}</h3>
               <Bars
@@ -402,129 +392,5 @@ function ExpenseRow({ expense, currency }: { expense: ExpenseSummary; currency: 
         </ul>
       )}
     </li>
-  );
-}
-
-/** Price of 1 kg / 1 l / 1 piece, the units people think in. */
-const displayUnit = (unit: string) =>
-  unit === 'g' ? { unit: 'kg', factor: 1000 } : unit === 'ml' ? { unit: 'l', factor: 1000 } : { unit, factor: 1 };
-
-function PricesCard({ currency }: { currency: string }) {
-  const t = useT();
-  const { run, pending } = useAction();
-  const { data: products = [] } = useProducts();
-  const overview = usePriceOverview();
-  const [editing, setEditing] = useState<number | null>(null);
-  const [newPrice, setNewPrice] = useState({ name: '', price: '', quantity: '1', unit: '' });
-  const priced = products.filter(
-    (p): p is Product & { unitPrice: number; priceUnit: string } => p.unitPrice !== null && p.priceUnit !== null,
-  );
-  const edited = editing !== null ? (products.find((p) => p.id === editing) ?? null) : null;
-
-  const save = (product: Product, shown: { unit: string; factor: number }, value: string) => {
-    const price = parseQty(value);
-    if (price === undefined || Number.isNaN(price)) return;
-    const current = ((product.unitPrice ?? 0) * shown.factor) / 100;
-    if (Math.abs(price - current) < 0.005) return;
-    void run(() => api.post('/products/price', { name: product.name, price, quantity: 1, unit: shown.unit }));
-  };
-
-  const addPrice = async (e: FormEvent) => {
-    e.preventDefault();
-    const price = parseQty(newPrice.price);
-    const quantity = parseQty(newPrice.quantity) ?? 1;
-    if (!newPrice.name.trim() || price === undefined || Number.isNaN(price) || price < 0 || Number.isNaN(quantity) || quantity <= 0) return;
-    await run(() =>
-      api.post('/products/price', {
-        name: newPrice.name.trim(),
-        price,
-        quantity,
-        ...(newPrice.unit.trim() ? { unit: newPrice.unit.trim() } : {}),
-      }),
-    );
-    setNewPrice({ name: '', price: '', quantity: '1', unit: '' });
-  };
-
-  return (
-    <Accordion summary={t('budget.prices.title')}>
-      <ProductDatalist />
-      {edited && <ProductSheet key={edited.id} product={edited} onClose={() => setEditing(null)} />}
-      <p className="mt-2 text-sm text-muted">{t('budget.prices.help')}</p>
-      <form onSubmit={addPrice} className="mt-3 flex flex-wrap items-end gap-2">
-        <Field label={t('budget.prices.product')} className="min-w-36 flex-1">
-          <Input
-            required
-            list="product-names"
-            placeholder={t('products.search')}
-            value={newPrice.name}
-            onChange={(e) => setNewPrice({ ...newPrice, name: e.target.value })}
-            className="w-full"
-          />
-        </Field>
-        <Field label={`${t('products.price')} (${currencySymbol(currency)})`}>
-          <Input
-            required
-            inputMode="decimal"
-            placeholder="0.00"
-            value={newPrice.price}
-            onChange={(e) => setNewPrice({ ...newPrice, price: e.target.value })}
-            className="w-24"
-          />
-        </Field>
-        <Field label={t('common.qty')}>
-          <Input
-            inputMode="decimal"
-            value={newPrice.quantity}
-            onChange={(e) => setNewPrice({ ...newPrice, quantity: e.target.value })}
-            className="w-20"
-          />
-        </Field>
-        <Field label={t('common.unit')}>
-          <Input
-            list="unit-names"
-            placeholder={t('common.unit')}
-            value={newPrice.unit}
-            onChange={(e) => setNewPrice({ ...newPrice, unit: e.target.value })}
-            className="w-20"
-          />
-        </Field>
-        <Button type="submit" disabled={pending}>
-          {t('budget.prices.add')}
-        </Button>
-      </form>
-      {priced.length === 0 ? (
-        <Empty>{t('budget.prices.empty')}</Empty>
-      ) : (
-        <ul className="mt-3 grid gap-x-6 gap-y-2 text-sm sm:grid-cols-2 lg:grid-cols-3">
-          {priced.map((p) => {
-            const shown = displayUnit(p.priceUnit);
-            return (
-              <li key={p.id} className="flex items-center gap-2">
-                <button
-                  type="button"
-                  onClick={() => setEditing(p.id)}
-                  className="min-w-0 flex-1 cursor-pointer truncate text-left hover:text-accent hover:underline"
-                >
-                  {p.name}
-                </button>
-                <TrendMark trend={overview.get(p.id)?.trend} />
-                <Input
-                  key={p.unitPrice}
-                  defaultValue={((p.unitPrice * shown.factor) / 100).toFixed(2)}
-                  inputMode="decimal"
-                  aria-label={t('budget.prices.aria', { name: p.name, unit: shown.unit })}
-                  onBlur={(e) => save(p, shown, e.target.value)}
-                  onKeyDown={(e) => e.key === 'Enter' && e.currentTarget.blur()}
-                  className="h-8 w-20 px-2 text-right"
-                />
-                <span className="w-16 text-muted">
-                  {currencySymbol(currency)}/{shown.unit === 'piece' ? '1' : shown.unit}
-                </span>
-              </li>
-            );
-          })}
-        </ul>
-      )}
-    </Accordion>
   );
 }
