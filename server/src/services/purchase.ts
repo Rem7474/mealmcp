@@ -77,8 +77,18 @@ export function createPurchaseService(
       return db.transaction(() => {
         let removedFromList = 0;
         for (const line of lines) {
-          const added = stock.add({ name: line.name, quantity: line.quantity, unit: line.unit, location, price: line.price });
+          // Where it goes: the place given for the whole trip, else this product's usual one.
+          const known = products.findByName(line.name) ?? { name: line.name, category: null, defaultLocation: null };
+          const added = stock.add({
+            name: line.name,
+            quantity: line.quantity,
+            unit: line.unit,
+            location: location ?? products.storageOf(known),
+            price: line.price,
+          });
           const base = toBase(line.quantity, line.unit ?? 'piece');
+          if (location) products.learnLocation(added.productId, location);
+          products.learnFormat(added.productId, base.quantity, normalizeUnit(base.unit));
           removedFromList += shopping.consume(added.productId, base.quantity, normalizeUnit(base.unit));
         }
         const priced = lines.filter((l) => l.price !== undefined);
@@ -90,10 +100,10 @@ export function createPurchaseService(
                 total,
                 items: priced.map((l) => ({ name: l.name, quantity: l.quantity, unit: l.unit, price: l.price as number })),
                 addToStock: false,
-                location,
+                location: location ?? 'pantry',
               })
             : null;
-        return { addedToStock: lines.length, removedFromList, location, expenseId: expense?.id ?? null };
+        return { addedToStock: lines.length, removedFromList, location: location ?? null, expenseId: expense?.id ?? null };
       });
     },
   };

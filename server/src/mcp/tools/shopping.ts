@@ -13,10 +13,10 @@ export function registerShoppingTools({ shopping, purchase, tool, ro, rw, del }:
   );
   tool(
     'check_shopping_item',
-    'Check (bought) or uncheck a shopping list item, optionally updating its price or quantity.',
+    'Check (bought) or uncheck a shopping list item. Give what the receipt says: the real quantity and price, and where to put it away (fridge, freezer, pantry; omit for the product usual place).',
     s.shoppingCheck.shape,
     rw,
-    (a) => shopping.setChecked(a.id, a.checked, a.price, a.quantity),
+    (a) => shopping.setChecked(a.id, a.checked, a.price, a.quantity, a.location),
   );
   tool('remove_shopping_item', 'Remove an item from the shopping list.', s.idParam.shape, del, (a) => shopping.remove(a.id));
   tool(
@@ -27,8 +27,15 @@ export function registerShoppingTools({ shopping, purchase, tool, ro, rw, del }:
     (a) => shopping.generateFromPlan(a),
   );
   tool(
+    'get_waste_risks',
+    'Fresh food that expires before the next planned meal that uses it (read-only): use it up sooner, move the meal, or freeze it.',
+    {},
+    ro,
+    () => shopping.wasteRisks(),
+  );
+  tool(
     'complete_shopping',
-    'Shopping done: move every checked item into stock and remove it from the list. If prices were entered on the lines (or a total is given) the purchase is also recorded as an expense.',
+    'Shopping done: move every checked item into stock (each in its own place unless a location is given) and remove it from the list. If prices were entered on the lines (or a total is given) the purchase is also recorded as an expense.',
     s.shoppingComplete.shape,
     rw,
     (a) => shopping.completePurchase(a.location, { store: a.store, total: a.total, date: a.date }),

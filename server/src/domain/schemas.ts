@@ -98,6 +98,21 @@ export const productUpdate = z.object({
     .nullable()
     .optional()
     .describe('Days it keeps once thawed (2 for meat, fish and bread). Null: the default for its category.'),
+  buyPack: z
+    .object({ size: z.number().positive().max(1_000_000), unit: z.enum(['g', 'ml', 'piece']) })
+    .nullable()
+    .optional()
+    .describe(
+      'How it is usually bought: one pack holds `size` of `unit` (eggs 6 piece, skyr 450 g). Learned from receipts; null forgets it.',
+    ),
+  buyLoose: z
+    .boolean()
+    .optional()
+    .describe('Bought loose, by the piece or by weight (carrots, lemons): the shopping list is never rounded up to a pack'),
+  defaultLocation: location
+    .nullable()
+    .optional()
+    .describe('Where it is put away when bought (fridge, freezer, pantry). Learned; null goes back to a guess from its aisle.'),
   allergens: z
     .array(z.enum(ALLERGENS))
     .nullable()
@@ -340,7 +355,16 @@ export const shoppingCheck = z.object({
   id,
   checked: z.boolean().default(true),
   price: moneyOrNull.optional().describe('What this line cost (or is expected to cost); null clears it'),
-  quantity: z.number().positive().max(1_000_000).optional().describe('Updated quantity in the item unit'),
+  quantity: z
+    .number()
+    .positive()
+    .max(1_000_000)
+    .optional()
+    .describe('Updated quantity in the item unit: what the receipt says was really bought'),
+  location: location
+    .nullable()
+    .optional()
+    .describe('Where to put it away when shopping is completed; null goes back to the product usual place'),
 });
 
 export const shoppingGenerate = z.object({
@@ -350,7 +374,7 @@ export const shoppingGenerate = z.object({
 });
 
 export const shoppingComplete = z.object({
-  location: location.default('pantry').describe('Where the purchased items are put away'),
+  location: location.optional().describe('Put every purchased item here. Omit to use each product usual place (fridge, freezer or pantry)'),
   store: z.string().trim().min(1).max(80).optional().describe('Shop name, recorded with the expense'),
   total: moneyOrNull.optional().describe('Amount actually paid, when it differs from the sum of the line prices'),
   date: isoDate.optional().describe('Purchase date; defaults to today'),
@@ -570,7 +594,7 @@ export const purchaseApply = z.object({
   store: z.string().trim().min(1).max(80).optional(),
   date: isoDate.optional(),
   total: money.optional().describe('Amount actually paid, when it differs from the sum of the lines'),
-  location: location.default('pantry'),
+  location: location.optional().describe('Put every line here. Omit to use each product usual place (fridge, freezer or pantry)'),
 });
 
 export const aiChat = z.object({

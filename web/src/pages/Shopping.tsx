@@ -2,9 +2,9 @@ import { ArrowsClockwise, Basket, Package, Plus, ShoppingCart, X } from '@phosph
 import { useQuery } from '@tanstack/react-query';
 import { type FormEvent, useState } from 'react';
 import { api, useAction } from '../api';
-import { addDays, currencySymbol, formatDay, formatMoney, formatQty, MEALS, today } from '../format';
+import { addDays, currencySymbol, formatDay, formatMoney, formatQty, LOCATIONS, MEALS, today } from '../format';
 import { type MessageKey, useI18n, useT } from '../i18n';
-import type { BudgetStatus, HouseholdSettings, ShoppingItem } from '../types';
+import type { BudgetStatus, HouseholdSettings, Location, ShoppingItem, WasteRisk } from '../types';
 import { Badge, Button, Card, Disclose, Empty, Input, Select } from '../ui';
 import { deferDelete, usePendingKey } from '../undo';
 import { PurchaseFromText } from './PurchaseFromText';
@@ -47,6 +47,10 @@ export function Shopping() {
   const pendingKey = usePendingKey();
   const items = all.filter((i) => !removed.includes(i.id) && pendingKey !== `shopping:${i.id}`);
   const { data: budget } = useQuery({ queryKey: ['budget', 'status'], queryFn: () => api.get<BudgetStatus>('/budget/status') });
+  const { data: risks = [] } = useQuery({
+    queryKey: ['shopping', 'waste-risks'],
+    queryFn: () => api.get<WasteRisk[]>('/shopping/waste-risks'),
+  });
   const { data: settings } = useQuery({ queryKey: ['settings'], queryFn: () => api.get<HouseholdSettings>('/settings') });
   const groupBy: GroupBy = settings?.shoppingGroupBy ?? 'none';
   const { run, pending } = useAction();
@@ -54,7 +58,11 @@ export function Shopping() {
   const [range, setRange] = useState({ from: today(), to: addDays(today(), 6), includeLowStock: true });
   const [editingQty, setEditingQty] = useState<number | null>(null);
   const [typing, setTyping] = useState(false);
-  const [complete, setComplete] = useState({ location: 'pantry', store: '', total: '' });
+  const [complete, setComplete] = useState<{ location: Location | ''; store: string; total: string }>({
+    location: '',
+    store: '',
+    total: '',
+  });
 
   const basket = items.filter((i) => i.checked);
   const open = items.filter((i) => !i.checked);
@@ -80,7 +88,7 @@ export function Shopping() {
   const finish = () =>
     run(() =>
       api.post('/shopping/complete', {
-        location: complete.location,
+        location: complete.location || undefined,
         store: complete.store.trim() || undefined,
         total: parseQty(complete.total),
       }),
@@ -252,6 +260,15 @@ export function Shopping() {
                                   <Badge tone="warn">{t('price.high')}</Badge>
                                 </span>
                               )}
+                              {item.needed !== null && (
+                                <span className="text-xs whitespace-nowrap text-muted" title={t('shopping.surplus.hint')}>
+                                  {t('shopping.packs', {
+                                    need: formatQty(item.needed, item.unit),
+                                    packs: item.packs ?? 1,
+                                    surplus: formatQty(item.surplus, item.unit),
+                                  })}
+                                </span>
+                              )}
                               {item.season === 'out' && !item.checked && (
                                 <span
                                   className="sm:hidden"
@@ -310,6 +327,14 @@ export function Shopping() {
                             <Badge tone="warn">{t('season.out')}</Badge>
                           </span>
                         )}
+                        {item.checked && (
+                          <LocationSelect
+                            aria-label={t('shopping.storeIn', { name: item.name })}
+                            value={item.storeIn}
+                            onChange={(e) => run(() => api.patch(`/shopping/${item.id}`, { location: e.target.value }))}
+                            className="hidden h-8 w-32 px-2 text-xs sm:block"
+                          />
+                        )}
                         <Input
                           key={`${item.priceCents}-${item.estimatedCents}`}
                           defaultValue={item.priceCents !== null ? item.priceCents / 100 : ''}
@@ -354,7 +379,18 @@ export function Shopping() {
             <div className="flex flex-wrap items-center gap-2 text-sm">
               <Basket size={20} className="text-accent" />
               <span>{t('shopping.complete.text', { n: basket.length })}</span>
-              <LocationSelect value={complete.location} onChange={(e) => setComplete({ ...complete, location: e.target.value })} />
+              <Select
+                aria-label={t('location.label')}
+                value={complete.location}
+                onChange={(e) => setComplete({ ...complete, location: e.target.value as Location | '' })}
+              >
+                <option value="">{t('shopping.complete.eachPlace')}</option>
+                {LOCATIONS.map((value) => (
+                  <option key={value} value={value}>
+                    {t(`location.${value}`)}
+                  </option>
+                ))}
+              </Select>
               <Input
                 placeholder={t('shopping.complete.store')}
                 aria-label={t('shopping.complete.store')}
@@ -397,6 +433,24 @@ export function Shopping() {
         </div>
       </div>
       <aside className="space-y-3 max-lg:hidden lg:pt-2">
+        {risks.length > 0 && (
+          <Card>
+            <h3 className="text-xs font-semibold tracking-wider text-muted uppercase">{t('shopping.waste.title')}</h3>
+            <ul className="mt-2 space-y-1.5 text-sm">
+              {risks.map((r) => (
+                <li key={r.stockId}>
+                  {t('shopping.waste.item', {
+                    name: r.name,
+                    qty: formatQty(r.quantity, r.unit),
+                    expires: formatDay(r.expiresOn),
+                    use: formatDay(r.nextUseOn),
+                    meal: r.nextUseMeal,
+                  })}
+                </li>
+              ))}
+            </ul>
+          </Card>
+        )}
         <Card>
           <h3 className="text-xs font-semibold tracking-wider text-muted uppercase">{t('shopping.rail.toBuy')}</h3>
           <div className="font-semibold tracking-tight mt-2 text-4xl tracking-tight tabular-nums">≈ {formatMoney(totalCost, currency)}</div>

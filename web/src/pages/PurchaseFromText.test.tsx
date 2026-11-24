@@ -45,7 +45,7 @@ describe('PurchaseFromText', () => {
       { name: 'Rice', quantity: 1.5, unit: 'kg', price: 3.1 },
       { name: 'Quinoa', quantity: 1 },
     ]);
-    expect(sent.location).toBe('pantry');
+    expect(sent.location).toBeUndefined(); // each product goes to its usual place
   });
 
   it('says so when nothing could be read', async () => {

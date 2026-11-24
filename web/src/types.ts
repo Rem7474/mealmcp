@@ -298,12 +298,33 @@ export interface ShoppingItem {
   priceCents: number | null;
   /** Entered price, else quantity x last known unit price, else null. */
   estimatedCents: number | null;
+  /** What the planned meals need when `quantity` was rounded up to whole packs, in the same unit; null otherwise. */
+  needed: number | null;
+  /** Size of one pack in `unit` and how many are on the line, when the product is bought in packs. */
+  packSize: number | null;
+  packs: number | null;
+  /** What is left over once the meals are served (`quantity` - `needed`). */
+  surplus: number;
+  /** Place chosen on the line (null: the usual one) and where it will go. */
+  location: Location | null;
+  storeIn: Location;
   pricePer: ShownPrice;
   /** Planned meals this generated line is for, earliest first. */
   meals: { id: number; date: string; mealType: MealType; title: string; recipeId: number | null }[];
   /** Fruit and vegetables only: in season where the household lives, or not. */
   season: 'in' | 'out' | null;
   seasonAlternatives: { id: string; en: string; fr: string }[];
+}
+
+export interface WasteRisk {
+  stockId: number;
+  productId: number;
+  name: string;
+  quantity: number;
+  unit: string;
+  expiresOn: string;
+  nextUseOn: string;
+  nextUseMeal: string;
 }
 
 export interface BudgetStatus {

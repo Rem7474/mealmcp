@@ -18,6 +18,7 @@ const TOOLS = {
     'discard_stock',
     'remove_stock_item',
     'get_stock_alerts',
+    'get_waste_risks',
     'get_waste_summary',
   ],
   recipes: [

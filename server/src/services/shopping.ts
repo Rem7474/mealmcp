@@ -2,8 +2,10 @@ import { and, eq, inArray, sql } from 'drizzle-orm';
 import type { z } from 'zod';
 import type { Db } from '../db/index.js';
 import { type Location, mealPlan, products, recipes, shoppingItemMeals, shoppingItems } from '../db/schema.js';
+import { roundToPacks } from '../domain/buyFormat.js';
 import { guessCategory } from '../domain/categories.js';
 import { convertQuantity, toDrainedFrame, toNetFrame } from '../domain/convert.js';
+import { addDays, today } from '../domain/dates.js';
 import { NotFoundError } from '../domain/errors.js';
 import { costCents, toCents } from '../domain/pricing.js';
 import type { shoppingAdd, shoppingComplete, shoppingGenerate } from '../domain/schemas.js';
@@ -39,6 +41,12 @@ export function createShoppingService(
         checked: shoppingItems.checked,
         source: shoppingItems.source,
         priceCents: shoppingItems.priceCents,
+        neededQuantity: shoppingItems.neededQuantity,
+        location: shoppingItems.location,
+        defaultLocation: products.defaultLocation,
+        buyPackSize: products.buyPackSize,
+        buyPackUnit: products.buyPackUnit,
+        buyLoose: products.buyLoose,
         unitPrice: products.unitPrice,
         priceUnit: products.priceUnit,
         gramsPerPiece: products.gramsPerPiece,
@@ -49,7 +57,22 @@ export function createShoppingService(
 
   type Row = ReturnType<ReturnType<typeof view>['all']>[number];
   /** Adds `estimatedCents`: the entered price, else quantity x last known unit price, else null. */
-  const decorate = ({ unitPrice, priceUnit, gramsPerPiece, gramsPerMl, ...row }: Row) => {
+  const decorate = ({
+    unitPrice,
+    priceUnit,
+    gramsPerPiece,
+    gramsPerMl,
+    buyPackSize,
+    buyPackUnit,
+    buyLoose,
+    defaultLocation,
+    neededQuantity,
+    ...row
+  }: Row) => {
+    // Bought in packs: how big one is, how many, and what is left over once the meals are served.
+    const packSize = !buyLoose && buyPackSize && buyPackUnit === row.unit ? buyPackSize : null;
+    const surplus =
+      neededQuantity != null && row.quantity != null && row.quantity > neededQuantity ? round(row.quantity - neededQuantity) : 0;
     const cost = row.quantity != null ? costCents({ unitPrice, priceUnit, gramsPerPiece, gramsPerMl }, row.quantity, row.unit) : null;
     const estimatedCents = row.priceCents ?? (cost !== null ? Math.round(cost) : null);
     // Fruit and vegetables out of season come with in-season alternatives of the same kind.
@@ -57,6 +80,12 @@ export function createShoppingService(
     return {
       ...row,
       category: row.category ?? guessCategory(row.name),
+      needed: neededQuantity,
+      packSize,
+      packs: packSize && row.quantity != null ? round(row.quantity / packSize) : null,
+      surplus,
+      /** Where it will be put away: the place chosen on the line, else the product's usual one. */
+      storeIn: row.location ?? productService.storageOf({ name: row.name, category: row.category, defaultLocation }),
       estimatedCents,
       pricePer: shownPrice({ unitPrice, priceUnit, gramsPerPiece, gramsPerMl }),
       season: season ? (season.inSeason ? ('in' as const) : ('out' as const)) : null,
@@ -158,13 +187,14 @@ export function createShoppingService(
     },
 
     /** Checks or unchecks an item; `price` (major units, null to clear) is what the line cost; `quantity` updates the amount. */
-    setChecked(id: number, checked: boolean, price?: number | null, quantity?: number) {
+    setChecked(id: number, checked: boolean, price?: number | null, quantity?: number, location?: Location | null) {
       this.get(id);
       db.update(shoppingItems)
         .set({
           checked,
           ...(price !== undefined ? { priceCents: price === null ? null : toCents(price) } : {}),
           ...(quantity !== undefined ? { quantity } : {}),
+          ...(location !== undefined ? { location } : {}),
         })
         .where(and(mine, eq(shoppingItems.id, id)))
         .run();
@@ -245,16 +275,30 @@ export function createShoppingService(
           // Nobody buys 0.25 of a lemon: round countable items up to whole pieces.
           const missing = n.unit === 'piece' ? Math.ceil(short - 1e-9) : short;
           if (missing > 0) {
+            // Bought by the label: 125 g of drained beans are 200 g net.
+            let quantity = round(toNetFrame(product, missing, n.unit));
+            let unit = n.unit;
+            let needed: number | null = null;
+            // A product bought in packs (eggs by 6, skyr 450 g) is rounded up to whole packs; the rest is surplus.
+            if (!product.buyLoose && product.buyPackSize && product.buyPackUnit) {
+              const inPackUnit = convertQuantity(quantity, n.unit, product.buyPackUnit, product);
+              if (inPackUnit !== null) {
+                const rounded = roundToPacks(inPackUnit, product.buyPackSize).quantity;
+                if (rounded > inPackUnit + 1e-9) needed = round(inPackUnit);
+                quantity = rounded;
+                unit = product.buyPackUnit;
+              }
+            }
             const line = db
               .insert(shoppingItems)
-              // Bought by the label: 125 g of drained beans are 200 g net.
               .values({
                 householdId: hid,
                 productId: n.productId,
-                quantity: round(toNetFrame(product, missing, n.unit)),
-                unit: n.unit,
+                quantity,
+                unit,
                 source: 'plan',
-                priceCents: prices.get(k) ?? null,
+                neededQuantity: needed,
+                priceCents: prices.get(stockKey(n.productId, unit)) ?? prices.get(k) ?? null,
               })
               .returning()
               .get();
@@ -271,6 +315,40 @@ export function createShoppingService(
         }
       });
       return this.list();
+    },
+
+    /**
+     * Fresh food that will go off before a planned meal gets to it (eggs expiring on Monday, a recipe on Thursday).
+     * A pure read, over the meals planned in the next `horizonDays` days that are not cooked yet.
+     */
+    wasteRisks(horizonDays = 14) {
+      const from = today();
+      const firstUse = new Map<number, { date: string; title: string }>();
+      for (const meal of planner.list({ from, to: addDays(from, horizonDays) })) {
+        if (!meal.recipeId || meal.cooked) continue;
+        const recipe = recipeService.get(meal.recipeId);
+        for (const ing of recipe.ingredients)
+          if (!ing.toTaste && !firstUse.has(ing.productId)) firstUse.set(ing.productId, { date: meal.date, title: recipe.name });
+      }
+      return stock
+        .list()
+        .flatMap((line) => {
+          const use = firstUse.get(line.productId);
+          if (!use || line.approximate || !line.expiresOn || line.expiresOn < from || line.expiresOn >= use.date) return [];
+          return [
+            {
+              stockId: line.id,
+              productId: line.productId,
+              name: line.name,
+              quantity: line.quantity,
+              unit: line.unit,
+              expiresOn: line.expiresOn,
+              nextUseOn: use.date,
+              nextUseMeal: use.title,
+            },
+          ];
+        })
+        .sort((a, b) => a.expiresOn.localeCompare(b.expiresOn));
     },
 
     /**
@@ -313,16 +391,20 @@ export function createShoppingService(
      * Moves every checked item into stock and clears it from the list. When prices were entered
      * (or a total is given) the purchase is also recorded as an expense, which teaches product prices.
      */
-    completePurchase(location: Location = 'pantry', opts: Omit<z.infer<typeof shoppingComplete>, 'location'> = {}) {
+    completePurchase(location: Location | undefined, opts: Omit<z.infer<typeof shoppingComplete>, 'location'> = {}) {
       // One transaction for the whole thing: a failed expense must not leave a half-emptied list.
       return db.transaction(() => {
         const bought = this.list().filter((i) => i.checked);
         for (const item of bought) {
+          // Put away where asked for the whole trip, else where this line was sent, else the product's usual place.
+          const where = location ?? item.storeIn;
+          if (location ?? item.location) productService.learnLocation(item.productId, where);
+          if (item.quantity != null) productService.learnFormat(item.productId, item.quantity, item.unit);
           stock.add({
             name: item.name,
             quantity: item.quantity ?? 1,
             unit: item.unit,
-            location,
+            location: where,
             price: item.priceCents === null ? undefined : item.priceCents / 100,
           });
           db.delete(shoppingItems)
@@ -343,10 +425,10 @@ export function createShoppingService(
                   price: (i.priceCents as number) / 100,
                 })),
                 addToStock: false,
-                location,
+                location: location ?? 'pantry',
               })
             : null;
-        return { movedToStock: bought.length, location, expenseId: expense?.id ?? null };
+        return { movedToStock: bought.length, location: location ?? null, expenseId: expense?.id ?? null };
       });
     },
   };

@@ -53,8 +53,8 @@ export function PurchaseFromText({ onClose }: { onClose: () => void }) {
   const { run, pending } = useAction();
   const [text, setText] = useState('');
   const [drafts, setDrafts] = useState<Draft[] | null>(null);
-  const [meta, setMeta] = useState<{ location: Location; store: string; total: string; date: string }>({
-    location: 'pantry',
+  const [meta, setMeta] = useState<{ location: Location | ''; store: string; total: string; date: string }>({
+    location: '',
     store: '',
     total: '',
     date: '',
@@ -97,7 +97,7 @@ export function PurchaseFromText({ onClose }: { onClose: () => void }) {
           ...(d.unit.trim() ? { unit: d.unit.trim() } : {}),
           ...(num(d.price) >= 0 ? { price: num(d.price) } : {}),
         })),
-        location: meta.location,
+        ...(meta.location ? { location: meta.location } : {}),
         ...(meta.store.trim() ? { store: meta.store.trim() } : {}),
         ...(meta.date ? { date: meta.date } : {}),
         ...(num(meta.total) >= 0 ? { total: num(meta.total) } : {}),
@@ -202,7 +202,8 @@ export function PurchaseFromText({ onClose }: { onClose: () => void }) {
             </ul>
             <div className="grid gap-2 sm:grid-cols-4">
               <Field label={t('purchase.where')}>
-                <Select value={meta.location} onChange={(e) => setMeta({ ...meta, location: e.target.value as Location })}>
+                <Select value={meta.location} onChange={(e) => setMeta({ ...meta, location: e.target.value as Location | '' })}>
+                  <option value="">{t('shopping.complete.eachPlace')}</option>
                   {LOCATIONS.map((l) => (
                     <option key={l} value={l}>
                       {t(`location.${l}`)}
