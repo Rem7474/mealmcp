@@ -4,7 +4,7 @@ import { type FormEvent, useEffect, useState } from 'react';
 import { api, useAction } from '../api';
 import { formatDate, formatMoney, formatQty, MEALS, today } from '../format';
 import { locale, type MessageKey, useI18n, useT } from '../i18n';
-import type { Availability, MealType, Produce, Recipe, RecipeCost, RecipeSummary, Seasonal } from '../types';
+import type { Availability, MealType, Produce, Recipe, RecipeCost, RecipeStats, RecipeSummary, Seasonal } from '../types';
 import { Accordion, Badge, Button, Card, Empty, Field, Input, Select, Sheet, Stars } from '../ui';
 import { CookingMode } from './CookingMode';
 import { RecipeNutrition } from './Nutrition';
@@ -434,6 +434,9 @@ function RecipeDetail({
             )}
           </p>
         )}
+        <div className="mt-3">
+          <RecipeHistory id={id} />
+        </div>
         <RecipeNutrition id={id} />
 
         <h3 className="mt-4 mb-2 flex flex-wrap items-center gap-2 font-semibold">
@@ -494,6 +497,60 @@ function RecipeDetail({
         )}
       </Card>
     </>
+  );
+}
+
+/** When this recipe was last cooked and how often: only meals marked as cooked count. */
+function RecipeHistory({ id }: { id: number }) {
+  const t = useT();
+  const { data } = useQuery({ queryKey: ['recipe', id, 'stats'], queryFn: () => api.get<RecipeStats>(`/recipes/${id}/stats`) });
+  if (!data) return null;
+  if (data.timesCooked === 0) {
+    return (
+      <Accordion summary={t('recipes.stats.title')}>
+        <p className="mt-3 text-sm text-muted">{t('recipes.stats.never')}</p>
+        {data.nextPlannedOn && (
+          <p className="mt-1 text-sm">
+            {t('recipes.stats.next')}: {formatDate(data.nextPlannedOn)}
+          </p>
+        )}
+      </Accordion>
+    );
+  }
+  const since = data.daysSinceLast;
+  const ago =
+    since === 0 ? t('recipes.stats.today') : since === 1 ? t('recipes.stats.yesterday') : t('recipes.stats.daysAgo', { n: since ?? 0 });
+  const tiles: [string, string][] = [
+    [t('recipes.stats.last'), `${formatDate(data.lastCookedOn ?? '')} (${ago})`],
+    [t('recipes.stats.times'), String(data.timesCooked)],
+    [t('recipes.stats.perMonth'), String(data.perMonth)],
+    [t('recipes.stats.avgServings'), String(data.averageServings ?? '')],
+    [t('recipes.stats.first'), formatDate(data.firstCookedOn ?? '')],
+  ];
+  if (data.nextPlannedOn) tiles.push([t('recipes.stats.next'), formatDate(data.nextPlannedOn)]);
+  return (
+    <Accordion summary={t('recipes.stats.title')} defaultOpen>
+      <dl className="mt-3 grid grid-cols-2 gap-2 text-sm sm:grid-cols-3">
+        {tiles.map(([label, value]) => (
+          <div key={label} className="rounded-xl bg-surface-high/60 p-2.5">
+            <dt className="text-xs text-muted">{label}</dt>
+            <dd className="font-medium tabular-nums">{value}</dd>
+          </div>
+        ))}
+      </dl>
+      <h4 className="mt-3 mb-1 text-xs font-medium text-muted">{t('recipes.stats.recent')}</h4>
+      <ul className="space-y-0.5 text-sm text-muted">
+        {data.recent.map((m) => (
+          <li key={m.id}>
+            {t('recipes.stats.recentEntry', {
+              date: formatDate(m.date),
+              meal: t(`meal.${m.mealType}`),
+              servings: t('common.servings', { n: m.servings }),
+            })}
+          </li>
+        ))}
+      </ul>
+    </Accordion>
   );
 }
 

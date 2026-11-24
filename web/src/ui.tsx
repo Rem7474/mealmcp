@@ -68,9 +68,9 @@ export function Card({ title, actions, children }: { title?: ReactNode; actions?
 }
 
 /** A card whose body folds away behind its title: the one pattern for optional forms and settings. */
-export function Accordion({ summary, children }: { summary: ReactNode; children: ReactNode }) {
+export function Accordion({ summary, children, defaultOpen }: { summary: ReactNode; children: ReactNode; defaultOpen?: boolean }) {
   return (
-    <details className="rounded-2xl bg-surface p-4 sm:p-5">
+    <details open={defaultOpen} className="rounded-2xl bg-surface p-4 sm:p-5">
       <summary className="flex min-h-11 cursor-pointer items-center py-0.5 font-semibold sm:min-h-0 sm:block">{summary}</summary>
       {children}
     </details>

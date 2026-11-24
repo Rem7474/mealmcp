@@ -226,6 +226,18 @@ export interface RecipeSummary {
   dietConflicts: { ingredient: string; reasons: string[] }[];
 }
 
+/** How a recipe went at home: only meals marked as cooked count. */
+export interface RecipeStats {
+  timesCooked: number;
+  lastCookedOn: string | null;
+  firstCookedOn: string | null;
+  daysSinceLast: number | null;
+  perMonth: number;
+  averageServings: number | null;
+  nextPlannedOn: string | null;
+  recent: { id: number; date: string; mealType: MealType; servings: number }[];
+}
+
 export interface Ingredient {
   id: number;
   productId: number;
