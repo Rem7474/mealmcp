@@ -17,7 +17,7 @@ export default defineConfig({
       include: ['src/**/*.{ts,tsx}'],
       exclude: ['src/**/*.test.{ts,tsx}', 'src/test/**', 'src/main.tsx', 'src/i18n/en.ts', 'src/i18n/fr.ts'],
       reporter: ['text-summary', 'lcov'],
-      thresholds: { lines: 31, functions: 22, statements: 31, branches: 24 },
+      thresholds: { lines: 63, functions: 55, statements: 63, branches: 59 },
     },
   },
 });

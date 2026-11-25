@@ -591,7 +591,11 @@ function ProductRow({
         <Select
           aria-label={t('products.aisle')}
           value={aisle}
-          onChange={(e) => run(() => api.patch(`/products/${p.id}`, { category: e.target.value || null }))}
+          onChange={(e) => {
+            // Read now: React puts the controlled value back before the request is built.
+            const category = e.target.value || null;
+            void run(() => api.patch(`/products/${p.id}`, { category }));
+          }}
           className="h-8 w-40 px-2 text-xs"
         >
           <option value="">{t('aisle.none')}</option>
