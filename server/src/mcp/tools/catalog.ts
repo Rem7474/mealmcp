@@ -1,5 +1,5 @@
-import * as c from '../../domain/catalogSchemas.js';
 import { ValidationError } from '../../domain/errors.js';
+import * as c from '../../domain/schemas/catalog.js';
 import type { ToolContext } from './context.js';
 
 export function registerCatalogTools({ catalog, tool, ro }: ToolContext) {

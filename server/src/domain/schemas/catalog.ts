@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { stockAdd } from './schemas.js';
+import { stockAdd } from './stock.js';
 
 const barcode = z
   .string()
