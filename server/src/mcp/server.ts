@@ -27,7 +27,7 @@ Diet and allergies: the household settings hold diets, allergens and ingredients
 Variety: get_meal_history shows what was cooked lately and how often per recipe; do not repeat recipes made recently. get_meal_context returns everything useful to propose a menu in a single call: start there.
 Nutrition is an optional module (household setting nutrition.enabled, off by default): when on, tools search_nutrition and set_product_nutrition fill per-product values from Open Food Facts, and get_recipe_nutrition / get_meal_plan_nutrition report calories and macros with the share of ingredients covered. Say when totals are incomplete.
 Waste: discard_stock records food thrown away (with its estimated cost) and get_waste_summary reports it.
-Several items at once? Use the *_bulk tools instead of many single calls.
+Several items at once? Use the *_bulk tools instead of many single calls. One product in detail (settings, stock, prices, waste, recipes)? get_product reads it all at once.
 Money: amounts you send are decimal numbers in the household currency (2.49); amounts you receive are integers in cents (249). Record purchases with record_expense so prices feed the cost estimates.
 Typical flow: plan meals (plan_meal) -> generate_shopping_list for the planned period -> check items while shopping -> complete_shopping moves them into stock -> cook_planned_meal takes ingredients out of stock.`;
 

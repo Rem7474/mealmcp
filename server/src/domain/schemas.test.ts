@@ -59,6 +59,7 @@ describe('schemas barrel', () => {
         'stockDiscard',
         'stockFreeze',
         'stockFreezeByRef',
+        'stockFreezeOrThawByRef',
         'stockLineRef',
         'stockList',
         'stockOpen',

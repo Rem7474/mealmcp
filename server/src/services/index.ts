@@ -7,6 +7,7 @@ import { createNextActionsService } from './nextActions.js';
 import { createNutritionService } from './nutrition.js';
 import { createPlannerService } from './planner.js';
 import { createPriceService } from './prices.js';
+import { createProductSheetService } from './productSheet.js';
 import { createProductService } from './products.js';
 import { createPurchaseService } from './purchase.js';
 import { createRecipeService } from './recipes.js';
@@ -35,6 +36,7 @@ export function createServices(db: Db, householdId: number) {
   const planner = createPlannerService(db, householdId, recipes, stock, settings);
   const nutrition = createNutritionService(db, householdId, settings, products, recipes, planner);
   const prices = createPriceService(db, householdId, products);
+  const productSheet = createProductSheetService(db, householdId, products, stock, prices);
   const budget = createBudgetService(db, householdId, products, stock, recipes, planner, prices);
   const weekPlan = createWeekPlanService(db, householdId, recipes, planner, settings, products);
   const shopping = createShoppingService(db, householdId, products, stock, recipes, planner, budget, seasons);
@@ -55,6 +57,7 @@ export function createServices(db: Db, householdId: number) {
     seasons,
     equipment,
     products,
+    productSheet,
     stock,
     recipes,
     planner,

@@ -335,6 +335,13 @@ describe('MCP tools', () => {
     expect(JSON.parse((await call(t, 'list_stock', { location: 'fridge' })).text)).toEqual(
       expect.arrayContaining([expect.objectContaining({ name: 'Mince', quantity: 700 })]),
     );
+    // The same tool takes it back out of the freezer.
+    const thawed = await call(t, 'freeze_stock_item', { name: 'Mince', action: 'thaw' });
+    expect(JSON.parse(thawed.text)).toMatchObject({ quantity: 300, frozen: false, thawed: true, location: 'fridge' });
+    // One read gives the whole product: settings, stock, prices.
+    const sheet = JSON.parse((await call(t, 'get_product', { name: 'Salmon' })).text);
+    expect(sheet).toMatchObject({ product: { name: 'Salmon' }, stock: { total: 400 }, price: { latestCents: 2000 }, usedInRecipes: [] });
+    expect((await call(t, 'get_product', { name: 'Nothing like this' })).error).toBe(true);
     expect((await call(t, 'get_price_history', { name: 'Nothing like this' })).error).toBe(true);
     expect((await call(t, 'discard_stock', { id: 999999, reason: 'spoiled' })).error).toBe(true);
   });
