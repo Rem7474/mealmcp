@@ -1,7 +1,7 @@
 import { z } from 'zod';
-import * as c from '../../domain/catalogSchemas.js';
 import { today } from '../../domain/dates.js';
 import { ValidationError } from '../../domain/errors.js';
+import * as c from '../../domain/schemas/catalog.js';
 import * as s from '../../domain/schemas.js';
 import type { ToolContext } from './context.js';
 
