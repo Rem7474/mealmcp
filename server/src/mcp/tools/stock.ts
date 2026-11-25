@@ -51,17 +51,13 @@ export function registerStockTools({ stock, catalog, tool, ro, rw, del }: ToolCo
   );
   tool(
     'freeze_stock_item',
-    'Put a stock line in the freezer. The freezing date replaces the printed date as the clock: it keeps the product frozen shelf life (update_product frozenShelfLifeDays; a default per category otherwise). Refuses a line that was already thawed unless refreeze=true. Moving a line to the freezer with update_stock_item location does the same. Only part of a line (a pack split before freezing)? Give quantity: the line is split and only that part is frozen.',
-    s.stockFreezeByRef.shape,
+    'Put a stock line in the freezer, or take it out with action=thaw. Freezing: the freezing date replaces the printed date as the clock and the line keeps the product frozen shelf life (update_product frozenShelfLifeDays; a default per category otherwise); a line that was already thawed is refused unless refreeze=true; only part of a line (a pack split before freezing)? Give quantity: the line is split and only that part is frozen. Thawing: the line moves to the fridge, must be used within the product thawed shelf life (update_product thawedShelfLifeDays, 2 days by default for meat, fish and bread) and is flagged use-by. Moving a line in or out of the freezer with update_stock_item location does the same.',
+    s.stockFreezeOrThawByRef.shape,
     rw,
-    ({ name, id, ...rest }) => stock.freeze({ ...rest, id: stock.resolve({ id, name }, (l) => !l.frozen) }),
-  );
-  tool(
-    'thaw_stock_item',
-    'Take a line out of the freezer (it moves to the fridge). It must now be used within the product thawed shelf life (update_product thawedShelfLifeDays, 2 days by default for meat, fish and bread) and is flagged use-by.',
-    s.stockLineRef.shape,
-    rw,
-    (a) => stock.thaw(stock.resolve(a, (l) => l.frozen || l.location === 'freezer')),
+    ({ name, id, action, ...rest }) =>
+      action === 'thaw'
+        ? stock.thaw(stock.resolve({ id, name }, (l) => l.frozen || l.location === 'freezer'))
+        : stock.freeze({ ...rest, id: stock.resolve({ id, name }, (l) => !l.frozen) }),
   );
   tool(
     'unopen_stock_item',

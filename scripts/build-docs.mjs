@@ -13,7 +13,6 @@ const TOOLS = {
     'open_stock_item',
     'unopen_stock_item',
     'freeze_stock_item',
-    'thaw_stock_item',
     'consume_stock',
     'discard_stock',
     'remove_stock_item',
@@ -72,6 +71,7 @@ const TOOLS = {
   nutrition: ['search_nutrition', 'set_product_nutrition', 'autofill_recipe_nutrition', 'get_recipe_nutrition', 'get_meal_plan_nutrition'],
   more: [
     'list_products',
+    'get_product',
     'search_catalog',
     'update_product',
     'update_products_bulk',

@@ -1,10 +1,17 @@
 import * as s from '../../domain/schemas.js';
 import type { ToolContext } from './context.js';
 
-export function registerProductsTools({ products, tool, ro, rw }: ToolContext) {
+export function registerProductsTools({ products, productSheet, tool, ro, rw }: ToolContext) {
   // --- Products ------------------------------------------------------------
   tool('list_products', 'List all known products with their category, default unit and minimum stock threshold.', {}, ro, () =>
     products.list(),
+  );
+  tool(
+    'get_product',
+    'Everything about one product in a single read (its id from list_products, or its name or an alias): its settings (category, unit, threshold, staple, conversions, shelf lives, allergens, aliases, barcodes), the stock lines and total at home, the price history (latest, average, trend, cheapest shop, high when the latest price is well above the average), what was thrown away and the recipes that use it. Read it before changing or advising on a product instead of calling list_stock, get_price_history and get_waste_summary.',
+    s.productRefParam.shape,
+    ro,
+    (a) => productSheet.get(products.idOf(a)),
   );
   tool(
     'update_product',

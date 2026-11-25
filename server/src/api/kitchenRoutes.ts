@@ -38,6 +38,7 @@ export function createKitchenRoutes(db: Db) {
   });
   r.get('/products', (req, res) => void res.json(kitchen(req).products.list()));
   r.get('/prices', (req, res) => void res.json(kitchen(req).prices.overview()));
+  r.get('/products/:id', (req, res) => void res.json(kitchen(req).productSheet.get(id(req.params))));
   r.get('/products/:id/prices', (req, res) => void res.json(kitchen(req).prices.history(id(req.params))));
   r.patch(
     '/products/:id',

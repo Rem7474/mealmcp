@@ -475,6 +475,12 @@ export const stockLineRef = z.object(lineRef);
 export const stockOpenByRef = stockOpen.omit({ id: true }).extend(lineRef);
 export const stockUpdateByRef = stockUpdate.omit({ id: true }).extend(lineRef);
 export const stockFreezeByRef = stockFreeze.omit({ id: true }).extend(lineRef);
+export const stockFreezeOrThawByRef = stockFreezeByRef.extend({
+  action: z
+    .enum(['freeze', 'thaw'])
+    .default('freeze')
+    .describe('freeze (default) puts the line in the freezer; thaw takes it out (quantity and refreeze are then ignored)'),
+});
 export const stockUpdateMany = z.object({ items: z.array(stockUpdateByRef).min(1).max(100) });
 
 const productRef = {
