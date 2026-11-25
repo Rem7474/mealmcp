@@ -1,8 +1,8 @@
 import type { z } from 'zod';
 import { normalizeGtin, numericPackSize, type PackSize, parsePackSize } from '../domain/barcode.js';
-import type { stockAddFromCode } from '../domain/catalogSchemas.js';
 import { ValidationError } from '../domain/errors.js';
 import { fromOpenFoodFacts, type NutrientValues } from '../domain/nutrition.js';
+import type { stockAddFromCode } from '../domain/schemas/catalog.js';
 import type { stockAdd } from '../domain/schemas.js';
 import type { ProductService } from './products.js';
 import type { StockService } from './stock.js';

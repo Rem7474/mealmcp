@@ -1,6 +1,6 @@
 import { type Request, Router } from 'express';
 import type { Db } from '../db/index.js';
-import * as c from '../domain/catalogSchemas.js';
+import * as c from '../domain/schemas/catalog.js';
 import * as s from '../domain/schemas.js';
 import { createServices } from '../services/index.js';
 import { starterQuery, starterRecipesAdd, starterStockAdd } from '../services/starter.js';
