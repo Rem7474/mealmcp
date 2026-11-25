@@ -298,7 +298,11 @@ export function Shopping() {
                           <Select
                             aria-label={t('products.aisle')}
                             value={item.category ?? ''}
-                            onChange={(e) => run(() => api.patch(`/products/${item.productId}`, { category: e.target.value || null }))}
+                            onChange={(e) => {
+                              // Read now: React puts the controlled value back before the request is built.
+                              const category = e.target.value || null;
+                              void run(() => api.patch(`/products/${item.productId}`, { category }));
+                            }}
                             className="hidden h-8 w-36 px-2 text-xs sm:block"
                           >
                             <option value="">{t('aisle.none')}</option>
@@ -331,7 +335,10 @@ export function Shopping() {
                           <LocationSelect
                             aria-label={t('shopping.storeIn', { name: item.name })}
                             value={item.storeIn}
-                            onChange={(e) => run(() => api.patch(`/shopping/${item.id}`, { location: e.target.value }))}
+                            onChange={(e) => {
+                              const location = e.target.value;
+                              void run(() => api.patch(`/shopping/${item.id}`, { location }));
+                            }}
                             className="hidden h-8 w-32 px-2 text-xs sm:block"
                           />
                         )}

@@ -1,4 +1,4 @@
-import { screen, within } from '@testing-library/react';
+import { screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { mockApi, renderApp } from '../test/utils';
@@ -128,5 +128,105 @@ describe('PricesCard', () => {
       price: 0.95,
       quantity: 1000,
     });
+  });
+});
+
+describe('PricesCard corrections', () => {
+  const routes = (products: Product[], extra: Parameters<typeof mockApi>[0] = {}) =>
+    mockApi({
+      'GET /auth/me': me,
+      'GET /products': { status: 200, body: products },
+      'GET /prices': { status: 200, body: [] },
+      'POST /products/price': { status: 200, body: {} },
+      ...extra,
+    });
+  const posts = (calls: { method: string; path: string; body: unknown }[]) =>
+    calls.filter((c) => c.method === 'POST' && c.path === '/products/price').map((c) => c.body);
+
+  it('shows prices per kg, litre or piece and saves a corrected one in that unit', async () => {
+    const { calls } = routes([
+      product(1, 'Apples'),
+      product(2, 'Milk', { defaultUnit: 'ml', priceUnit: 'ml', unitPrice: 0.095 }),
+      product(3, 'Eggs', { defaultUnit: 'piece', priceUnit: 'piece', unitPrice: 30 }),
+    ]);
+    renderApp(<PricesCard currency="EUR" />);
+    const apples = await screen.findByRole('textbox', { name: 'Price of Apples per kg' });
+    expect(apples).toHaveValue('11.90');
+    expect(screen.getByRole('textbox', { name: 'Price of Milk per l' })).toHaveValue('0.95');
+    const eggs = screen.getByRole('textbox', { name: 'Price of Eggs per piece' });
+    expect(eggs).toHaveValue('0.30');
+    expect(screen.getByText('€/1')).toBeInTheDocument();
+
+    // Leaving the field unchanged, or with something that is not a price, sends nothing.
+    await userEvent.click(apples);
+    await userEvent.tab();
+    await userEvent.clear(eggs);
+    await userEvent.type(eggs, 'abc{Enter}');
+    expect(posts(calls)).toEqual([]);
+
+    await userEvent.clear(apples);
+    await userEvent.type(apples, '12,50{Enter}');
+    await waitFor(() => expect(posts(calls)).toEqual([{ name: 'Apples', price: 12.5, quantity: 1, unit: 'kg' }]));
+  });
+
+  it('says when nothing is priced yet', async () => {
+    routes([product(1, 'Salt', { unitPrice: null, priceUnit: null, pricePer: null })]);
+    renderApp(<PricesCard currency="EUR" />);
+    expect(await screen.findByText('No product has a price yet.')).toBeInTheDocument();
+    expect(screen.queryByRole('searchbox')).toBeNull();
+  });
+
+  it('refuses a negative price or an empty quantity, sends the unit typed and clears the form', async () => {
+    const { calls } = routes([]);
+    renderApp(<PricesCard currency="EUR" />);
+    await screen.findByText('No product has a price yet.');
+
+    await userEvent.type(screen.getByLabelText('Product'), 'Saffron');
+    await userEvent.type(screen.getByLabelText('Price (€)'), '-3');
+    await userEvent.click(screen.getByRole('button', { name: 'Add a price' }));
+    await userEvent.clear(screen.getByLabelText('Price (€)'));
+    await userEvent.type(screen.getByLabelText('Price (€)'), '6');
+    await userEvent.clear(screen.getByLabelText('Paid for'));
+    await userEvent.type(screen.getByLabelText('Paid for'), '0');
+    await userEvent.click(screen.getByRole('button', { name: 'Add a price' }));
+    expect(posts(calls)).toEqual([]);
+
+    await userEvent.clear(screen.getByLabelText('Paid for'));
+    await userEvent.type(screen.getByLabelText('Paid for'), '2');
+    await userEvent.type(screen.getByLabelText('Unit'), ' g ');
+    await userEvent.click(screen.getByRole('button', { name: 'Add a price' }));
+    await waitFor(() => expect(posts(calls)).toEqual([{ name: 'Saffron', price: 6, quantity: 2, unit: 'g' }]));
+    await waitFor(() => expect(screen.getByLabelText('Product')).toHaveValue(''));
+    expect(screen.getByLabelText('Paid for')).toHaveValue('1');
+  });
+
+  it('opens the product sheet from its name', async () => {
+    routes([product(1, 'Apples')], {
+      'GET /products/1/prices': {
+        status: 200,
+        body: {
+          productId: 1,
+          name: 'Apples',
+          per: 'kg',
+          latestCents: 1190,
+          averageCents: 1190,
+          minCents: 1190,
+          maxCents: 1190,
+          trend: null,
+          count: 1,
+          alternative: null,
+          byStore: [],
+          cheapestStore: null,
+          high: false,
+          freeform: null,
+          observations: [],
+        },
+      },
+    });
+    renderApp(<PricesCard currency="EUR" />);
+    await userEvent.click(await screen.findByRole('button', { name: 'Apples' }));
+    const sheet = await screen.findByRole('dialog', { name: 'Apples' });
+    await userEvent.click(within(sheet).getByRole('button', { name: 'Close' }));
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
   });
 });
