@@ -1,5 +1,5 @@
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
-import { ZodError, type ZodRawShape, type z } from 'zod';
+import { ZodError, type ZodRawShape, z } from 'zod';
 import type { Services } from '../services/index.js';
 import { VERSION } from '../version.js';
 import { registerBudgetTools } from './tools/budget.js';
@@ -46,7 +46,8 @@ export function createMcpServer(services: Services, onChange?: () => void) {
       name,
       {
         description,
-        inputSchema: shape,
+        // Strict: a misspelled or unknown field is an error, not silently dropped (the caller would think it was saved).
+        inputSchema: z.strictObject(shape),
         annotations: { readOnlyHint: !!opts.readOnly, destructiveHint: !!opts.destructive },
       },
       // Cast: the SDK's callback type depends on the schema shape in a way generics here can't express.
